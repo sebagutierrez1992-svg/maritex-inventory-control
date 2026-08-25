@@ -1,0 +1,13 @@
+html, body, [data-testid="stAppViewContainer"] {
+    background: #f7f8fa;
+}
+.block-container {
+    max-width: 1500px;
+    padding-top: 1.6rem;
+}
+[data-testid="stSidebar"] {
+    background: #090c0f;
+}
+[data-testid="stSidebar"] * {
+    color: #eef1f4;
+}
