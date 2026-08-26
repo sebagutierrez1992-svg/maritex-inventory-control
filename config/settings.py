@@ -1,6 +1,6 @@
 from pathlib import Path
 
-APP_VERSION = "V61 - Modular Refactor"
+APP_VERSION = "V61.7.1 - Fix Stock Metrics"
 APP_TITLE = "Maritex Inventory Control"
 
 BASE_DIR = Path(__file__).resolve().parents[1]

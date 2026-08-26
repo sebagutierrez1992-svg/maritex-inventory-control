@@ -1,13 +1,1160 @@
+:root {
+    --vtx-bg:#f7f8fa;
+    --vtx-surface:#ffffff;
+    --vtx-border:#e1e5e9;
+    --vtx-text:#20242a;
+    --vtx-muted:#737e89;
+}
+
 html, body, [data-testid="stAppViewContainer"] {
-    background: #f7f8fa;
+    background:#f7f8fa;
+    color:var(--vtx-text);
 }
+
+[data-testid="stHeader"] {
+    background:transparent;
+}
+
 .block-container {
-    max-width: 1500px;
-    padding-top: 1.6rem;
+    max-width:1600px;
+    padding-top:.8rem;
+    padding-bottom:2rem;
 }
-[data-testid="stSidebar"] {
-    background: #090c0f;
+
+
+/* ============================================================
+   SIDEBAR · MARITEX ADMIN
+   Navegación compacta, uniforme y sin radio-buttons visibles.
+   ============================================================ */
+
+[data-testid="stSidebar"]{
+    width:280px !important;
+    min-width:280px !important;
+    background:#070a0d !important;
+    border-right:1px solid #1c2228 !important;
 }
-[data-testid="stSidebar"] * {
-    color: #eef1f4;
+
+[data-testid="stSidebar"] > div:first-child{
+    width:280px !important;
+    min-width:280px !important;
+    background:#070a0d !important;
+}
+
+/* Contenedor interno */
+[data-testid="stSidebarUserContent"]{
+    min-height:calc(100vh - 1.5rem);
+    display:flex;
+    flex-direction:column;
+    padding:26px 16px 18px !important;
+}
+
+/* Todo el texto del sidebar */
+[data-testid="stSidebar"]{
+    color:#f4f6f8;
+}
+
+[data-testid="stSidebar"] p,
+[data-testid="stSidebar"] span,
+[data-testid="stSidebar"] div{
+    color:inherit;
+}
+
+/* ------------------------------------------------------------
+   MARCA
+   ------------------------------------------------------------ */
+
+.sidebar-brand{
+    padding:4px 6px 21px;
+    margin-bottom:4px;
+}
+
+.sidebar-brand::before{
+    content:"";
+    display:block;
+    width:34px;
+    height:3px;
+    margin-bottom:15px;
+    border-radius:999px;
+    background:#d8ff00;
+}
+
+.sidebar-brand-name{
+    color:#ffffff !important;
+    font-size:18px;
+    line-height:1.2;
+    font-weight:800;
+    letter-spacing:-.025em;
+}
+
+.sidebar-brand-subtitle{
+    margin-top:5px;
+    color:#7f8993 !important;
+    font-size:11px;
+    line-height:1.35;
+    font-weight:550;
+}
+
+/* ------------------------------------------------------------
+   TÍTULO DE SECCIÓN
+   ------------------------------------------------------------ */
+
+.sidebar-section-title{
+    margin:5px 8px 8px;
+    color:#68727c !important;
+    font-size:9px;
+    font-weight:850;
+    line-height:1;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+}
+
+/* ------------------------------------------------------------
+   RADIO -> MENÚ
+   ------------------------------------------------------------ */
+
+/* El radio no debe reservar margen lateral */
+[data-testid="stSidebar"] .stRadio{
+    width:100%;
+    margin:0 !important;
+}
+
+/* Grupo de opciones */
+[data-testid="stSidebar"] .stRadio div[role="radiogroup"]{
+    width:100%;
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+}
+
+/* Cada opción ocupa exactamente el mismo ancho */
+[data-testid="stSidebar"] .stRadio div[role="radiogroup"] > label{
+    position:relative;
+    box-sizing:border-box;
+    width:100% !important;
+    min-width:100% !important;
+    max-width:100% !important;
+    min-height:44px !important;
+    margin:0 !important;
+    padding:0 13px !important;
+
+    display:flex !important;
+    align-items:center !important;
+
+    border:1px solid transparent !important;
+    border-radius:9px !important;
+    background:transparent !important;
+
+    color:#c9d0d6 !important;
+    cursor:pointer;
+    transition:
+        background .16s ease,
+        border-color .16s ease,
+        color .16s ease,
+        transform .16s ease;
+}
+
+/* Oculta el círculo del st.radio */
+[data-testid="stSidebar"] .stRadio div[role="radiogroup"] > label > div:first-child{
+    display:none !important;
+}
+
+/* Fallback para distintas versiones de Streamlit/BaseWeb */
+[data-testid="stSidebar"] .stRadio label [data-baseweb="radio"]{
+    display:none !important;
+}
+
+[data-testid="stSidebar"] .stRadio label input[type="radio"]{
+    position:absolute !important;
+    opacity:0 !important;
+    pointer-events:none !important;
+}
+
+/* Texto del botón */
+[data-testid="stSidebar"] .stRadio div[role="radiogroup"] > label p{
+    margin:0 !important;
+    color:inherit !important;
+    font-size:12px !important;
+    line-height:1.2 !important;
+    font-weight:650 !important;
+    white-space:nowrap;
+}
+
+/* Hover */
+[data-testid="stSidebar"] .stRadio div[role="radiogroup"] > label:hover{
+    background:#10151a !important;
+    border-color:#202831 !important;
+    color:#ffffff !important;
+    transform:translateX(1px);
+}
+
+/* Activo */
+[data-testid="stSidebar"] .stRadio div[role="radiogroup"] > label:has(input:checked){
+    background:#151b20 !important;
+    border-color:#273039 !important;
+    color:#ffffff !important;
+    box-shadow:none !important;
+}
+
+/* Barra lima del activo */
+[data-testid="stSidebar"] .stRadio div[role="radiogroup"] > label:has(input:checked)::before{
+    content:"";
+    position:absolute;
+    left:-1px;
+    top:8px;
+    bottom:8px;
+    width:3px;
+    border-radius:0 999px 999px 0;
+    background:#d8ff00;
+}
+
+/* Pequeño punto de estado seleccionado */
+[data-testid="stSidebar"] .stRadio div[role="radiogroup"] > label:has(input:checked)::after{
+    content:"";
+    position:absolute;
+    right:12px;
+    top:50%;
+    width:5px;
+    height:5px;
+    border-radius:50%;
+    background:#d8ff00;
+    transform:translateY(-50%);
+    box-shadow:0 0 0 3px rgba(216,255,0,.08);
+}
+
+/* Espacio para no superponer el punto derecho */
+[data-testid="stSidebar"] .stRadio div[role="radiogroup"] > label:has(input:checked) p{
+    padding-right:13px;
+}
+
+/* ------------------------------------------------------------
+   FOOTER / VERSIÓN
+   ------------------------------------------------------------ */
+
+.sidebar-info{
+    margin-top:auto;
+    padding:22px 6px 2px;
+}
+
+.sidebar-info-line{
+    height:1px;
+    margin-bottom:14px;
+    background:#1d242a;
+}
+
+.sidebar-version{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+}
+
+.sidebar-version span{
+    color:#66717b !important;
+    font-size:8px;
+    font-weight:800;
+    letter-spacing:.10em;
+}
+
+.sidebar-version strong{
+    color:#aab2ba !important;
+    font-size:9px;
+    font-weight:750;
+}
+
+/* ------------------------------------------------------------
+   BOTÓN DE COLAPSAR SIDEBAR
+   ------------------------------------------------------------ */
+
+[data-testid="stSidebarCollapseButton"] button{
+    color:#8c969f !important;
+    border-radius:8px !important;
+}
+
+[data-testid="stSidebarCollapseButton"] button:hover{
+    background:#141a1f !important;
+    color:#ffffff !important;
+}
+
+/* ------------------------------------------------------------
+   RESPONSIVE
+   ------------------------------------------------------------ */
+
+@media(max-width:900px){
+    [data-testid="stSidebar"],
+    [data-testid="stSidebar"] > div:first-child{
+        width:260px !important;
+        min-width:260px !important;
+    }
+
+    [data-testid="stSidebarUserContent"]{
+        padding-left:13px !important;
+        padding-right:13px !important;
+    }
+}
+
+
+/* ============================================================
+   V60 · VENDEDORES
+   ============================================================ */
+
+.seller-head{
+    position:relative;
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:20px;
+    background:transparent;
+    border:0;
+    padding:0 0 19px;
+    margin:0 0 17px;
+    box-shadow:none;
+}
+
+.seller-head::before{
+    content:"MARITEX ADMIN  /";
+    position:absolute;
+    left:0;
+    top:-2px;
+    color:#98a2b3;
+    font-size:9px;
+    font-weight:800;
+    letter-spacing:.09em;
+}
+
+.seller-title{
+    padding-top:18px;
+    color:var(--vtx-text);
+    font-size:25px;
+    line-height:1.18;
+    font-weight:720;
+    letter-spacing:-.025em;
+}
+
+.seller-subtitle{
+    margin-top:6px;
+    color:var(--vtx-muted);
+    font-size:12.5px;
+    line-height:1.5;
+    max-width:780px;
+}
+
+.seller-rule{
+    margin-top:18px;
+    border:1px solid var(--vtx-border);
+    background:var(--vtx-surface);
+    color:#5f6872;
+    border-radius:999px;
+    padding:7px 11px;
+    font-size:10px;
+    font-weight:650;
+}
+
+.seller-card{
+    background:#fff;
+    border:1px solid #e1e5e9;
+    border-radius:14px;
+    padding:15px 16px;
+    min-height:320px;
+}
+
+.seller-card-title{
+    color:#252b33;
+    font-size:.78rem;
+    font-weight:820;
+    margin-bottom:9px;
+}
+
+.seller-section-title{
+    font-size:1rem;
+    font-weight:850;
+    color:#20262d;
+    margin:16px 0 9px;
+}
+
+.client-search-summary{
+    background:#fff;
+    border:1px solid #e1e5e9;
+    border-left:4px solid #6536f3;
+    border-radius:11px;
+    padding:11px 13px;
+    margin:10px 0 12px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:14px;
+    flex-wrap:wrap;
+}
+
+.client-search-title{
+    font-size:.72rem;
+    font-weight:820;
+    color:#272e36;
+}
+
+.client-search-meta{
+    margin-top:4px;
+    color:#818b96;
+    font-size:.63rem;
+}
+
+.client-search-kpis{
+    display:flex;
+    gap:18px;
+    flex-wrap:wrap;
+}
+
+.client-search-kpi{
+    text-align:right;
+}
+
+.client-search-kpi span{
+    display:block;
+    font-size:.58rem;
+    color:#929ba5;
+}
+
+.client-search-kpi strong{
+    display:block;
+    margin-top:2px;
+    font-size:.78rem;
+    color:#252b33;
+}
+
+.sales-rule-strip{
+    margin:8px 0 12px;
+    padding:9px 12px;
+    border:1px solid #e2e6ea;
+    border-radius:9px;
+    background:#fff;
+    font-size:.65rem;
+    color:#707a84;
+}
+
+.sales-kpi-button-wrap .stButton > button{
+    width:100% !important;
+    min-height:108px !important;
+    height:108px !important;
+    display:flex !important;
+    align-items:flex-start !important;
+    justify-content:flex-start !important;
+    text-align:left !important;
+    padding:14px 15px !important;
+    border-radius:13px !important;
+    border:1px solid #e1e5e9 !important;
+    background:#fff !important;
+    color:#171c22 !important;
+    box-shadow:none !important;
+    white-space:pre-line !important;
+    line-height:1.35 !important;
+}
+
+.sales-kpi-button-wrap .stButton > button:hover{
+    border-color:#b9a6ff !important;
+    background:#fbf9ff !important;
+    transform:translateY(-1px);
+}
+
+.sales-kpi-button-wrap.main .stButton > button{
+    border-color:#cfc2ff !important;
+    background:#fbf9ff !important;
+}
+
+.sales-kpi-button-wrap.credit .stButton > button{
+    color:#c94a4a !important;
+}
+
+.sales-detail-box{
+    margin:10px 0 14px;
+    padding:12px 14px;
+    border:1px solid #e2e6ea;
+    border-radius:11px;
+    background:#fff;
+}
+
+.sales-detail-title{
+    font-size:.76rem;
+    font-weight:850;
+    color:#252b33;
+    margin-bottom:4px;
+}
+
+.sales-detail-subtitle{
+    font-size:.63rem;
+    color:#818b96;
+}
+
+.seller-goal-wrap{
+    margin:12px 0 15px;
+    background:#fff;
+    border:1px solid #e1e5e9;
+    border-radius:13px;
+    padding:14px 15px;
+}
+
+.seller-goal-head{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:16px;
+    margin-bottom:10px;
+}
+
+.seller-goal-title{
+    font-size:.72rem;
+    font-weight:850;
+    color:#242b33;
+}
+
+.seller-goal-sub{
+    margin-top:4px;
+    font-size:.62rem;
+    color:#858f99;
+}
+
+.seller-goal-values{
+    display:flex;
+    gap:22px;
+    flex-wrap:wrap;
+}
+
+.seller-goal-item{
+    min-width:120px;
+}
+
+.seller-goal-item span{
+    display:block;
+    font-size:.58rem;
+    color:#929ba5;
+}
+
+.seller-goal-item strong{
+    display:block;
+    margin-top:3px;
+    font-size:.84rem;
+    color:#20262d;
+}
+
+.seller-goal-bar{
+    width:100%;
+    height:12px;
+    background:#eceff3;
+    border-radius:999px;
+    overflow:hidden;
+}
+
+.seller-goal-fill{
+    height:100%;
+    border-radius:999px;
+    background:linear-gradient(90deg,#6d3cf4,#8b5cf6);
+}
+
+.seller-goal-foot{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    margin-top:8px;
+    font-size:.61rem;
+    color:#7c8691;
+}
+
+.sales-data-status{
+    display:grid;
+    grid-template-columns:auto auto auto 1fr;
+    gap:18px;
+    align-items:center;
+    margin:12px 0;
+    padding:11px 13px;
+    border:1px solid #dfe4ea;
+    border-radius:10px;
+    background:#fff;
+    font-size:10px;
+}
+
+.sales-data-status > div:not(.sales-data-status-note){
+    display:flex;
+    flex-direction:column;
+    gap:3px;
+}
+
+.sales-data-status span{
+    color:#7a8491;
+}
+
+.sales-data-status strong{
+    color:#2e353d;
+}
+
+.sales-data-status-note{
+    color:#66717d;
+    text-align:right;
+}
+
+.sales-data-status-warn{
+    border-color:#eadcae;
+    background:#fffdf5;
+}
+
+/* Streamlit inputs alineados con V60 */
+div[data-baseweb="select"] > div,
+[data-testid="stTextInput"] input,
+[data-testid="stDateInput"] input,
+[data-testid="stNumberInput"] input {
+    border-radius:9px !important;
+}
+
+div[data-testid="stVerticalBlock"]:has(
+    [data-testid="stDateInput"]
+) [data-testid="stDateInput"]{
+    margin-top:5px;
+}
+
+@media(max-width:1150px){
+    .seller-head{
+        flex-direction:column;
+    }
+
+    .seller-rule{
+        margin-top:0;
+    }
+
+    .sales-data-status{
+        grid-template-columns:1fr 1fr;
+    }
+
+    .sales-data-status-note{
+        text-align:left;
+    }
+
+    .seller-goal-head{
+        flex-direction:column;
+    }
+}
+
+@media(max-width:800px){
+    .sales-data-status{
+        grid-template-columns:1fr;
+    }
+
+    .seller-goal-values{
+        display:grid;
+        grid-template-columns:1fr 1fr;
+        width:100%;
+    }
+}
+
+
+/* ============================================================
+   V61.7 · FULL DASHBOARD V60
+   Scoped styles by page classes to avoid cross-page conflicts.
+   ============================================================ */
+
+:root{
+  --gm-bg:#f6f7f9;
+  --gm-card:#ffffff;
+  --gm-border:#e1e5e9;
+  --gm-text:#171b21;
+  --gm-muted:#7b8691;
+  --gm-purple:#6536f3;
+  --gm-green:#2dbf72;
+  --gm-blue:#4f7cd7;
+  --gm-orange:#ff9f2d;
+  --gm-red:#ef4444;
+}
+
+[data-testid="stAppViewContainer"]{background:var(--gm-bg);}
+.block-container{max-width:1580px;padding-top:1.15rem;padding-bottom:2.5rem;}
+
+/* ---------- Common page headers ---------- */
+.gm-page-head{
+  position:relative;
+  margin:0 0 18px;
+  padding:0 0 18px;
+}
+.gm-page-head:before{
+  content:"MARITEX ADMIN /";
+  display:block;
+  font-size:9px;
+  font-weight:850;
+  letter-spacing:.12em;
+  color:#98a2ad;
+  margin-bottom:8px;
+}
+.gm-page-title{
+  font-size:30px;
+  font-weight:820;
+  letter-spacing:-.03em;
+  color:var(--gm-text);
+}
+.gm-page-subtitle{
+  margin-top:6px;
+  font-size:12px;
+  color:var(--gm-muted);
+}
+
+/* ---------- Shared cards ---------- */
+.gm-card{
+  background:#fff;
+  border:1px solid var(--gm-border);
+  border-radius:14px;
+  padding:15px 16px;
+}
+.gm-card-title{
+  font-weight:820;
+  color:#252b33;
+}
+.gm-card-subtitle{
+  margin-top:4px;
+  font-size:11px;
+  color:#89939d;
+}
+.gm-section-title{
+  font-size:15px;
+  font-weight:850;
+  color:#252b33;
+  margin:22px 0 10px;
+}
+
+/* ---------- Stock General ---------- */
+.stock-v60-file{
+  display:flex;align-items:center;gap:13px;
+  background:#fff;border:1px solid var(--gm-border);border-radius:13px;
+  padding:13px 15px;margin:8px 0 14px;
+}
+.stock-v60-file-icon{font-size:23px}
+.stock-v60-file-name{font-weight:820}
+.stock-v60-file-meta{font-size:11px;color:#8a949e;margin-top:3px}
+
+.stock-v60-kpis{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:12px;
+  margin:12px 0;
+}
+.stock-v60-kpi{
+  background:#fff;border:1px solid var(--gm-border);border-radius:14px;
+  padding:15px;
+}
+.stock-v60-kpi-row{display:flex;align-items:center;gap:12px}
+.stock-v60-kpi-icon{
+  width:40px;height:40px;border-radius:10px;display:grid;place-items:center;font-weight:900;
+}
+.stock-v60-kpi-icon.purple{background:#efe9ff;color:#6536f3}
+.stock-v60-kpi-icon.green{background:#eaf8f1;color:#2dbf72}
+.stock-v60-kpi-icon.blue{background:#edf3ff;color:#4f7cd7}
+.stock-v60-kpi-icon.orange{background:#fff2e8;color:#ff8a3d}
+.stock-v60-kpi-label{font-size:11px;color:#7d8791}
+.stock-v60-kpi-value{font-size:27px;font-weight:840;color:#171b21;margin-top:2px}
+.stock-v60-kpi-foot{font-size:10px;color:#929ba4;margin-top:10px}
+
+.stock-v60-alert{
+  display:flex;gap:12px;align-items:flex-start;
+  background:#fff;border:1px solid var(--gm-border);border-radius:14px;
+  padding:15px;margin:12px 0;
+}
+.stock-v60-alert-icon{
+  width:35px;height:35px;border-radius:9px;background:#fff1e6;color:#f27a2d;
+  display:grid;place-items:center;font-weight:900;
+}
+.stock-v60-alert-title{font-weight:850}
+.stock-v60-alert-items{display:flex;gap:18px;flex-wrap:wrap;font-size:11px;color:#7f8993;margin-top:5px}
+
+.stock-v60-filter{
+  background:#fff;border:1px solid var(--gm-border);border-radius:14px;
+  padding:14px 15px;margin:15px 0 10px;
+}
+.stock-v60-result{
+  display:flex;justify-content:space-between;gap:14px;
+  background:#fff;border:1px solid var(--gm-border);border-radius:10px;
+  padding:10px 12px;margin:12px 0;color:#6f7a85;font-size:11px;
+}
+.stock-v60-detail{
+  background:#fff;border:1px solid var(--gm-border);border-radius:14px;
+  padding:15px;margin-top:12px;
+}
+.stock-v60-detail-grid{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:12px;
+}
+.stock-v60-detail-grid>div{background:#f7f8fa;border-radius:9px;padding:11px}
+.stock-v60-detail-grid span{display:block;font-size:10px;color:#8b95a0}
+.stock-v60-detail-grid strong{font-size:18px}
+
+/* ---------- Métricas Stock ---------- */
+.metrics-stock-v60-top{
+  display:flex;justify-content:space-between;gap:15px;color:#89939e;font-size:10px;
+}
+.metrics-stock-v60-kpis{
+  display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin:14px 0;
+}
+.metrics-stock-v60-kpi{
+  background:#fff;border:1px solid var(--gm-border);border-radius:14px;padding:15px;
+}
+.metrics-stock-v60-kpi span{display:block;color:#7b8691;font-size:11px}
+.metrics-stock-v60-kpi strong{display:block;font-size:24px;margin-top:5px}
+.metrics-stock-v60-kpi small{color:#98a1aa}
+.metrics-stock-v60-insights{
+  background:#fff;border:1px solid var(--gm-border);border-radius:14px;padding:15px;margin:16px 0;
+}
+.metrics-stock-v60-insights-grid{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:10px;
+}
+.metrics-stock-v60-insights-grid>div{
+  background:#f8f9fb;border-radius:9px;padding:12px;color:#65717d;font-size:11px;
+}
+
+/* ---------- Resumen Ejecutivo ---------- */
+.exec-v60-head{
+  display:flex;justify-content:space-between;gap:20px;align-items:flex-start;margin-bottom:18px;
+}
+.exec-v60-eyebrow{font-size:9px;font-weight:850;letter-spacing:.13em;color:#98a2ad}
+.exec-v60-title{font-size:30px;font-weight:820;margin-top:7px;letter-spacing:-.03em}
+.exec-v60-subtitle{margin-top:5px;color:#7e8994;font-size:12px}
+.exec-v60-rule{
+  background:#fff;border:1px solid var(--gm-border);border-radius:999px;padding:7px 11px;
+  color:#66717d;font-size:10px;
+}
+.exec-v60-strip{
+  display:grid;grid-template-columns:auto auto auto auto 1fr;gap:18px;align-items:center;
+  background:#fff;border:1px solid var(--gm-border);border-radius:11px;padding:12px 14px;margin:13px 0;
+}
+.exec-v60-strip span{display:block;color:#8a94a0;font-size:9px}
+.exec-v60-strip strong{font-size:11px;color:#343b44}
+.exec-v60-note{text-align:right;color:#64707c;font-size:9.5px}
+.exec-v60-kpis{
+  display:grid;grid-template-columns:repeat(5,minmax(0,1fr));
+  background:#fff;border:1px solid var(--gm-border);border-radius:13px;overflow:hidden;margin:0 0 18px;
+}
+.exec-v60-kpi{padding:17px 16px;border-right:1px solid #e7eaee;min-height:116px}
+.exec-v60-kpi:last-child{border-right:0}
+.exec-v60-kpi span{display:block;color:#76818e;font-size:9.5px}
+.exec-v60-kpi strong{display:block;margin-top:10px;font-size:22px;font-weight:820}
+.exec-v60-kpi small{display:block;margin-top:8px;color:#8a94a0;font-size:8.8px}
+.exec-v60-kpi.focus{background:#fafcff}
+.exec-v60-kpi.focus strong{color:#2766cf}
+.exec-v60-goal{
+  background:#fff;border:1px solid var(--gm-border);border-radius:13px;padding:18px;margin-bottom:19px;
+}
+.exec-v60-goal-head{display:flex;justify-content:space-between;gap:20px;margin-bottom:17px}
+.exec-v60-progress-label{display:flex;justify-content:space-between;font-size:9.5px;margin:0 0 6px}
+.exec-v60-progress-track{height:9px;background:#edf0f3;border-radius:999px;overflow:hidden}
+.exec-v60-progress-fill{height:100%;border-radius:999px}
+.exec-v60-progress-fill.current{background:#4f7cd7}
+.exec-v60-progress-fill.projected{background:#2bb673}
+.exec-v60-goal-foot{
+  display:flex;justify-content:space-between;gap:18px;margin-top:14px;color:#788390;font-size:9px;
+}
+
+/* ---------- Plantillas ---------- */
+.templates-v60-strip{
+  background:#fff;border:1px solid var(--gm-border);border-radius:10px;padding:10px 12px;
+  color:#707a84;font-size:10.5px;margin:10px 0 16px;
+}
+.templates-v60-card-title{font-weight:850}
+.templates-v60-meta{font-size:10.5px;color:#87919b;margin-top:4px}
+
+/* ---------- Marketplaces ---------- */
+.market-v60-rule{
+  background:#fff;border:1px solid var(--gm-border);border-radius:10px;padding:10px 12px;
+  color:#707a84;font-size:10.5px;margin:12px 0;
+}
+.market-v60-card{
+  display:flex;justify-content:space-between;align-items:center;
+  background:#fff;border:1px solid var(--gm-border);border-radius:12px;padding:13px;margin:10px 0;
+}
+.market-v60-card span{display:block;color:#87919c;font-size:10.5px;margin-top:3px}
+.market-v60-badge{background:#eaf8f1;color:#22885a;border-radius:999px;padding:6px 10px;font-size:10px;font-weight:750}
+
+@media(max-width:1100px){
+  .stock-v60-kpis,.metrics-stock-v60-kpis,.exec-v60-kpis{grid-template-columns:repeat(2,1fr)}
+  .metrics-stock-v60-insights-grid{grid-template-columns:1fr}
+  .exec-v60-strip{grid-template-columns:1fr 1fr}
+  .exec-v60-note{text-align:left}
+  .stock-v60-detail-grid{grid-template-columns:repeat(2,1fr)}
+}
+/* ============================================================
+   SIDEBAR · BOTONES FINAL
+   Debe ir AL FINAL del styles.css
+   ============================================================ */
+
+
+/* ------------------------------------------------------------
+   TODOS LOS BOTONES DEL SIDEBAR
+   ------------------------------------------------------------ */
+
+[data-testid="stSidebar"] .stButton,
+[data-testid="stSidebar"] [data-testid="stButton"]{
+    width:100% !important;
+    margin:0 0 9px 0 !important;
+}
+
+
+/* Botón normal + primary + secondary */
+
+[data-testid="stSidebar"] .stButton > button,
+[data-testid="stSidebar"] button[data-testid="stBaseButton-secondary"],
+[data-testid="stSidebar"] button[data-testid="stBaseButton-primary"]{
+
+    width:100% !important;
+
+    min-height:58px !important;
+    height:58px !important;
+
+    display:flex !important;
+    align-items:center !important;
+    justify-content:center !important;
+
+    padding:0 16px !important;
+
+    background:#151a1f !important;
+
+    border:1px solid #252d34 !important;
+
+    border-radius:10px !important;
+
+    color:#ffffff !important;
+
+    font-size:12px !important;
+    font-weight:750 !important;
+
+    box-shadow:none !important;
+
+    opacity:1 !important;
+
+    transition:
+        background .16s ease,
+        border-color .16s ease,
+        transform .16s ease !important;
+}
+
+
+/* ------------------------------------------------------------
+   TEXTO INTERNO
+   ------------------------------------------------------------ */
+
+[data-testid="stSidebar"] .stButton > button *,
+[data-testid="stSidebar"] button[data-testid="stBaseButton-secondary"] *,
+[data-testid="stSidebar"] button[data-testid="stBaseButton-primary"] *{
+
+    color:#ffffff !important;
+
+    opacity:1 !important;
+}
+
+
+/* ------------------------------------------------------------
+   BOTONES SECUNDARIOS
+   ------------------------------------------------------------ */
+
+[data-testid="stSidebar"]
+button[data-testid="stBaseButton-secondary"]{
+
+    background:#151a1f !important;
+
+    border-color:#252d34 !important;
+
+    color:#ffffff !important;
+}
+
+
+/* ------------------------------------------------------------
+   BOTÓN ACTIVO
+   Actualmente app.py usa type="primary"
+   ------------------------------------------------------------ */
+
+[data-testid="stSidebar"]
+button[data-testid="stBaseButton-primary"]{
+
+    position:relative !important;
+
+    background:#1a2025 !important;
+
+    border-color:#303941 !important;
+
+    color:#ffffff !important;
+
+    box-shadow:none !important;
+}
+
+
+/* barra lima del seleccionado */
+
+[data-testid="stSidebar"]
+button[data-testid="stBaseButton-primary"]::before{
+
+    content:"";
+
+    position:absolute;
+
+    left:-1px;
+    top:7px;
+    bottom:7px;
+
+    width:4px;
+
+    background:#d7ff00;
+
+    border-radius:
+        0 6px 6px 0;
+}
+
+
+/* ------------------------------------------------------------
+   HOVER
+   ------------------------------------------------------------ */
+
+[data-testid="stSidebar"]
+button[data-testid="stBaseButton-secondary"]:hover{
+
+    background:#1b2126 !important;
+
+    border-color:#343e47 !important;
+
+    color:#ffffff !important;
+
+    transform:translateY(-1px);
+}
+
+
+[data-testid="stSidebar"]
+button[data-testid="stBaseButton-primary"]:hover{
+
+    background:#1d242a !important;
+
+    border-color:#39444d !important;
+
+    color:#ffffff !important;
+}
+
+
+/* ------------------------------------------------------------
+   FOCUS / ACTIVE
+   Evitar rojo / blanco de Streamlit
+   ------------------------------------------------------------ */
+
+[data-testid="stSidebar"]
+button[data-testid="stBaseButton-primary"]:focus,
+
+[data-testid="stSidebar"]
+button[data-testid="stBaseButton-secondary"]:focus,
+
+[data-testid="stSidebar"]
+button[data-testid="stBaseButton-primary"]:active,
+
+[data-testid="stSidebar"]
+button[data-testid="stBaseButton-secondary"]:active{
+
+    box-shadow:none !important;
+
+    outline:none !important;
+
+    color:#ffffff !important;
+}
+
+
+/* ------------------------------------------------------------
+   SECCIONES
+   ------------------------------------------------------------ */
+
+.sidebar-section-final{
+
+    display:flex !important;
+
+    align-items:center !important;
+
+    gap:10px !important;
+
+    margin:
+        34px 0 11px 0 !important;
+}
+
+
+.sidebar-section-final:first-of-type{
+
+    margin-top:0 !important;
+}
+
+
+.sidebar-section-final span{
+
+    color:#7d8c98 !important;
+
+    font-size:8px !important;
+
+    font-weight:850 !important;
+
+    letter-spacing:.18em !important;
+}
+
+
+.sidebar-section-line{
+
+    height:1px !important;
+
+    flex:1 !important;
+
+    background:#242b31 !important;
+}
+
+
+/* ------------------------------------------------------------
+   BRAND
+   ------------------------------------------------------------ */
+
+.sidebar-brand-final{
+
+    display:flex !important;
+
+    align-items:center !important;
+
+    gap:10px !important;
+
+    margin:
+        32px 7px 48px 7px !important;
+}
+
+
+.sidebar-x{
+
+    color:#ff3044 !important;
+
+    font-size:32px !important;
+
+    line-height:1 !important;
+
+    font-weight:950 !important;
+
+    letter-spacing:-3px !important;
+}
+
+
+.sidebar-brand-text{
+
+    color:#ffffff !important;
+
+    font-size:20px !important;
+
+    font-weight:850 !important;
+
+    line-height:1 !important;
+
+    letter-spacing:-.03em !important;
+}
+
+
+/* ------------------------------------------------------------
+   SIDEBAR GENERAL
+   ------------------------------------------------------------ */
+
+[data-testid="stSidebar"]{
+
+    background:#070a0d !important;
+
+    border-right:1px solid #1c2228 !important;
+}
+
+
+[data-testid="stSidebarUserContent"]{
+
+    padding:
+        28px 17px 24px 17px !important;
 }
