@@ -16,6 +16,7 @@ from config.settings import (
 
 from services.erp_sales import read_sales_source
 from services.erp_stock import read_stock_source
+from services.remote_stock import load_remote_stock
 from services.storage import load_source
 
 from ui.components import render_html
@@ -178,26 +179,44 @@ def build_context():
 
     # --------------------------------------------------------
     # STOCK
+    # Prioridad: fuente automática Llegadas_OK.
+    # Si falla, se conserva ERP Stock cargado manualmente.
     # --------------------------------------------------------
 
-    if stock_raw:
+    remote_error = None
 
-        stock_filename = (
-            stock_meta
-            or {}
-        ).get(
-            "filename",
-            "erp_stock.xlsx",
-        )
+    try:
+        remote_df, remote_meta = load_remote_stock()
 
-        (
-            stock_df,
-            stock_normalized,
-            stock_consolidated,
-        ) = prepare_stock_context(
-            stock_raw,
-            stock_filename,
-        )
+        if remote_df is not None and not remote_df.empty:
+            stock_df = remote_df
+            stock_normalized = stock_view(remote_df)
+            stock_consolidated = consolidate_inventory(stock_normalized)
+            stock_meta = remote_meta
+
+    except Exception as exc:
+        remote_error = str(exc)
+
+    if stock_df is None or stock_df.empty:
+        if stock_raw:
+            stock_filename = (stock_meta or {}).get(
+                "filename",
+                "erp_stock.xlsx",
+            )
+
+            (
+                stock_df,
+                stock_normalized,
+                stock_consolidated,
+            ) = prepare_stock_context(
+                stock_raw,
+                stock_filename,
+            )
+
+            stock_meta = dict(stock_meta or {})
+            stock_meta["mode"] = "manual_fallback"
+            if remote_error:
+                stock_meta["remote_error"] = remote_error
 
     # --------------------------------------------------------
     # VENTAS
