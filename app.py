@@ -38,7 +38,7 @@ from views import (
 
 st.set_page_config(
     page_title=APP_TITLE,
-    page_icon="📦",
+    page_icon="M",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -122,6 +122,25 @@ def prepare_stock_context(
 
 
 # ============================================================
+# PREPARAR STOCK AUTOMÁTICO
+# ============================================================
+
+@st.cache_data(ttl=300, show_spinner=False)
+def prepare_remote_stock_context(remote_df):
+    """
+    Normaliza y consolida el stock automático una sola vez durante el TTL.
+    Esto evita repetir stock_view() + consolidate_inventory() cada vez
+    que Streamlit vuelve a ejecutar la app por un cambio de pestaña/filtro.
+    """
+    if remote_df is None or remote_df.empty:
+        return remote_df, None, None
+
+    normalized = stock_view(remote_df)
+    consolidated = consolidate_inventory(normalized)
+    return remote_df, normalized, consolidated
+
+
+# ============================================================
 # CARGA ERP VENTAS
 # ============================================================
 
@@ -189,9 +208,11 @@ def build_context():
         remote_df, remote_meta = load_remote_stock()
 
         if remote_df is not None and not remote_df.empty:
-            stock_df = remote_df
-            stock_normalized = stock_view(remote_df)
-            stock_consolidated = consolidate_inventory(stock_normalized)
+            (
+                stock_df,
+                stock_normalized,
+                stock_consolidated,
+            ) = prepare_remote_stock_context(remote_df)
             stock_meta = remote_meta
 
     except Exception as exc:
