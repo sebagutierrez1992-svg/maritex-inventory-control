@@ -29,6 +29,7 @@ from views import (
     plantillas,
     resumen_ejecutivo,
     stock_general,
+    inicio,
 )
 
 
@@ -38,7 +39,7 @@ from views import (
 
 st.set_page_config(
     page_title=APP_TITLE,
-    page_icon="M",
+    page_icon="📦",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -53,9 +54,10 @@ apply_styles(
 # ============================================================
 
 PAGE_MAP = {
+    "Inicio": inicio.render,
     "Stock General": stock_general.render,
-    "Marketplaces": marketplaces.render,
-    "Métricas de Stock": metricas_stock.render,
+    "Marketplace": marketplaces.render,
+    "Métricas Stock": metricas_stock.render,
     "Métricas Vendedores": metricas_vendedores.render,
     "Resumen Ejecutivo": resumen_ejecutivo.render,
     "Plantillas": plantillas.render,
@@ -119,25 +121,6 @@ def prepare_stock_context(
         normalized,
         consolidated,
     )
-
-
-# ============================================================
-# PREPARAR STOCK AUTOMÁTICO
-# ============================================================
-
-@st.cache_data(ttl=300, show_spinner=False)
-def prepare_remote_stock_context(remote_df):
-    """
-    Normaliza y consolida el stock automático una sola vez durante el TTL.
-    Esto evita repetir stock_view() + consolidate_inventory() cada vez
-    que Streamlit vuelve a ejecutar la app por un cambio de pestaña/filtro.
-    """
-    if remote_df is None or remote_df.empty:
-        return remote_df, None, None
-
-    normalized = stock_view(remote_df)
-    consolidated = consolidate_inventory(normalized)
-    return remote_df, normalized, consolidated
 
 
 # ============================================================
@@ -208,11 +191,9 @@ def build_context():
         remote_df, remote_meta = load_remote_stock()
 
         if remote_df is not None and not remote_df.empty:
-            (
-                stock_df,
-                stock_normalized,
-                stock_consolidated,
-            ) = prepare_remote_stock_context(remote_df)
+            stock_df = remote_df
+            stock_normalized = stock_view(remote_df)
+            stock_consolidated = consolidate_inventory(stock_normalized)
             stock_meta = remote_meta
 
     except Exception as exc:
@@ -289,7 +270,7 @@ def build_context():
 # ============================================================
 
 if "page" not in st.session_state:
-    st.session_state.page = "Stock General"
+    st.session_state.page = "Inicio"
 
 
 # ============================================================
@@ -312,17 +293,9 @@ def sidebar_button(
     label: str,
     page_name: str,
     key: str,
-    arrow: bool = False,
+    icon: str,
 ):
-    """
-    Navegación mediante botones.
-
-    PRIMARY
-        Página activa.
-
-    SECONDARY
-        Resto de páginas.
-    """
+    """Botón de navegación del sidebar con icono Material."""
 
     active = (
         st.session_state.page
@@ -335,17 +308,12 @@ def sidebar_button(
         else "secondary"
     )
 
-    display_label = (
-        f"{label} ›"
-        if arrow
-        else label
-    )
-
     st.button(
-        display_label,
+        label,
         key=key,
         use_container_width=True,
         type=button_type,
+        icon=icon,
         on_click=change_page,
         args=(
             page_name,
@@ -359,116 +327,54 @@ def sidebar_button(
 
 with st.sidebar:
 
-    # --------------------------------------------------------
-    # MARCA
-    # --------------------------------------------------------
-
     render_html(
         """
-        <div class="sidebar-brand-final">
-
-            <div class="sidebar-x">
-                X
+        <div class="sidebar-brand-modern">
+            <div class="sidebar-logo-mark" aria-hidden="true">
+                <span></span><span></span>
             </div>
-
-            <div class="sidebar-brand-text">
-                Grupo Maritex
-            </div>
-
+            <div class="sidebar-brand-name">MARITEX</div>
         </div>
         """
     )
 
-    # --------------------------------------------------------
-    # OPERACIÓN
-    # --------------------------------------------------------
+    sidebar_button("Inicio", "Inicio", "nav_inicio", ":material/home:")
 
     render_html(
         """
-        <div class="sidebar-section-final">
-
-            <span>
-                OPERACIÓN
-            </span>
-
-            <div class="sidebar-section-line"></div>
-
+        <div class="sidebar-section-modern">
+            <span class="sidebar-section-dot"></span>
+            <span>OPERACIÓN</span>
+            <i></i>
         </div>
         """
     )
-
-    sidebar_button(
-        label="Stock General",
-        page_name="Stock General",
-        key="nav_stock_general",
-    )
-
-    sidebar_button(
-        label="Marketplaces",
-        page_name="Marketplaces",
-        key="nav_marketplaces",
-    )
-
-    # --------------------------------------------------------
-    # ANÁLISIS
-    # --------------------------------------------------------
+    sidebar_button("Stock General", "Stock General", "nav_stock_general", ":material/inventory_2:")
+    sidebar_button("Marketplace", "Marketplace", "nav_marketplace", ":material/storefront:")
+    sidebar_button("Resumen Ejecutivo", "Resumen Ejecutivo", "nav_resumen_ejecutivo", ":material/dashboard:")
 
     render_html(
         """
-        <div class="sidebar-section-final sidebar-section-space">
-
-            <span>
-                ANÁLISIS
-            </span>
-
-            <div class="sidebar-section-line"></div>
-
+        <div class="sidebar-section-modern">
+            <span class="sidebar-section-dot"></span>
+            <span>ANÁLISIS</span>
+            <i></i>
         </div>
         """
     )
-
-    sidebar_button(
-        label="Métricas de Stock",
-        page_name="Métricas de Stock",
-        key="nav_metricas_stock",
-    )
-
-    sidebar_button(
-        label="Métricas Vendedores",
-        page_name="Métricas Vendedores",
-        key="nav_metricas_vendedores",
-    )
-
-    sidebar_button(
-        label="Resumen Ejecutivo",
-        page_name="Resumen Ejecutivo",
-        key="nav_resumen_ejecutivo",
-    )
-
-    # --------------------------------------------------------
-    # HERRAMIENTAS
-    # --------------------------------------------------------
+    sidebar_button("Métricas Stock", "Métricas Stock", "nav_metricas_stock", ":material/monitoring:")
+    sidebar_button("Métricas Vendedores", "Métricas Vendedores", "nav_metricas_vendedores", ":material/groups:")
 
     render_html(
         """
-        <div class="sidebar-section-final sidebar-section-space">
-
-            <span>
-                HERRAMIENTAS
-            </span>
-
-            <div class="sidebar-section-line"></div>
-
+        <div class="sidebar-section-modern">
+            <span class="sidebar-section-dot"></span>
+            <span>HERRAMIENTAS</span>
+            <i></i>
         </div>
         """
     )
-
-    sidebar_button(
-        label="Plantillas",
-        page_name="Plantillas",
-        key="nav_plantillas",
-        arrow=True,
-    )
+    sidebar_button("Plantillas", "Plantillas", "nav_plantillas", ":material/description:")
 
 
 # ============================================================
@@ -488,7 +394,7 @@ page = (
 
 if page not in PAGE_MAP:
 
-    page = "Stock General"
+    page = "Inicio"
 
     st.session_state.page = (
         page

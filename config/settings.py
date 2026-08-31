@@ -1,6 +1,6 @@
 from pathlib import Path
 
-APP_VERSION = "V61.7.1 - Fix Stock Metrics"
+APP_VERSION = "V61.7.2 - Marketplace Templates Auto Detect"
 APP_TITLE = "Maritex Inventory Control"
 
 BASE_DIR = Path(__file__).resolve().parents[1]
@@ -20,15 +20,83 @@ ERP_STOCK_META = DATA_DIR / "erp_stock_source.json"
 ERP_SALES_FILE = DATA_DIR / "erp_sales_source.bin"
 ERP_SALES_META = DATA_DIR / "erp_sales_source.json"
 
+
+# ============================================================
+# PLANTILLAS MARKETPLACE
+# ============================================================
+
+def _find_template(
+    preferred_name: str,
+    patterns: tuple[str, ...],
+) -> Path:
+    """
+    Busca primero el nombre oficial esperado.
+    Si no existe, intenta detectar automáticamente una planilla
+    compatible dentro de /templates.
+
+    Si no encuentra ninguna, devuelve la ruta oficial para que
+    Marketplace pueda informar correctamente que falta la plantilla.
+    """
+    preferred = TEMPLATES_DIR / preferred_name
+
+    if preferred.exists():
+        return preferred
+
+    candidates: list[Path] = []
+
+    for pattern in patterns:
+        candidates.extend(
+            path
+            for path in TEMPLATES_DIR.glob(pattern)
+            if (
+                path.is_file()
+                and path.suffix.lower() == ".xlsx"
+                and "actualizado" not in path.name.lower()
+            )
+        )
+
+    # Eliminar duplicados manteniendo orden.
+    unique_candidates = list(
+        dict.fromkeys(candidates)
+    )
+
+    if unique_candidates:
+        return unique_candidates[0]
+
+    return preferred
+
+
+PARIS_TEMPLATE = _find_template(
+    "plantilla_paris.xlsx",
+    (
+        "*paris*.xlsx",
+        "*Paris*.xlsx",
+        "*PARIS*.xlsx",
+    ),
+)
+
+MELI_TEMPLATE = _find_template(
+    "plantilla_meli.xlsx",
+    (
+        "*meli*.xlsx",
+        "*Meli*.xlsx",
+        "*MELI*.xlsx",
+        "*mercado*libre*.xlsx",
+        "*Mercado*Libre*.xlsx",
+        "*MERCADO*LIBRE*.xlsx",
+    ),
+)
+
 MARKETPLACE_TEMPLATES = {
-    "Paris Marketplace": TEMPLATES_DIR / "plantilla_paris.xlsx",
-    "Mercado Libre": TEMPLATES_DIR / "plantilla_meli.xlsx",
+    "Paris Marketplace": PARIS_TEMPLATE,
+    "Mercado Libre": MELI_TEMPLATE,
 }
+
 
 PAGES = {
     "stock_general": "Stock General",
-    "marketplace": "Marketplaces",
-    "metricas": "Métricas de Stock",
+    "marketplace": "Marketplace",
+    "metricas": "Métricas Stock",
     "vendedores": "Métricas Vendedores",
     "ventas": "Resumen Ejecutivo",
     "configuracion": "Plantillas",

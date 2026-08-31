@@ -1158,3 +1158,3369 @@ button[data-testid="stBaseButton-secondary"]:active{
     padding:
         28px 17px 24px 17px !important;
 }
+
+/* ============================================================
+   MARITEX · INICIO EJECUTIVO
+   Clases exclusivas mx-* para no afectar otras vistas.
+   ============================================================ */
+
+.mx-home-head{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:24px;
+    margin:0 0 18px;
+}
+
+.mx-home-eyebrow{
+    margin-bottom:7px;
+    color:#8a939e;
+    font-size:10px;
+    font-weight:850;
+    letter-spacing:.13em;
+}
+
+.mx-home-title{
+    color:#171b21;
+    font-size:32px;
+    line-height:1.08;
+    font-weight:850;
+    letter-spacing:-.035em;
+}
+
+.mx-home-subtitle{
+    margin-top:7px;
+    color:#737e89;
+    font-size:13px;
+    line-height:1.5;
+}
+
+.mx-home-live{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin-top:5px;
+    padding:8px 11px;
+    border:1px solid #e2e6ea;
+    border-radius:999px;
+    background:#fff;
+    color:#68727d;
+    font-size:10px;
+    font-weight:700;
+    white-space:nowrap;
+}
+
+.mx-home-live > span{
+    width:7px;
+    height:7px;
+    border-radius:50%;
+    background:#7fc800;
+    box-shadow:0 0 0 4px rgba(127,200,0,.10);
+}
+
+.mx-source-status{
+    height:67px;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    margin-top:29px;
+    padding:0 14px;
+    border:1px solid #e2e6ea;
+    border-radius:10px;
+    background:#fff;
+}
+
+.mx-source-status span{
+    color:#98a1aa;
+    font-size:9px;
+    font-weight:800;
+    letter-spacing:.10em;
+}
+
+.mx-source-status strong{
+    margin-top:4px;
+    color:#2d343c;
+    font-size:11px;
+    font-weight:800;
+}
+
+.mx-kpi-grid{
+    display:grid;
+    grid-template-columns:repeat(5,minmax(0,1fr));
+    gap:12px;
+    margin:14px 0 18px;
+}
+
+.mx-kpi{
+    min-height:150px;
+    padding:15px 16px;
+    border:1px solid #e1e5e9;
+    border-radius:14px;
+    background:#fff;
+    box-shadow:0 1px 2px rgba(17,24,39,.025);
+}
+
+.mx-kpi-top{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    min-height:34px;
+}
+
+.mx-kpi-icon{
+    width:34px;
+    height:34px;
+    display:grid;
+    place-items:center;
+    border-radius:10px;
+    font-size:15px;
+    font-weight:900;
+}
+
+.mx-kpi-icon.lime{
+    color:#5d8400;
+    background:#efffc7;
+}
+
+.mx-kpi-icon.blue{
+    color:#3063c6;
+    background:#edf3ff;
+}
+
+.mx-kpi-icon.purple{
+    color:#6536f3;
+    background:#efe9ff;
+}
+
+.mx-kpi-icon.orange{
+    color:#dc7d1f;
+    background:#fff2e6;
+}
+
+.mx-kpi-icon.red{
+    color:#d93a3a;
+    background:#ffeded;
+}
+
+.mx-kpi-delta{
+    padding:5px 7px;
+    border-radius:999px;
+    font-size:9px;
+    font-weight:850;
+}
+
+.mx-kpi-delta.positive{
+    color:#25855d;
+    background:#eaf8f1;
+}
+
+.mx-kpi-delta.negative{
+    color:#c54a4a;
+    background:#fff0f0;
+}
+
+.mx-kpi-delta.neutral{
+    color:#727d88;
+    background:#f1f3f5;
+}
+
+.mx-kpi-label{
+    margin-top:13px;
+    color:#7b8691;
+    font-size:9.5px;
+    font-weight:800;
+    letter-spacing:.04em;
+}
+
+.mx-kpi-value{
+    margin-top:5px;
+    color:#171b21;
+    font-size:26px;
+    line-height:1.12;
+    font-weight:860;
+    letter-spacing:-.025em;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+}
+
+.mx-kpi-helper{
+    margin-top:9px;
+    color:#98a1aa;
+    font-size:9.5px;
+}
+
+.mx-card-head{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:16px;
+    margin-bottom:8px;
+}
+
+.mx-card-head strong{
+    display:block;
+    color:#242b33;
+    font-size:14px;
+    font-weight:850;
+}
+
+.mx-card-head span{
+    display:block;
+    margin-top:3px;
+    color:#8a949f;
+    font-size:10px;
+}
+
+.mx-chart-empty{
+    min-height:260px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:24px;
+    color:#8b95a0;
+    font-size:11px;
+    text-align:center;
+}
+
+.mx-chart-empty.compact{
+    min-height:150px;
+}
+
+.mx-chart-foot{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:10px;
+    padding-top:10px;
+    border-top:1px solid #edf0f2;
+}
+
+.mx-chart-foot > div{
+    min-width:0;
+}
+
+.mx-chart-foot span{
+    display:block;
+    color:#929ba5;
+    font-size:9px;
+}
+
+.mx-chart-foot strong{
+    display:block;
+    margin-top:4px;
+    color:#30363d;
+    font-size:12px;
+    font-weight:820;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+}
+
+.mx-status-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:8px 12px;
+    margin-top:2px;
+}
+
+.mx-status-grid > div{
+    display:grid;
+    grid-template-columns:auto 1fr auto;
+    align-items:center;
+    gap:7px;
+    padding:7px 0;
+    border-bottom:1px solid #f0f2f4;
+}
+
+.mx-status-grid i{
+    width:7px;
+    height:7px;
+    border-radius:50%;
+}
+
+.mx-status-grid i.green{background:#80c700;}
+.mx-status-grid i.yellow{background:#f4b942;}
+.mx-status-grid i.orange{background:#f28c28;}
+.mx-status-grid i.red{background:#e84b4b;}
+
+.mx-status-grid span{
+    color:#68737d;
+    font-size:10px;
+}
+
+.mx-status-grid strong{
+    color:#30363d;
+    font-size:10px;
+    font-weight:850;
+}
+
+.mx-alert-grid{
+    display:grid;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:12px;
+    margin:14px 0 18px;
+}
+
+.mx-alert{
+    display:flex;
+    align-items:flex-start;
+    gap:12px;
+    min-height:112px;
+    padding:14px 15px;
+    border:1px solid #e3e7ea;
+    border-radius:13px;
+    background:#fff;
+}
+
+.mx-alert-icon{
+    flex:0 0 34px;
+    width:34px;
+    height:34px;
+    display:grid;
+    place-items:center;
+    border-radius:10px;
+    font-size:16px;
+    font-weight:900;
+}
+
+.mx-alert.critical .mx-alert-icon{
+    color:#ce3e3e;
+    background:#ffeded;
+}
+
+.mx-alert.warning .mx-alert-icon{
+    color:#d47a1c;
+    background:#fff2e6;
+}
+
+.mx-alert.attention .mx-alert-icon{
+    color:#59636e;
+    background:#eef1f4;
+}
+
+.mx-alert span{
+    display:block;
+    color:#929ba5;
+    font-size:8.5px;
+    font-weight:850;
+    letter-spacing:.08em;
+}
+
+.mx-alert strong{
+    display:block;
+    margin-top:5px;
+    color:#262c33;
+    font-size:13px;
+    font-weight:850;
+}
+
+.mx-alert small{
+    display:block;
+    margin-top:5px;
+    color:#89939d;
+    font-size:9.5px;
+    line-height:1.4;
+}
+
+.mx-product-list{
+    margin-top:2px;
+}
+
+.mx-product-row{
+    display:grid;
+    grid-template-columns:32px 1fr auto;
+    align-items:center;
+    gap:10px;
+    padding:11px 0;
+    border-bottom:1px solid #edf0f2;
+}
+
+.mx-product-row:last-child{
+    border-bottom:0;
+}
+
+.mx-rank{
+    width:30px;
+    height:30px;
+    display:grid;
+    place-items:center;
+    border-radius:9px;
+    background:#f2f4f6;
+    color:#727d88;
+    font-size:9px;
+    font-weight:850;
+}
+
+.mx-product-main{
+    min-width:0;
+}
+
+.mx-product-main strong{
+    display:block;
+    color:#2a3037;
+    font-size:10.5px;
+    font-weight:800;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+}
+
+.mx-product-main span{
+    display:block;
+    margin-top:2px;
+    color:#98a1aa;
+    font-size:8.5px;
+}
+
+.mx-mini-bar{
+    width:100%;
+    height:4px;
+    margin-top:7px;
+    overflow:hidden;
+    border-radius:999px;
+    background:#eef1f3;
+}
+
+.mx-mini-bar i{
+    display:block;
+    height:100%;
+    border-radius:999px;
+    background:#d8ff00;
+}
+
+.mx-product-value{
+    min-width:52px;
+    text-align:right;
+}
+
+.mx-product-value strong{
+    color:#22282f;
+    font-size:12px;
+    font-weight:850;
+}
+
+.mx-product-value span{
+    display:block;
+    color:#969fa8;
+    font-size:8.5px;
+}
+
+.mx-table-head{
+    margin-bottom:10px;
+}
+
+.mx-empty,
+.mx-sales-only{
+    display:flex;
+    align-items:center;
+    gap:13px;
+    margin:14px 0;
+    padding:16px;
+    border:1px solid #e2e6ea;
+    border-radius:13px;
+    background:#fff;
+}
+
+.mx-empty-icon{
+    width:38px;
+    height:38px;
+    flex:0 0 38px;
+    display:grid;
+    place-items:center;
+    border-radius:10px;
+    color:#bb771b;
+    background:#fff2e6;
+    font-weight:900;
+}
+
+.mx-empty strong{
+    display:block;
+    color:#2a3037;
+    font-size:12px;
+}
+
+.mx-empty span{
+    display:block;
+    margin-top:4px;
+    color:#818b95;
+    font-size:10px;
+}
+
+.mx-sales-only{
+    justify-content:space-between;
+    color:#69737d;
+    font-size:11px;
+}
+
+.mx-data-foot{
+    display:flex;
+    align-items:center;
+    justify-content:flex-end;
+    gap:18px;
+    margin-top:10px;
+    color:#929ba5;
+    font-size:8.5px;
+}
+
+.mx-data-foot > div{
+    display:flex;
+    align-items:center;
+    gap:5px;
+}
+
+.mx-data-foot strong{
+    color:#727d88;
+}
+
+.mx-data-foot .ok{
+    width:6px;
+    height:6px;
+    border-radius:50%;
+    background:#79bf00;
+}
+
+/* ------------------------------------------------------------
+   STREAMLIT · AJUSTES PARA INICIO
+   ------------------------------------------------------------ */
+
+[data-testid="stDateInput"] label p,
+[data-testid="stSelectbox"] label p{
+    color:#6e7882 !important;
+    font-size:10px !important;
+    font-weight:750 !important;
+}
+
+[data-testid="stDateInput"] input,
+[data-testid="stSelectbox"] div[data-baseweb="select"] > div{
+    min-height:39px !important;
+    border-color:#dfe4e8 !important;
+    background:#fff !important;
+}
+
+div[data-testid="stVerticalBlockBorderWrapper"]{
+    border-color:#e1e5e9 !important;
+    border-radius:14px !important;
+    background:#fff !important;
+    box-shadow:0 1px 2px rgba(17,24,39,.02) !important;
+}
+
+[data-testid="stDataFrame"]{
+    border:1px solid #e5e8eb;
+    border-radius:10px;
+    overflow:hidden;
+}
+
+/* ------------------------------------------------------------
+   SIDEBAR MODERN · clases que usa app.py actual
+   ------------------------------------------------------------ */
+
+.sidebar-brand-modern{
+    position:relative;
+    padding:5px 2px 22px;
+    margin-bottom:8px;
+}
+
+.sidebar-brand-accent{
+    width:34px;
+    height:3px;
+    margin-bottom:14px;
+    border-radius:999px;
+    background:#d8ff00;
+}
+
+.sidebar-brand-row{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:10px;
+}
+
+.sidebar-brand-modern .sidebar-brand-name{
+    color:#fff !important;
+    font-size:18px !important;
+    font-weight:850 !important;
+    letter-spacing:-.03em;
+}
+
+.sidebar-brand-sub{
+    margin-top:4px;
+    color:#77828c !important;
+    font-size:10px;
+    font-weight:600;
+}
+
+.sidebar-collapse{
+    color:#68737d !important;
+    font-size:15px;
+    font-weight:800;
+}
+
+.sidebar-section-modern{
+    margin:20px 3px 8px;
+    color:#65717c !important;
+    font-size:8px;
+    font-weight:850;
+    letter-spacing:.16em;
+}
+
+.sidebar-admin-note{
+    margin:0 2px 8px;
+    padding:12px 12px;
+    border:1px solid #1d252c;
+    border-radius:10px;
+    background:#0d1216;
+    color:#77838d !important;
+    font-size:9.5px;
+    line-height:1.9;
+}
+
+.sidebar-user-card{
+    display:grid;
+    grid-template-columns:34px 1fr auto;
+    align-items:center;
+    gap:9px;
+    margin-top:18px;
+    padding:11px 10px;
+    border-top:1px solid #1c242b;
+    color:#d8dde2 !important;
+}
+
+.sidebar-user-avatar{
+    width:34px;
+    height:34px;
+    display:grid;
+    place-items:center;
+    border-radius:9px;
+    background:#d8ff00;
+    color:#111820 !important;
+    font-size:9px;
+    font-weight:900;
+}
+
+.sidebar-user-card strong{
+    display:block;
+    color:#f4f6f8 !important;
+    font-size:9.5px;
+    font-weight:800;
+}
+
+.sidebar-user-card span{
+    display:block;
+    margin-top:2px;
+    color:#69757f !important;
+    font-size:8px;
+}
+
+/* Sidebar más compacto */
+[data-testid="stSidebar"],
+[data-testid="stSidebar"] > div:first-child{
+    width:252px !important;
+    min-width:252px !important;
+}
+
+[data-testid="stSidebarUserContent"]{
+    padding:22px 14px 18px !important;
+}
+
+[data-testid="stSidebar"] .stButton,
+[data-testid="stSidebar"] [data-testid="stButton"]{
+    margin:0 0 6px 0 !important;
+}
+
+[data-testid="stSidebar"] .stButton > button,
+[data-testid="stSidebar"] button[data-testid="stBaseButton-secondary"],
+[data-testid="stSidebar"] button[data-testid="stBaseButton-primary"]{
+    min-height:46px !important;
+    height:46px !important;
+    justify-content:flex-start !important;
+    padding:0 13px !important;
+    border-radius:9px !important;
+    font-size:10.5px !important;
+}
+
+/* ------------------------------------------------------------
+   RESPONSIVE
+   ------------------------------------------------------------ */
+
+@media(max-width:1280px){
+    .mx-kpi-grid{
+        grid-template-columns:repeat(3,minmax(0,1fr));
+    }
+
+    .mx-alert-grid{
+        grid-template-columns:1fr;
+    }
+}
+
+@media(max-width:900px){
+    .mx-home-head{
+        flex-direction:column;
+    }
+
+    .mx-home-live{
+        margin-top:0;
+    }
+
+    .mx-kpi-grid{
+        grid-template-columns:1fr 1fr;
+    }
+
+    .mx-chart-foot{
+        grid-template-columns:1fr;
+    }
+
+    .mx-status-grid{
+        grid-template-columns:1fr;
+    }
+
+    .mx-data-foot{
+        align-items:flex-start;
+        flex-direction:column;
+        gap:6px;
+    }
+}
+
+@media(max-width:650px){
+    .mx-kpi-grid{
+        grid-template-columns:1fr;
+    }
+
+    .mx-home-title{
+        font-size:27px;
+    }
+
+    .mx-kpi{
+        min-height:auto;
+    }
+}
+
+/* ============================================================
+   MARITEX · STOCK GENERAL V7
+   Clases sg-* aisladas para no afectar otras vistas.
+   ============================================================ */
+
+.sg-head{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:24px;
+    margin:0 0 14px;
+}
+
+.sg-eyebrow{
+    margin-bottom:7px;
+    color:#8b95a0;
+    font-size:9px;
+    font-weight:850;
+    letter-spacing:.14em;
+}
+
+.sg-title{
+    color:#171b21;
+    font-size:31px;
+    line-height:1.08;
+    font-weight:860;
+    letter-spacing:-.035em;
+}
+
+.sg-subtitle{
+    margin-top:7px;
+    max-width:760px;
+    color:#74808b;
+    font-size:12px;
+    line-height:1.5;
+}
+
+.sg-head-badge{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin-top:4px;
+    padding:8px 11px;
+    border:1px solid #e1e5e9;
+    border-radius:999px;
+    background:#fff;
+    color:#67727d;
+    font-size:9.5px;
+    font-weight:750;
+    white-space:nowrap;
+}
+
+.sg-head-badge i{
+    width:7px;
+    height:7px;
+    border-radius:50%;
+    background:#7fc800;
+    box-shadow:0 0 0 4px rgba(127,200,0,.10);
+}
+
+.sg-source{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:18px;
+    margin:0 0 14px;
+    padding:10px 12px;
+    border:1px solid #e2e6ea;
+    border-radius:12px;
+    background:#ffffff;
+    box-shadow:0 1px 2px rgba(17,24,39,.02);
+}
+
+.sg-source-brand{
+    display:flex;
+    align-items:center;
+    gap:11px;
+    min-width:0;
+}
+
+.sg-source-icon{
+    width:34px;
+    height:34px;
+    flex:0 0 34px;
+    display:grid;
+    place-items:center;
+    border-radius:9px;
+    color:#252c33;
+    background:#f1f3f5;
+    font-size:14px;
+    font-weight:900;
+}
+
+.sg-source-copy{
+    min-width:0;
+}
+
+.sg-source-name{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    min-width:0;
+    color:#252c33;
+    font-size:11px;
+    font-weight:850;
+}
+
+.sg-source-live{
+    display:inline-flex;
+    align-items:center;
+    gap:5px;
+    padding:3px 7px;
+    border-radius:999px;
+    background:#eef9f2;
+    color:#25865b;
+    font-size:7.5px;
+    font-weight:850;
+    white-space:nowrap;
+}
+
+.sg-source-live i{
+    width:6px;
+    height:6px;
+    border-radius:50%;
+    background:#2dbf72;
+}
+
+.sg-source-meta{
+    margin-top:3px;
+    color:#909aa4;
+    font-size:8.5px;
+}
+
+.sg-source-metrics{
+    display:flex;
+    align-items:stretch;
+    gap:8px;
+    flex-wrap:wrap;
+    justify-content:flex-end;
+}
+
+.sg-source-pill,
+.sg-source-update{
+    min-width:92px;
+    padding:7px 10px;
+    border:1px solid #edf0f2;
+    border-radius:9px;
+    background:#f8f9fa;
+}
+
+.sg-source-pill span,
+.sg-source-update span{
+    display:block;
+    color:#98a1aa;
+    font-size:6.8px;
+    font-weight:850;
+    letter-spacing:.09em;
+}
+
+.sg-source-pill strong{
+    display:block;
+    margin-top:3px;
+    color:#30363d;
+    font-size:10px;
+    font-weight:850;
+}
+
+.sg-source-update{
+    min-width:176px;
+}
+
+.sg-source-update strong{
+    display:block;
+    margin-top:3px;
+    color:#4f5963;
+    font-size:8px;
+    font-weight:750;
+    white-space:nowrap;
+}
+
+.sg-kpi-grid{
+    display:grid;
+    grid-template-columns:repeat(5,minmax(0,1fr));
+    gap:10px;
+    margin:0 0 14px;
+}
+
+.sg-kpi{
+    min-height:132px;
+    padding:13px 14px;
+    border:1px solid #e1e5e9;
+    border-radius:13px;
+    background:#fff;
+    box-shadow:0 1px 2px rgba(17,24,39,.02);
+}
+
+.sg-kpi-top{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:8px;
+}
+
+.sg-kpi-icon{
+    width:32px;
+    height:32px;
+    display:grid;
+    place-items:center;
+    border-radius:9px;
+    font-size:13px;
+    font-weight:950;
+}
+
+.sg-kpi-icon.purple{
+    color:#6536f3;
+    background:#efe9ff;
+}
+
+.sg-kpi-icon.green{
+    color:#249b66;
+    background:#eaf8f1;
+}
+
+.sg-kpi-icon.orange{
+    color:#d57a20;
+    background:#fff1e5;
+}
+
+.sg-kpi-icon.red{
+    color:#d94343;
+    background:#ffeded;
+}
+
+.sg-kpi-icon.lime{
+    color:#658d00;
+    background:#efffc7;
+}
+
+.sg-kpi-badge{
+    padding:4px 7px;
+    border-radius:999px;
+    font-size:7.5px;
+    font-weight:850;
+}
+
+.sg-kpi-badge.orange{
+    color:#c36d18;
+    background:#fff4e9;
+}
+
+.sg-kpi-label{
+    margin-top:11px;
+    color:#7d8791;
+    font-size:8.7px;
+    font-weight:850;
+    letter-spacing:.045em;
+}
+
+.sg-kpi-value{
+    margin-top:4px;
+    color:#171b21;
+    font-size:24px;
+    line-height:1.1;
+    font-weight:860;
+    letter-spacing:-.025em;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+}
+
+.sg-kpi-helper{
+    margin-top:7px;
+    color:#98a1aa;
+    font-size:8.8px;
+    line-height:1.35;
+}
+
+.sg-alert{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:18px;
+    margin:0 0 14px;
+    padding:11px 14px;
+    border:1px solid #e2e6ea;
+    border-radius:12px;
+    background:#fff;
+}
+
+.sg-alert.warning{
+    border-left:4px solid #f2a23b;
+}
+
+.sg-alert.critical{
+    border-left:4px solid #e84b4b;
+}
+
+.sg-alert.ok{
+    border-left:4px solid #7fc800;
+}
+
+.sg-alert-main{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    min-width:230px;
+}
+
+.sg-alert-icon{
+    width:31px;
+    height:31px;
+    flex:0 0 31px;
+    display:grid;
+    place-items:center;
+    border-radius:8px;
+    color:#d1761c;
+    background:#fff1e5;
+    font-size:13px;
+    font-weight:950;
+}
+
+.sg-alert-main span{
+    display:block;
+    color:#929ba5;
+    font-size:7.5px;
+    font-weight:850;
+    letter-spacing:.09em;
+}
+
+.sg-alert-main strong{
+    display:block;
+    margin-top:3px;
+    color:#2a3037;
+    font-size:10.5px;
+    font-weight:850;
+}
+
+.sg-alert-stats{
+    display:grid;
+    grid-template-columns:repeat(5,auto);
+    gap:18px;
+    align-items:center;
+}
+
+.sg-alert-stats > div{
+    min-width:68px;
+}
+
+.sg-alert-stats span{
+    display:block;
+    color:#929ba5;
+    font-size:7.7px;
+}
+
+.sg-alert-stats strong{
+    display:block;
+    margin-top:2px;
+    color:#30363d;
+    font-size:10.5px;
+    font-weight:850;
+}
+
+.sg-card-head{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:14px;
+    margin-bottom:4px;
+}
+
+.sg-card-head strong{
+    display:block;
+    color:#252b33;
+    font-size:12px;
+    font-weight:850;
+}
+
+.sg-card-head span{
+    display:block;
+    margin-top:3px;
+    color:#8c96a0;
+    font-size:8.7px;
+}
+
+.sg-status-list{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:6px 10px;
+    margin-top:-2px;
+}
+
+.sg-status-list > div{
+    display:grid;
+    grid-template-columns:auto 1fr auto;
+    align-items:center;
+    gap:6px;
+    padding:6px 0;
+    border-bottom:1px solid #f0f2f4;
+}
+
+.sg-status-list i{
+    width:6px;
+    height:6px;
+    border-radius:50%;
+}
+
+.sg-status-list i.green{background:#7fc800;}
+.sg-status-list i.yellow{background:#f2b84b;}
+.sg-status-list i.orange{background:#f28c28;}
+.sg-status-list i.red{background:#e84b4b;}
+
+.sg-status-list span{
+    color:#68737d;
+    font-size:8.5px;
+}
+
+.sg-status-list strong{
+    color:#30363d;
+    font-size:8.8px;
+    font-weight:850;
+}
+
+.sg-empty-chart{
+    min-height:280px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    color:#8e98a2;
+    font-size:9px;
+    text-align:center;
+}
+
+.sg-section-head{
+    display:flex;
+    align-items:flex-end;
+    justify-content:space-between;
+    gap:14px;
+    margin:17px 0 8px;
+}
+
+.sg-section-head strong{
+    display:block;
+    color:#22282f;
+    font-size:14px;
+    font-weight:860;
+}
+
+.sg-section-head span{
+    display:block;
+    margin-top:3px;
+    color:#8a949e;
+    font-size:9px;
+}
+
+.sg-result{
+    min-height:48px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:18px;
+    padding:8px 12px;
+    border:1px solid #e1e5e9;
+    border-radius:10px;
+    background:#fff;
+}
+
+.sg-result > div:last-child{
+    text-align:right;
+}
+
+.sg-result span{
+    display:block;
+    color:#98a1aa;
+    font-size:7.3px;
+    font-weight:850;
+    letter-spacing:.08em;
+}
+
+.sg-result strong{
+    display:block;
+    margin-top:3px;
+    color:#353c44;
+    font-size:9.5px;
+    font-weight:800;
+}
+
+.sg-detail-head{
+    margin-top:20px;
+}
+
+.sg-detail{
+    margin:8px 0 10px;
+    padding:14px;
+    border:1px solid #e1e5e9;
+    border-radius:12px;
+    background:#fff;
+}
+
+.sg-detail-title span{
+    display:block;
+    color:#929ba5;
+    font-size:8px;
+    font-weight:800;
+}
+
+.sg-detail-title strong{
+    display:block;
+    margin-top:3px;
+    color:#252c33;
+    font-size:12px;
+    font-weight:850;
+}
+
+.sg-detail-grid{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:9px;
+    margin-top:11px;
+}
+
+.sg-detail-grid > div{
+    padding:10px 11px;
+    border-radius:9px;
+    background:#f6f8f9;
+}
+
+.sg-detail-grid span{
+    display:block;
+    color:#909aa4;
+    font-size:8px;
+}
+
+.sg-detail-grid strong{
+    display:block;
+    margin-top:4px;
+    color:#242b32;
+    font-size:15px;
+    font-weight:850;
+}
+
+/* Streamlit específicos para esta vista */
+[data-testid="stDataFrame"]{
+    border:1px solid #e4e8eb;
+    border-radius:10px;
+    overflow:hidden;
+}
+
+div[data-testid="stVerticalBlockBorderWrapper"]{
+    border-color:#e1e5e9 !important;
+    border-radius:13px !important;
+    background:#fff !important;
+    box-shadow:0 1px 2px rgba(17,24,39,.02) !important;
+}
+
+[data-testid="stTextInput"] label p,
+[data-testid="stMultiSelect"] label p,
+[data-testid="stRadio"] label p{
+    color:#6f7983 !important;
+    font-size:9px !important;
+    font-weight:750 !important;
+}
+
+/* Reduce espacio de los gráficos de Vega/Altair */
+[data-testid="stVegaLiteChart"]{
+    margin-top:-2px !important;
+}
+
+/* Responsive */
+@media(max-width:1280px){
+    .sg-kpi-grid{
+        grid-template-columns:repeat(3,minmax(0,1fr));
+    }
+
+    .sg-alert{
+        align-items:flex-start;
+        flex-direction:column;
+    }
+
+    .sg-alert-stats{
+        width:100%;
+        grid-template-columns:repeat(5,1fr);
+    }
+}
+
+@media(max-width:900px){
+    .sg-head,
+    .sg-source{
+        align-items:flex-start;
+        flex-direction:column;
+    }
+
+    .sg-source-right{
+        min-width:0;
+        text-align:left;
+    }
+
+    .sg-kpi-grid{
+        grid-template-columns:1fr 1fr;
+    }
+
+    .sg-alert-stats{
+        grid-template-columns:1fr 1fr;
+    }
+
+    .sg-detail-grid{
+        grid-template-columns:1fr 1fr;
+    }
+}
+
+@media(max-width:620px){
+    .sg-kpi-grid{
+        grid-template-columns:1fr;
+    }
+
+    .sg-title{
+        font-size:27px;
+    }
+
+    .sg-detail-grid{
+        grid-template-columns:1fr;
+    }
+}
+
+/* ============================================================
+   MARITEX · STOCK GENERAL V7.1
+   Panel de productos con stock bajo
+   ============================================================ */
+
+.sg-low-list{
+    margin-top:2px;
+}
+
+.sg-low-row{
+    display:grid;
+    grid-template-columns:30px minmax(0,1fr) auto;
+    align-items:center;
+    gap:9px;
+    padding:9px 0;
+    border-bottom:1px solid #edf0f2;
+}
+
+.sg-low-row:last-child{
+    border-bottom:0;
+}
+
+.sg-low-rank{
+    width:28px;
+    height:28px;
+    display:grid;
+    place-items:center;
+    border-radius:8px;
+    font-size:8px;
+    font-weight:900;
+}
+
+.sg-low-rank.orange{
+    color:#c96f18;
+    background:#fff2e6;
+}
+
+.sg-low-rank.red{
+    color:#d53c3c;
+    background:#ffeded;
+}
+
+.sg-low-main{
+    min-width:0;
+}
+
+.sg-low-main strong{
+    display:block;
+    overflow:hidden;
+    color:#2b3138;
+    font-size:9.4px;
+    font-weight:800;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+}
+
+.sg-low-main span{
+    display:block;
+    margin-top:2px;
+    color:#98a1aa;
+    font-size:7.7px;
+}
+
+.sg-low-bar{
+    width:100%;
+    height:4px;
+    margin-top:6px;
+    overflow:hidden;
+    border-radius:999px;
+    background:#eef1f3;
+}
+
+.sg-low-bar i{
+    display:block;
+    height:100%;
+    min-width:2px;
+    border-radius:999px;
+}
+
+.sg-low-bar i.orange{
+    background:#f2a23b;
+}
+
+.sg-low-bar i.red{
+    background:#e84b4b;
+}
+
+.sg-low-value{
+    min-width:78px;
+    text-align:right;
+}
+
+.sg-low-value > strong{
+    display:block;
+    font-size:12px;
+    font-weight:900;
+}
+
+.sg-low-value > strong.orange{
+    color:#d57a20;
+}
+
+.sg-low-value > strong.red{
+    color:#d94343;
+}
+
+.sg-low-value > span{
+    display:block;
+    color:#8e98a2;
+    font-size:7.4px;
+}
+
+.sg-low-value small{
+    display:block;
+    margin-top:2px;
+    color:#a1a9b1;
+    font-size:6.9px;
+    white-space:nowrap;
+}
+
+.sg-low-empty{
+    min-height:270px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    flex-direction:column;
+    text-align:center;
+}
+
+.sg-low-empty-icon{
+    width:38px;
+    height:38px;
+    display:grid;
+    place-items:center;
+    margin-bottom:9px;
+    border-radius:50%;
+    color:#5f8500;
+    background:#efffc7;
+    font-weight:900;
+}
+
+.sg-low-empty strong{
+    color:#2a3138;
+    font-size:10px;
+}
+
+.sg-low-empty span{
+    margin-top:4px;
+    max-width:210px;
+    color:#8d97a1;
+    font-size:8px;
+    line-height:1.45;
+}
+
+@media(max-width:980px){
+    .sg-source{
+        align-items:flex-start;
+        flex-direction:column;
+    }
+
+    .sg-source-metrics{
+        width:100%;
+        justify-content:flex-start;
+    }
+}
+
+@media(max-width:620px){
+    .sg-source-metrics{
+        display:grid;
+        grid-template-columns:1fr 1fr;
+    }
+
+    .sg-source-update{
+        grid-column:1 / -1;
+        min-width:0;
+    }
+}
+
+/* ============================================================
+   MARITEX · STOCK GENERAL V7.3
+   Productos con stock bajo en formato horizontal
+   ============================================================ */
+
+.sg-low-section-head{
+    margin-top:14px;
+    margin-bottom:8px;
+}
+
+.sg-low-horizontal{
+    display:grid;
+    grid-template-columns:repeat(5,minmax(0,1fr));
+    gap:10px;
+}
+
+.sg-low-card{
+    min-width:0;
+    padding:11px 12px;
+    border:1px solid #edf0f2;
+    border-radius:11px;
+    background:#fbfcfd;
+}
+
+.sg-low-card-top{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:8px;
+}
+
+.sg-low-card-rank{
+    width:26px;
+    height:26px;
+    display:grid;
+    place-items:center;
+    border-radius:8px;
+    font-size:7.5px;
+    font-weight:900;
+}
+
+.sg-low-card-rank.orange{
+    color:#c96f18;
+    background:#fff2e6;
+}
+
+.sg-low-card-rank.red{
+    color:#d53c3c;
+    background:#ffeded;
+}
+
+.sg-low-card-stock{
+    font-size:9px;
+    font-weight:900;
+    white-space:nowrap;
+}
+
+.sg-low-card-stock.orange{
+    color:#cf741b;
+}
+
+.sg-low-card-stock.red{
+    color:#d23f3f;
+}
+
+.sg-low-card-product{
+    margin-top:10px;
+    min-height:30px;
+    overflow:hidden;
+    color:#2a3037;
+    font-size:9.2px;
+    line-height:1.35;
+    font-weight:850;
+    text-overflow:ellipsis;
+    display:-webkit-box;
+    -webkit-line-clamp:2;
+    -webkit-box-orient:vertical;
+}
+
+.sg-low-card-sku{
+    margin-top:4px;
+    color:#98a1aa;
+    font-size:7.5px;
+}
+
+.sg-low-card-foot{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:8px;
+    margin-top:9px;
+    padding-top:8px;
+    border-top:1px solid #edf0f2;
+    color:#929ba5;
+    font-size:7px;
+}
+
+.sg-low-card-foot i{
+    width:34px;
+    height:4px;
+    border-radius:999px;
+}
+
+.sg-low-card-foot i.orange{
+    background:#f2a23b;
+}
+
+.sg-low-card-foot i.red{
+    background:#e84b4b;
+}
+
+.sg-low-empty-horizontal{
+    min-height:86px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:12px;
+}
+
+.sg-low-empty-horizontal strong{
+    display:block;
+    color:#2a3138;
+    font-size:10px;
+}
+
+.sg-low-empty-horizontal span{
+    display:block;
+    margin-top:3px;
+    color:#8d97a1;
+    font-size:8px;
+}
+
+/* Más aire visual para los dos gráficos principales */
+@media(min-width:1100px){
+    .sg-low-horizontal{
+        grid-template-columns:repeat(5,minmax(0,1fr));
+    }
+}
+
+@media(max-width:1100px){
+    .sg-low-horizontal{
+        grid-template-columns:repeat(3,minmax(0,1fr));
+    }
+}
+
+@media(max-width:760px){
+    .sg-low-horizontal{
+        grid-template-columns:repeat(2,minmax(0,1fr));
+    }
+}
+
+@media(max-width:520px){
+    .sg-low-horizontal{
+        grid-template-columns:1fr;
+    }
+}
+
+/* ============================================================
+   MARITEX · MÉTRICAS DE STOCK V8
+   ============================================================ */
+
+.ms-head{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:24px;
+    margin:0 0 14px;
+}
+
+.ms-eyebrow{
+    margin-bottom:7px;
+    color:#8b95a0;
+    font-size:9px;
+    font-weight:850;
+    letter-spacing:.14em;
+}
+
+.ms-title{
+    color:#171b21;
+    font-size:31px;
+    line-height:1.08;
+    font-weight:860;
+    letter-spacing:-.035em;
+}
+
+.ms-subtitle{
+    margin-top:7px;
+    color:#74808b;
+    font-size:12px;
+    line-height:1.5;
+}
+
+.ms-head-badge{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin-top:4px;
+    padding:8px 11px;
+    border:1px solid #e1e5e9;
+    border-radius:999px;
+    background:#fff;
+    color:#67727d;
+    font-size:9.5px;
+    font-weight:750;
+    white-space:nowrap;
+}
+
+.ms-head-badge i{
+    width:7px;
+    height:7px;
+    border-radius:50%;
+    background:#7fc800;
+    box-shadow:0 0 0 4px rgba(127,200,0,.10);
+}
+
+.ms-source{
+    display:grid;
+    grid-template-columns:1fr 1fr 1fr auto;
+    gap:8px;
+    margin-bottom:12px;
+}
+
+.ms-source-item,
+.ms-source-update{
+    display:flex;
+    align-items:center;
+    gap:9px;
+    min-height:54px;
+    padding:9px 11px;
+    border:1px solid #e3e7ea;
+    border-radius:10px;
+    background:#fff;
+}
+
+.ms-source-item .dot{
+    width:7px;
+    height:7px;
+    flex:0 0 7px;
+    border-radius:50%;
+}
+
+.ms-source-item .dot.green{background:#2dbf72;}
+.ms-source-item .dot.blue{background:#4f7cd7;}
+.ms-source-item .dot.purple{background:#6536f3;}
+
+.ms-source small,
+.ms-source-update small{
+    display:block;
+    color:#98a1aa;
+    font-size:6.8px;
+    font-weight:850;
+    letter-spacing:.09em;
+}
+
+.ms-source strong,
+.ms-source-update strong{
+    display:block;
+    margin-top:3px;
+    color:#3d454e;
+    font-size:8.6px;
+    font-weight:800;
+}
+
+.ms-source-update{
+    min-width:185px;
+    display:block;
+}
+
+.ms-kpi-grid{
+    display:grid;
+    grid-template-columns:repeat(5,minmax(0,1fr));
+    gap:10px;
+    margin:12px 0 15px;
+}
+
+.ms-kpi{
+    min-height:132px;
+    padding:13px 14px;
+    border:1px solid #e1e5e9;
+    border-radius:13px;
+    background:#fff;
+    box-shadow:0 1px 2px rgba(17,24,39,.02);
+}
+
+.ms-kpi-icon{
+    width:31px;
+    height:31px;
+    display:grid;
+    place-items:center;
+    border-radius:9px;
+    font-size:13px;
+    font-weight:950;
+}
+
+.ms-kpi-icon.purple{
+    color:#6536f3;
+    background:#efe9ff;
+}
+
+.ms-kpi-icon.green{
+    color:#249b66;
+    background:#eaf8f1;
+}
+
+.ms-kpi-icon.orange{
+    color:#d57a20;
+    background:#fff1e5;
+}
+
+.ms-kpi-icon.lime{
+    color:#658d00;
+    background:#efffc7;
+}
+
+.ms-kpi-icon.blue{
+    color:#3768c5;
+    background:#edf3ff;
+}
+
+.ms-kpi-label{
+    margin-top:10px;
+    color:#7d8791;
+    font-size:8.5px;
+    font-weight:850;
+    letter-spacing:.045em;
+}
+
+.ms-kpi-value{
+    margin-top:4px;
+    color:#171b21;
+    font-size:23px;
+    line-height:1.1;
+    font-weight:860;
+    letter-spacing:-.025em;
+}
+
+.ms-kpi-helper{
+    margin-top:7px;
+    color:#98a1aa;
+    font-size:8.5px;
+    line-height:1.35;
+}
+
+.ms-section-head{
+    display:flex;
+    align-items:flex-end;
+    justify-content:space-between;
+    gap:16px;
+    margin:18px 0 8px;
+}
+
+.ms-section-head strong{
+    display:block;
+    color:#22282f;
+    font-size:14px;
+    font-weight:860;
+}
+
+.ms-section-head span{
+    display:block;
+    margin-top:3px;
+    color:#8a949e;
+    font-size:9px;
+}
+
+.ms-section-count{
+    padding:5px 8px;
+    border-radius:999px;
+    background:#f0f2f4;
+    color:#59636e;
+    font-size:8px;
+    font-weight:850;
+}
+
+.ms-import-mini{
+    min-height:90px;
+    padding:11px 12px;
+    border:1px solid #e2e6ea;
+    border-radius:11px;
+    background:#fff;
+}
+
+.ms-import-mini span{
+    display:block;
+    color:#8a949e;
+    font-size:7.5px;
+    font-weight:850;
+    letter-spacing:.06em;
+}
+
+.ms-import-mini strong{
+    display:block;
+    margin-top:7px;
+    color:#20262d;
+    font-size:20px;
+    line-height:1;
+    font-weight:880;
+}
+
+.ms-import-mini small{
+    display:block;
+    margin-top:7px;
+    color:#99a2ab;
+    font-size:7.7px;
+}
+
+.ms-card-head{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:12px;
+    margin-bottom:4px;
+}
+
+.ms-card-head strong{
+    display:block;
+    color:#252b33;
+    font-size:11.5px;
+    font-weight:850;
+}
+
+.ms-card-head span{
+    display:block;
+    margin-top:3px;
+    color:#8c96a0;
+    font-size:8.5px;
+}
+
+.ms-risk-strip{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:10px;
+    margin-bottom:9px;
+}
+
+.ms-risk-strip > div{
+    padding:11px 13px;
+    border:1px solid #e2e6ea;
+    border-left:4px solid #7fc800;
+    border-radius:10px;
+    background:#fff;
+}
+
+.ms-risk-strip > div.danger{
+    border-left-color:#e84b4b;
+}
+
+.ms-risk-strip span{
+    display:block;
+    color:#8e98a2;
+    font-size:7.3px;
+    font-weight:850;
+    letter-spacing:.07em;
+}
+
+.ms-risk-strip strong{
+    display:block;
+    margin-top:4px;
+    color:#252c33;
+    font-size:17px;
+    font-weight:880;
+}
+
+.ms-risk-strip small{
+    display:block;
+    margin-top:3px;
+    color:#99a2ab;
+    font-size:7.5px;
+}
+
+.ms-info-box{
+    padding:14px;
+    border:1px solid #e1e5e9;
+    border-radius:11px;
+    background:#fff;
+}
+
+.ms-info-box strong{
+    display:block;
+    color:#2b3138;
+    font-size:10px;
+}
+
+.ms-info-box span{
+    display:block;
+    margin-top:4px;
+    color:#89939d;
+    font-size:8.5px;
+}
+
+.ms-empty{
+    min-height:250px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    color:#919ba5;
+    font-size:9px;
+    text-align:center;
+}
+
+@media(max-width:1180px){
+    .ms-source{
+        grid-template-columns:1fr 1fr;
+    }
+
+    .ms-kpi-grid{
+        grid-template-columns:repeat(3,minmax(0,1fr));
+    }
+}
+
+@media(max-width:820px){
+    .ms-head{
+        flex-direction:column;
+    }
+
+    .ms-source{
+        grid-template-columns:1fr;
+    }
+
+    .ms-kpi-grid{
+        grid-template-columns:1fr 1fr;
+    }
+
+    .ms-risk-strip{
+        grid-template-columns:1fr;
+    }
+}
+
+@media(max-width:560px){
+    .ms-kpi-grid{
+        grid-template-columns:1fr;
+    }
+
+    .ms-title{
+        font-size:27px;
+    }
+}
+
+/* ============================================================
+   MARITEX · MÉTRICAS DE STOCK V9
+   Decisiones + movimientos CD -> sucursales
+   ============================================================ */
+
+.ms-movement-summary{
+    display:grid;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:10px;
+    margin-bottom:10px;
+}
+
+.ms-movement-summary > div{
+    min-height:92px;
+    padding:11px 13px;
+    border:1px solid #e2e6ea;
+    border-radius:11px;
+    background:#fff;
+}
+
+.ms-movement-summary span{
+    display:block;
+    color:#8f99a3;
+    font-size:7.3px;
+    font-weight:850;
+    letter-spacing:.07em;
+}
+
+.ms-movement-summary strong{
+    display:block;
+    margin-top:6px;
+    color:#252c33;
+    font-size:17px;
+    font-weight:880;
+}
+
+.ms-movement-summary small{
+    display:block;
+    margin-top:5px;
+    color:#99a2ab;
+    font-size:7.6px;
+    line-height:1.35;
+}
+
+/* Hace que las métricas principales se lean como decisiones,
+   no como una repetición de Stock General */
+.ms-kpi{
+    position:relative;
+    overflow:hidden;
+}
+
+.ms-kpi::after{
+    content:"";
+    position:absolute;
+    left:0;
+    right:0;
+    bottom:0;
+    height:3px;
+    background:#eef1f3;
+}
+
+.ms-kpi:nth-child(1)::after{background:#4f7cd7;}
+.ms-kpi:nth-child(2)::after{background:#f2a23b;}
+.ms-kpi:nth-child(3)::after{background:#6536f3;}
+.ms-kpi:nth-child(4)::after{background:#9aa3ab;}
+.ms-kpi:nth-child(5)::after{background:#d8ff00;}
+
+@media(max-width:900px){
+    .ms-movement-summary{
+        grid-template-columns:1fr;
+    }
+}
+
+/* ============================================================
+   MARITEX · SIDEBAR CLARO MODERNO · FINAL
+   Este bloque debe permanecer al final del archivo.
+   ============================================================ */
+
+[data-testid="stSidebar"],
+[data-testid="stSidebar"] > div:first-child{
+    width:258px !important;
+    min-width:258px !important;
+    background:#ffffff !important;
+    border-right:1px solid #e7eaee !important;
+}
+
+[data-testid="stSidebarUserContent"]{
+    min-height:100vh !important;
+    padding:28px 18px 24px !important;
+    background:#ffffff !important;
+    color:#171b21 !important;
+}
+
+[data-testid="stSidebar"] p,
+[data-testid="stSidebar"] span,
+[data-testid="stSidebar"] div{
+    color:inherit;
+}
+
+.sidebar-brand-modern{
+    display:flex !important;
+    align-items:center !important;
+    gap:11px !important;
+    padding:2px 7px 28px !important;
+    margin:0 !important;
+}
+
+.sidebar-logo-mark{
+    position:relative;
+    width:29px;
+    height:25px;
+    flex:0 0 29px;
+}
+
+.sidebar-logo-mark span{
+    position:absolute;
+    top:2px;
+    width:8px;
+    height:22px;
+    background:#ffd600;
+    border-radius:2px;
+}
+
+.sidebar-logo-mark span:first-child{
+    left:4px;
+    transform:skewY(35deg);
+}
+
+.sidebar-logo-mark span:last-child{
+    right:4px;
+    transform:skewY(-35deg);
+}
+
+.sidebar-brand-modern .sidebar-brand-name{
+    color:#111418 !important;
+    font-size:20px !important;
+    line-height:1 !important;
+    font-weight:900 !important;
+    letter-spacing:.02em !important;
+}
+
+.sidebar-section-modern{
+    display:flex !important;
+    align-items:center !important;
+    gap:9px !important;
+    margin:25px 7px 10px !important;
+    color:#7d8792 !important;
+    font-size:8.5px !important;
+    line-height:1 !important;
+    font-weight:850 !important;
+    letter-spacing:.10em !important;
+}
+
+.sidebar-section-modern .sidebar-section-dot{
+    width:6px !important;
+    height:6px !important;
+    flex:0 0 6px !important;
+    border-radius:50% !important;
+    background:#ffd600 !important;
+}
+
+.sidebar-section-modern i{
+    display:block !important;
+    height:1px !important;
+    flex:1 !important;
+    margin-left:4px !important;
+    background:#e7eaee !important;
+}
+
+[data-testid="stSidebar"] .stButton,
+[data-testid="stSidebar"] [data-testid="stButton"]{
+    width:100% !important;
+    margin:0 0 5px !important;
+}
+
+[data-testid="stSidebar"] .stButton > button,
+[data-testid="stSidebar"] button[data-testid="stBaseButton-secondary"],
+[data-testid="stSidebar"] button[data-testid="stBaseButton-primary"]{
+    position:relative !important;
+    width:100% !important;
+    min-height:45px !important;
+    height:45px !important;
+    display:flex !important;
+    align-items:center !important;
+    justify-content:flex-start !important;
+    padding:0 14px !important;
+    border:1px solid transparent !important;
+    border-radius:10px !important;
+    background:transparent !important;
+    color:#252b32 !important;
+    box-shadow:none !important;
+    font-size:11px !important;
+    font-weight:720 !important;
+    text-align:left !important;
+    opacity:1 !important;
+    transition:background .15s ease,border-color .15s ease,transform .15s ease !important;
+}
+
+[data-testid="stSidebar"] .stButton > button *,
+[data-testid="stSidebar"] button[data-testid="stBaseButton-secondary"] *,
+[data-testid="stSidebar"] button[data-testid="stBaseButton-primary"] *{
+    color:inherit !important;
+    opacity:1 !important;
+}
+
+[data-testid="stSidebar"] button[data-testid="stBaseButton-secondary"]:hover{
+    background:#f6f7f8 !important;
+    border-color:#eef0f2 !important;
+    color:#111418 !important;
+    transform:translateX(1px);
+}
+
+[data-testid="stSidebar"] button[data-testid="stBaseButton-primary"]{
+    background:#fff8dc !important;
+    border-color:#fff0ac !important;
+    color:#15191e !important;
+    font-weight:820 !important;
+}
+
+[data-testid="stSidebar"] button[data-testid="stBaseButton-primary"]::before{
+    content:"" !important;
+    position:absolute !important;
+    left:-1px !important;
+    top:7px !important;
+    bottom:7px !important;
+    width:4px !important;
+    border-radius:0 999px 999px 0 !important;
+    background:#ffd600 !important;
+}
+
+[data-testid="stSidebar"] button[data-testid="stBaseButton-primary"]:hover{
+    background:#fff5c7 !important;
+    border-color:#ffe982 !important;
+    color:#111418 !important;
+}
+
+[data-testid="stSidebar"] button[data-testid="stBaseButton-primary"]:focus,
+[data-testid="stSidebar"] button[data-testid="stBaseButton-secondary"]:focus,
+[data-testid="stSidebar"] button[data-testid="stBaseButton-primary"]:active,
+[data-testid="stSidebar"] button[data-testid="stBaseButton-secondary"]:active{
+    box-shadow:none !important;
+    outline:none !important;
+}
+
+[data-testid="stSidebarCollapseButton"] button{
+    color:#7d8792 !important;
+    background:#f5f6f7 !important;
+    border:1px solid #e7eaee !important;
+    border-radius:999px !important;
+}
+
+[data-testid="stSidebarCollapseButton"] button:hover{
+    color:#171b21 !important;
+    background:#eef0f2 !important;
+}
+
+/* Oculta cualquier bloque antiguo del sidebar que haya quedado
+   definido en CSS pero que ya no se renderiza desde app.py. */
+.sidebar-admin-note,
+.sidebar-user-card,
+.sidebar-brand-sub,
+.sidebar-brand-accent,
+.sidebar-collapse{
+    display:none !important;
+}
+
+@media(max-width:900px){
+    [data-testid="stSidebar"],
+    [data-testid="stSidebar"] > div:first-child{
+        width:250px !important;
+        min-width:250px !important;
+    }
+
+    [data-testid="stSidebarUserContent"]{
+        padding:22px 14px 20px !important;
+    }
+}
+
+/* ============================================================
+   MARITEX · SIDEBAR ICONOS MATERIAL · FINAL
+   ============================================================ */
+
+[data-testid="stSidebar"] .stButton > button{
+    gap:11px !important;
+}
+
+[data-testid="stSidebar"] .stButton > button [data-testid="stIconMaterial"]{
+    font-size:19px !important;
+    width:21px !important;
+    min-width:21px !important;
+    height:21px !important;
+    display:flex !important;
+    align-items:center !important;
+    justify-content:center !important;
+    color:#20262d !important;
+}
+
+[data-testid="stSidebar"] button[data-testid="stBaseButton-primary"] [data-testid="stIconMaterial"]{
+    color:#171b21 !important;
+}
+
+[data-testid="stSidebar"] button[data-testid="stBaseButton-secondary"]:hover [data-testid="stIconMaterial"]{
+    color:#111418 !important;
+}
+
+/* Mantiene el texto alineado aunque los iconos sean distintos */
+[data-testid="stSidebar"] .stButton > button p{
+    margin:0 !important;
+    line-height:1.1 !important;
+}
+
+/* ============================================================
+   MARITEX · MARKETPLACE V2
+   Llegadas_OK -> CASA MATRIZ -> Paris / Mercado Libre
+   ============================================================ */
+
+.mk2-page-head{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:24px;
+    margin:0 0 15px;
+}
+
+.mk2-eyebrow{
+    color:#929ba5;
+    font-size:8.5px;
+    font-weight:850;
+    letter-spacing:.14em;
+}
+
+.mk2-title{
+    margin-top:7px;
+    color:#171b21;
+    font-size:30px;
+    line-height:1.08;
+    font-weight:860;
+    letter-spacing:-.035em;
+}
+
+.mk2-subtitle{
+    margin-top:7px;
+    color:#75808b;
+    font-size:11.5px;
+    line-height:1.5;
+}
+
+.mk2-live{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin-top:4px;
+    padding:7px 11px;
+    border:1px solid #e1e5e9;
+    border-radius:999px;
+    background:#fff;
+    color:#6d7781;
+    font-size:9px;
+    font-weight:750;
+    white-space:nowrap;
+}
+
+.mk2-live i{
+    width:7px;
+    height:7px;
+    border-radius:50%;
+    background:#7fc800;
+    box-shadow:0 0 0 4px rgba(127,200,0,.10);
+}
+
+.mk2-source{
+    display:grid;
+    grid-template-columns:42px 1fr auto;
+    align-items:center;
+    gap:13px;
+    margin:10px 0 13px;
+    padding:12px 14px;
+    border:1px solid #e1e5e9;
+    border-radius:12px;
+    background:#fff;
+}
+
+.mk2-source-icon{
+    width:40px;
+    height:40px;
+    display:grid;
+    place-items:center;
+    border-radius:10px;
+    background:#fff6ca;
+    color:#6e5c00;
+    font-size:10px;
+    font-weight:900;
+}
+
+.mk2-source-main span,
+.mk2-source-rule span{
+    display:block;
+    color:#969fa8;
+    font-size:7.5px;
+    font-weight:850;
+    letter-spacing:.09em;
+}
+
+.mk2-source-main strong,
+.mk2-source-rule strong{
+    display:block;
+    margin-top:3px;
+    color:#2c333a;
+    font-size:10.5px;
+    font-weight:850;
+}
+
+.mk2-source-main small,
+.mk2-source-rule small{
+    display:block;
+    margin-top:3px;
+    color:#8a949e;
+    font-size:8.5px;
+}
+
+.mk2-source-rule{
+    padding-left:18px;
+    border-left:1px solid #edf0f2;
+    text-align:right;
+}
+
+.mk2-kpi-grid{
+    display:grid;
+    grid-template-columns:repeat(4,minmax(0,1fr));
+    gap:10px;
+    margin:12px 0;
+}
+
+.mk2-kpi{
+    position:relative;
+    overflow:hidden;
+    min-height:103px;
+    padding:13px 14px;
+    border:1px solid #e1e5e9;
+    border-radius:12px;
+    background:#fff;
+}
+
+.mk2-kpi:after{
+    content:"";
+    position:absolute;
+    left:0;
+    right:0;
+    bottom:0;
+    height:3px;
+    background:#d8ff00;
+}
+
+.mk2-kpi.alert:after{
+    background:#f4a044;
+}
+
+.mk2-kpi span{
+    display:block;
+    color:#87919c;
+    font-size:8px;
+    font-weight:850;
+    letter-spacing:.06em;
+}
+
+.mk2-kpi strong{
+    display:block;
+    margin-top:9px;
+    color:#20262d;
+    font-size:24px;
+    line-height:1;
+    font-weight:870;
+}
+
+.mk2-kpi small{
+    display:block;
+    margin-top:9px;
+    color:#969fa8;
+    font-size:8.5px;
+}
+
+.mk2-rule{
+    display:flex;
+    align-items:flex-start;
+    gap:10px;
+    margin:12px 0 15px;
+    padding:11px 13px;
+    border:1px solid #e4e7ea;
+    border-radius:11px;
+    background:#fff;
+}
+
+.mk2-rule-icon{
+    width:26px;
+    height:26px;
+    flex:0 0 26px;
+    display:grid;
+    place-items:center;
+    border-radius:8px;
+    background:#f1f3f5;
+    color:#68727c;
+    font-size:10px;
+    font-weight:900;
+}
+
+.mk2-rule strong{
+    display:block;
+    color:#2c333a;
+    font-size:10px;
+    font-weight:850;
+}
+
+.mk2-rule span{
+    display:block;
+    margin-top:3px;
+    color:#7f8993;
+    font-size:9px;
+    line-height:1.45;
+}
+
+.mk2-platform-head{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:16px;
+    margin:12px 0 10px;
+    padding:12px 14px;
+    border:1px solid #e1e5e9;
+    border-radius:12px;
+    background:#fff;
+}
+
+.mk2-platform-title{
+    display:flex;
+    align-items:center;
+    gap:11px;
+    min-width:0;
+}
+
+.mk2-platform-mark{
+    width:36px;
+    height:36px;
+    flex:0 0 36px;
+    display:grid;
+    place-items:center;
+    border-radius:10px;
+    background:#f1f3f5;
+    color:#252b32;
+    font-size:9px;
+    font-weight:900;
+}
+
+.mk2-platform-title strong{
+    display:block;
+    color:#252b32;
+    font-size:11.5px;
+    font-weight:860;
+}
+
+.mk2-platform-title span{
+    display:block;
+    margin-top:3px;
+    color:#929ba5;
+    font-size:8.5px;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+}
+
+.mk2-platform-badges{
+    display:flex;
+    align-items:center;
+    gap:6px;
+}
+
+.mk2-badge{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    padding:5px 8px;
+    border-radius:999px;
+    font-size:7px;
+    font-weight:850;
+    letter-spacing:.05em;
+}
+
+.mk2-badge.neutral{
+    color:#68727c;
+    background:#f0f2f4;
+}
+
+.mk2-badge.ok{
+    color:#278057;
+    background:#eaf8f1;
+}
+
+.mk2-badge.warn{
+    color:#aa731b;
+    background:#fff4d8;
+}
+
+.mk2-badge.risk{
+    color:#bd4747;
+    background:#ffeded;
+}
+
+.mk2-summary-grid{
+    display:grid;
+    grid-template-columns:repeat(4,minmax(0,1fr));
+    gap:9px;
+    margin:10px 0;
+}
+
+.mk2-summary-grid > div{
+    padding:11px 12px;
+    border:1px solid #e4e7ea;
+    border-radius:10px;
+    background:#fff;
+}
+
+.mk2-summary-grid span{
+    display:block;
+    color:#929ba5;
+    font-size:7px;
+    font-weight:850;
+    letter-spacing:.05em;
+}
+
+.mk2-summary-grid strong{
+    display:block;
+    margin-top:6px;
+    color:#262c33;
+    font-size:18px;
+    line-height:1;
+    font-weight:860;
+}
+
+.mk2-summary-grid small{
+    display:block;
+    margin-top:6px;
+    color:#969fa8;
+    font-size:8px;
+}
+
+.mk2-health{
+    margin:10px 0 15px;
+    padding:12px 14px;
+    border:1px solid #e1e5e9;
+    border-radius:11px;
+    background:#fff;
+}
+
+.mk2-health-head{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:14px;
+}
+
+.mk2-health-head strong{
+    display:block;
+    color:#2c333a;
+    font-size:10.5px;
+    font-weight:850;
+}
+
+.mk2-health-head span{
+    display:block;
+    margin-top:3px;
+    color:#929ba5;
+    font-size:8.5px;
+}
+
+.mk2-health-head b{
+    color:#252b32;
+    font-size:15px;
+    font-weight:880;
+}
+
+.mk2-progress{
+    width:100%;
+    height:7px;
+    margin-top:11px;
+    overflow:hidden;
+    border-radius:999px;
+    background:#edf0f2;
+}
+
+.mk2-progress i{
+    display:block;
+    height:100%;
+    border-radius:999px;
+    background:#d8ff00;
+}
+
+.mk2-health-foot{
+    display:flex;
+    gap:18px;
+    margin-top:8px;
+    color:#858f99;
+    font-size:8px;
+}
+
+.mk2-health-foot b{
+    color:#4e5963;
+}
+
+.mk2-section-head{
+    display:flex;
+    align-items:flex-end;
+    justify-content:space-between;
+    gap:12px;
+    margin:16px 0 8px;
+}
+
+.mk2-section-head strong{
+    display:block;
+    color:#282f36;
+    font-size:12px;
+    font-weight:860;
+}
+
+.mk2-section-head span{
+    display:block;
+    margin-top:3px;
+    color:#929ba5;
+    font-size:8.5px;
+}
+
+.mk2-change-grid{
+    display:grid;
+    grid-template-columns:repeat(4,minmax(0,1fr));
+    gap:9px;
+    margin-bottom:12px;
+}
+
+.mk2-change{
+    position:relative;
+    overflow:hidden;
+    min-height:86px;
+    padding:11px 12px;
+    border:1px solid #e3e7ea;
+    border-radius:10px;
+    background:#fff;
+}
+
+.mk2-change:after{
+    content:"";
+    position:absolute;
+    bottom:0;
+    left:0;
+    right:0;
+    height:3px;
+    background:#a4adb5;
+}
+
+.mk2-change.up:after{background:#5dbc84;}
+.mk2-change.down:after{background:#f0a052;}
+.mk2-change.zero:after{background:#e15a5a;}
+.mk2-change.same:after{background:#a4adb5;}
+
+.mk2-change span{
+    display:block;
+    color:#8c96a0;
+    font-size:7px;
+    font-weight:850;
+    letter-spacing:.06em;
+}
+
+.mk2-change strong{
+    display:block;
+    margin-top:6px;
+    color:#252b32;
+    font-size:18px;
+    line-height:1;
+    font-weight:860;
+}
+
+.mk2-change small{
+    display:block;
+    margin-top:6px;
+    color:#98a1aa;
+    font-size:7.8px;
+}
+
+.mk2-table-head{
+    display:flex;
+    align-items:flex-end;
+    justify-content:space-between;
+    gap:16px;
+    margin:13px 0 8px;
+    color:#838d97;
+    font-size:8.5px;
+}
+
+.mk2-table-head strong{
+    display:block;
+    color:#293038;
+    font-size:11px;
+    font-weight:850;
+}
+
+.mk2-table-head span{
+    display:block;
+    margin-top:3px;
+    color:#929ba5;
+    font-size:8.5px;
+}
+
+/* Tabs Marketplace */
+div[data-testid="stTabs"]:has(.mk2-platform-head) button[role="tab"]{
+    font-size:10px !important;
+    font-weight:800 !important;
+}
+
+/* Controles de Marketplace */
+[data-testid="stNumberInput"] label p,
+[data-testid="stTextInput"] label p{
+    color:#69747f !important;
+    font-size:9px !important;
+    font-weight:750 !important;
+}
+
+/* Botón principal de descarga Marketplace */
+[data-testid="stDownloadButton"] button[kind="primary"]{
+    border-color:#d4ef00 !important;
+    background:#d8ff00 !important;
+    color:#171b21 !important;
+    font-weight:850 !important;
+}
+
+/* Responsive */
+@media(max-width:1050px){
+    .mk2-kpi-grid,
+    .mk2-summary-grid,
+    .mk2-change-grid{
+        grid-template-columns:repeat(2,minmax(0,1fr));
+    }
+}
+
+@media(max-width:760px){
+    .mk2-page-head{
+        flex-direction:column;
+    }
+
+    .mk2-source{
+        grid-template-columns:40px 1fr;
+    }
+
+    .mk2-source-rule{
+        grid-column:1 / -1;
+        padding:10px 0 0;
+        border-left:0;
+        border-top:1px solid #edf0f2;
+        text-align:left;
+    }
+
+    .mk2-platform-head{
+        align-items:flex-start;
+        flex-direction:column;
+    }
+
+    .mk2-kpi-grid,
+    .mk2-summary-grid,
+    .mk2-change-grid{
+        grid-template-columns:1fr;
+    }
+
+    .mk2-table-head{
+        align-items:flex-start;
+        flex-direction:column;
+    }
+}
+
+/* ============================================================
+   MARITEX · PLANTILLAS V2
+   ============================================================ */
+
+.tpl2-page-head{
+    margin:0 0 14px;
+}
+
+.tpl2-eyebrow{
+    color:#929ba5;
+    font-size:8.5px;
+    font-weight:850;
+    letter-spacing:.14em;
+}
+
+.tpl2-title{
+    margin-top:7px;
+    color:#171b21;
+    font-size:30px;
+    line-height:1.08;
+    font-weight:860;
+    letter-spacing:-.035em;
+}
+
+.tpl2-subtitle{
+    margin-top:7px;
+    max-width:760px;
+    color:#75808b;
+    font-size:11.5px;
+    line-height:1.5;
+}
+
+.tpl2-info-strip{
+    display:flex;
+    align-items:flex-start;
+    gap:11px;
+    margin:11px 0 18px;
+    padding:12px 14px;
+    border:1px solid #e2e6ea;
+    border-radius:11px;
+    background:#fff;
+}
+
+.tpl2-info-icon{
+    width:28px;
+    height:28px;
+    flex:0 0 28px;
+    display:grid;
+    place-items:center;
+    border-radius:8px;
+    background:#fff6ca;
+    color:#706000;
+    font-size:10px;
+    font-weight:900;
+}
+
+.tpl2-info-strip strong{
+    display:block;
+    color:#293038;
+    font-size:10.5px;
+    font-weight:850;
+}
+
+.tpl2-info-strip span{
+    display:block;
+    margin-top:3px;
+    color:#7f8993;
+    font-size:9px;
+    line-height:1.5;
+}
+
+.tpl2-section-head{
+    margin:17px 0 9px;
+}
+
+.tpl2-section-head strong{
+    display:block;
+    color:#282f36;
+    font-size:13px;
+    font-weight:860;
+}
+
+.tpl2-section-head span{
+    display:block;
+    margin-top:3px;
+    color:#929ba5;
+    font-size:9px;
+}
+
+.tpl2-sales-head{
+    margin-top:24px;
+}
+
+.tpl2-market-card{
+    min-height:152px;
+    padding:14px;
+    border:1px solid #e1e5e9;
+    border-radius:13px;
+    background:#fff;
+}
+
+.tpl2-market-head{
+    display:grid;
+    grid-template-columns:38px 1fr auto;
+    align-items:center;
+    gap:11px;
+}
+
+.tpl2-market-icon{
+    width:38px;
+    height:38px;
+    display:grid;
+    place-items:center;
+    border-radius:10px;
+    background:#f1f3f5;
+    color:#252b32;
+    font-size:9px;
+    font-weight:900;
+}
+
+.tpl2-market-main{
+    min-width:0;
+}
+
+.tpl2-market-main strong{
+    display:block;
+    color:#252b32;
+    font-size:11.5px;
+    font-weight:860;
+}
+
+.tpl2-market-main span{
+    display:block;
+    margin-top:3px;
+    color:#929ba5;
+    font-size:8.5px;
+    line-height:1.4;
+}
+
+.tpl2-market-status{
+    padding:5px 8px;
+    border-radius:999px;
+    font-size:7px;
+    font-weight:850;
+    letter-spacing:.05em;
+    white-space:nowrap;
+}
+
+.tpl2-market-status.ok{
+    color:#278057;
+    background:#eaf8f1;
+}
+
+.tpl2-market-status.missing{
+    color:#bd4747;
+    background:#ffeded;
+}
+
+.tpl2-market-file{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:12px;
+    margin-top:15px;
+    padding-top:12px;
+    border-top:1px solid #edf0f2;
+}
+
+.tpl2-market-file span{
+    display:block;
+    color:#969fa8;
+    font-size:7px;
+    font-weight:850;
+    letter-spacing:.05em;
+}
+
+.tpl2-market-file strong{
+    display:block;
+    margin-top:4px;
+    color:#4b555f;
+    font-size:8.5px;
+    font-weight:800;
+}
+
+.tpl2-sales-card-head{
+    display:flex;
+    align-items:center;
+    gap:11px;
+    margin-bottom:12px;
+}
+
+.tpl2-sales-icon{
+    width:36px;
+    height:36px;
+    display:grid;
+    place-items:center;
+    border-radius:10px;
+    background:#edf3ff;
+    color:#3568c9;
+    font-size:9px;
+    font-weight:900;
+}
+
+.tpl2-sales-card-head strong{
+    display:block;
+    color:#252b32;
+    font-size:11px;
+    font-weight:850;
+}
+
+.tpl2-sales-card-head span{
+    display:block;
+    margin-top:3px;
+    color:#929ba5;
+    font-size:8.5px;
+}
+
+.tpl2-source-active{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:12px;
+    margin:10px 0 12px;
+    padding:11px 12px;
+    border:1px solid #e4e7ea;
+    border-radius:10px;
+    background:#f9fafb;
+}
+
+.tpl2-source-active span{
+    display:block;
+    color:#929ba5;
+    font-size:7px;
+    font-weight:850;
+    letter-spacing:.05em;
+}
+
+.tpl2-source-active strong{
+    display:block;
+    margin-top:4px;
+    color:#3d4650;
+    font-size:9px;
+    font-weight:800;
+}
+
+@media(max-width:760px){
+    .tpl2-market-head{
+        grid-template-columns:38px 1fr;
+    }
+
+    .tpl2-market-status{
+        grid-column:1 / -1;
+        width:max-content;
+    }
+
+    .tpl2-market-file,
+    .tpl2-source-active{
+        grid-template-columns:1fr;
+    }
+}
+
+/* ============================================================
+   MARITEX · PLANTILLAS V3 SIMPLE
+   ============================================================ */
+
+.tpl3-head{
+    margin:0 0 14px;
+}
+
+.tpl3-title{
+    color:#161b22;
+    font-size:28px;
+    line-height:1.1;
+    font-weight:850;
+    letter-spacing:-.03em;
+}
+
+.tpl3-subtitle{
+    margin-top:6px;
+    color:#87919b;
+    font-size:10px;
+}
+
+.tpl3-source{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin:0 0 16px;
+    padding:10px 12px;
+    border:1px solid #e5e8eb;
+    border-radius:10px;
+    background:#fff;
+}
+
+.tpl3-source strong{
+    color:#252b31;
+    font-size:9px;
+    font-weight:850;
+    white-space:nowrap;
+}
+
+.tpl3-source span{
+    color:#8b949d;
+    font-size:8.5px;
+}
+
+.tpl3-card{
+    min-height:96px;
+    padding:14px 15px;
+    border:1px solid #e0e4e8;
+    border-radius:12px;
+    background:#fff;
+}
+
+.tpl3-top{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:12px;
+}
+
+.tpl3-name{
+    color:#20262d;
+    font-size:12px;
+    font-weight:850;
+}
+
+.tpl3-file{
+    margin-top:4px;
+    color:#7e8892;
+    font-size:8.5px;
+}
+
+.tpl3-status{
+    padding:5px 8px;
+    border-radius:999px;
+    font-size:7px;
+    font-weight:900;
+    letter-spacing:.05em;
+}
+
+.tpl3-status.ok{
+    color:#1e7b50;
+    background:#eaf7f0;
+}
+
+.tpl3-status.missing{
+    color:#b74949;
+    background:#fdeeee;
+}
+
+.tpl3-date{
+    margin-top:16px;
+    padding-top:10px;
+    border-top:1px solid #edf0f2;
+    color:#98a1aa;
+    font-size:8px;
+}
+@media(max-width:760px){
+    .tpl3-source{
+        align-items:flex-start;
+        flex-direction:column;
+        gap:3px;
+    }
+}
+
+/* ============================================================
+   MARITEX · MARKETPLACE V3 SIMPLE
+   Agregar al final del styles.css actual
+   ============================================================ */
+
+.mk3-compact-summary{
+    display:flex;
+    align-items:center;
+    flex-wrap:wrap;
+    gap:8px 20px;
+    margin:10px 0 18px;
+    padding:9px 12px;
+    border:1px solid #e5e8eb;
+    border-radius:10px;
+    background:#fff;
+    color:#8a949e;
+    font-size:8.5px;
+}
+
+.mk3-compact-summary span{
+    white-space:nowrap;
+}
+
+.mk3-compact-summary b{
+    margin-right:3px;
+    color:#242b32;
+    font-size:9px;
+    font-weight:850;
+}
+
+/* Compacta la cabecera de cada marketplace */
+.mk2-platform-head{
+    margin-bottom:12px !important;
+}
+
+/* Reduce espacio vertical de los 4 KPI operacionales */
+.mk2-summary-grid{
+    margin:10px 0 16px !important;
+}
+
+/* Oculta estilos antiguos no usados en V3 */
+.mk2-health,
+.mk2-section-head,
+.mk2-change-grid{
+    display:none !important;
+}
+
+@media(max-width:760px){
+    .mk3-compact-summary{
+        gap:7px 12px;
+    }
+}

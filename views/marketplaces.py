@@ -1,3 +1,5 @@
+
+
 from io import BytesIO
 import re
 
@@ -19,6 +21,8 @@ from ui.components import render_html
 
 def _safe_int(value) -> int:
     try:
+        if pd.isna(value):
+            return 0
         return int(round(float(value)))
     except Exception:
         return 0
@@ -26,19 +30,12 @@ def _safe_int(value) -> int:
 
 def _normalize_sku(value) -> str:
     """
-    Normaliza SKU para permitir cruces entre formatos como:
+    Normaliza SKU para cruces entre Llegadas_OK y marketplaces.
 
-    ERP:
-        13051205
-
-    Paris:
-        1305120-5
-
-    Ambos quedan como:
-        13051205
-
-    También corrige casos tipo:
-        200122.0 -> 200122
+    Ejemplos:
+        13051205  -> 13051205
+        1305120-5 -> 13051205
+        200122.0  -> 200122
     """
     if value is None:
         return ""
@@ -48,19 +45,8 @@ def _normalize_sku(value) -> str:
     if not text:
         return ""
 
-    # Excel a veces convierte códigos numéricos en texto con .0
-    text = re.sub(
-        r"\.0$",
-        "",
-        text,
-    )
-
-    # Dejar únicamente letras y números.
-    text = re.sub(
-        r"[^A-Z0-9]",
-        "",
-        text,
-    )
+    text = re.sub(r"\.0$", "", text)
+    text = re.sub(r"[^A-Z0-9]", "", text)
 
     return text
 
@@ -69,21 +55,17 @@ def _prepare_house_stock(
     df: pd.DataFrame,
 ) -> pd.DataFrame:
     """
-    Obtiene exclusivamente CASA MATRIZ.
+    Fuente Marketplace:
+        Llegadas_OK
+        -> stock_view
+        -> SOLO CASA MATRIZ
+        -> consolidación por SKU
 
-    Orden correcto:
-        ERP Stock
-        -> normalizar
-        -> filtrar Casa Matriz
-        -> consolidar SKU
-
-    IMPORTANTE:
-    Nunca consolidamos todas las bodegas antes de filtrar.
+    CD, Patronato y Concepción NO participan.
     """
-
     stock = stock_view(df)
 
-    if stock.empty:
+    if stock is None or stock.empty:
         return pd.DataFrame()
 
     warehouse = (
@@ -104,54 +86,42 @@ def _prepare_house_stock(
     if house.empty:
         return pd.DataFrame()
 
-    # Consolidar solamente las filas de Casa Matriz.
     house = consolidate_inventory(
         house
     )
 
-    # Código normalizado para cruce contra marketplaces.
     house["_sku_match"] = (
         house["Código"]
         .map(_normalize_sku)
     )
 
-    # Eliminar eventuales filas sin código.
     house = house[
         house["_sku_match"].ne("")
     ].copy()
 
-    # Si por algún motivo quedara un código duplicado,
-    # consolidamos nuevamente por código normalizado.
     if house["_sku_match"].duplicated().any():
-        grouped = (
+        agg = {
+            "Código": "first",
+            "Producto": "first",
+            "Disponible": "sum",
+        }
+
+        for col in [
+            "Stock físico",
+            "Por llegar",
+            "Por despachar",
+        ]:
+            if col in house.columns:
+                agg[col] = "sum"
+
+        house = (
             house.groupby(
                 "_sku_match",
                 as_index=False,
             )
-            .agg(
-                Código=("Código", "first"),
-                Producto=("Producto", "first"),
-                Disponible=("Disponible", "sum"),
-                **{
-                    "Stock físico": (
-                        "Stock físico",
-                        "sum",
-                    ),
-                    "Por llegar": (
-                        "Por llegar",
-                        "sum",
-                    ),
-                    "Por despachar": (
-                        "Por despachar",
-                        "sum",
-                    ),
-                },
-            )
+            .agg(agg)
         )
 
-        house = grouped
-
-    # Texto auxiliar para búsqueda.
     house["_search_codigo"] = (
         house["Código"]
         .fillna("")
@@ -176,13 +146,9 @@ def _stock_map(
     reserve: int,
 ) -> dict:
     """
-    Genera:
-        SKU normalizado -> stock marketplace
-
-    Regla:
-        max(Disponible Casa Matriz - Reserva, 0)
+    Stock a publicar:
+        max(Disponible Casa Matriz - reserva, 0)
     """
-
     available = pd.to_numeric(
         house["Disponible"],
         errors="coerce",
@@ -208,11 +174,6 @@ def _find_header_column(
     row_number: int,
     expected_names,
 ):
-    """
-    Encuentra columna por nombre, tolerando espacios,
-    mayúsculas, guiones y underscore.
-    """
-
     expected = {
         re.sub(
             r"[^A-Z0-9]",
@@ -240,6 +201,90 @@ def _find_header_column(
     return None
 
 
+def _change_status(
+    current_stock,
+    new_stock,
+    found: bool,
+) -> tuple[str, int]:
+    current = _safe_int(current_stock)
+    new = _safe_int(new_stock)
+    delta = new - current
+
+    if not found:
+        return "Sin coincidencia", delta
+
+    if new == current:
+        return "Sin cambios", delta
+
+    if new == 0 and current != 0:
+        return "Queda en cero", delta
+
+    if delta > 0:
+        return "Sube stock", delta
+
+    return "Baja stock", delta
+
+
+def _stats_from_preview(
+    preview: pd.DataFrame,
+    base_stats: dict,
+) -> dict:
+    stats = dict(base_stats)
+
+    if preview is None or preview.empty:
+        stats.update(
+            {
+                "up": 0,
+                "down": 0,
+                "zero": 0,
+                "same": 0,
+                "match_pct": 0.0,
+            }
+        )
+        return stats
+
+    status = (
+        preview["Cambio"]
+        if "Cambio" in preview.columns
+        else pd.Series("", index=preview.index)
+    )
+
+    stats["up"] = int(
+        status.eq("Sube stock").sum()
+    )
+    stats["down"] = int(
+        status.eq("Baja stock").sum()
+    )
+    stats["zero"] = int(
+        status.eq("Queda en cero").sum()
+    )
+    stats["same"] = int(
+        status.eq("Sin cambios").sum()
+    )
+
+    rows = max(
+        _safe_int(
+            stats.get("rows", 0)
+        ),
+        0,
+    )
+
+    matched = max(
+        _safe_int(
+            stats.get("matched_rows", 0)
+        ),
+        0,
+    )
+
+    stats["match_pct"] = (
+        (matched / rows) * 100
+        if rows > 0
+        else 0.0
+    )
+
+    return stats
+
+
 # ============================================================
 # PARIS
 # ============================================================
@@ -252,18 +297,12 @@ def _build_paris_workbook(
     stock_items: tuple,
 ):
     """
-    Conserva la plantilla Paris original.
-
-    Hoja:
-        stock
-
-    Cruce:
-        sku_seller
-
-    Actualiza:
-        nuevo_stock
+    Paris:
+        Hoja       -> stock
+        Cruce      -> sku_seller
+        Stock base -> stock
+        Escribe    -> nuevo_stock
     """
-
     stock_lookup = dict(
         stock_items
     )
@@ -344,7 +383,6 @@ def _build_paris_workbook(
         )
 
     preview_rows = []
-
     matched_rows = 0
     unmatched_rows = 0
     publishable_units = 0
@@ -389,7 +427,21 @@ def _build_paris_workbook(
             )
         )
 
-        # Actualizar SOLAMENTE nuevo_stock.
+        current_stock = (
+            ws.cell(
+                row=row,
+                column=current_stock_col,
+            ).value
+            if current_stock_col
+            else 0
+        )
+
+        change, delta = _change_status(
+            current_stock,
+            new_stock,
+            found,
+        )
+
         ws.cell(
             row=row,
             column=target_col,
@@ -406,9 +458,7 @@ def _build_paris_workbook(
                 sku_key
             )
 
-        publishable_units += (
-            new_stock
-        )
+        publishable_units += new_stock
 
         preview_rows.append(
             {
@@ -437,18 +487,13 @@ def _build_paris_workbook(
                     if size_col
                     else ""
                 ),
-                "Stock actual": (
-                    ws.cell(
-                        row=row,
-                        column=current_stock_col,
-                    ).value
-                    if current_stock_col
-                    else ""
+                "Stock actual": _safe_int(
+                    current_stock
                 ),
-                "Nuevo stock": (
-                    new_stock
-                ),
-                "Coincidencia ERP": (
+                "Nuevo stock": new_stock,
+                "Diferencia": delta,
+                "Cambio": change,
+                "Coincidencia Stock CM": (
                     "Encontrado"
                     if found
                     else "Sin coincidencia"
@@ -457,27 +502,28 @@ def _build_paris_workbook(
         )
 
     output = BytesIO()
-
-    wb.save(
-        output
-    )
-
+    wb.save(output)
     output.seek(0)
 
-    stats = {
-        "rows": processed_rows,
-        "matched_rows": matched_rows,
-        "unmatched_rows": unmatched_rows,
-        "matched_skus": len(matched_skus),
-        "unmatched_skus": len(unmatched_skus),
-        "units": publishable_units,
-    }
+    preview = pd.DataFrame(
+        preview_rows
+    )
+
+    stats = _stats_from_preview(
+        preview,
+        {
+            "rows": processed_rows,
+            "matched_rows": matched_rows,
+            "unmatched_rows": unmatched_rows,
+            "matched_skus": len(matched_skus),
+            "unmatched_skus": len(unmatched_skus),
+            "units": publishable_units,
+        },
+    )
 
     return (
         output.getvalue(),
-        pd.DataFrame(
-            preview_rows
-        ),
+        preview,
         stats,
     )
 
@@ -494,20 +540,14 @@ def _build_meli_workbook(
     stock_items: tuple,
 ):
     """
-    Conserva el archivo Mercado Libre completo:
+    Mercado Libre:
+        Hoja       -> Publicaciones
+        Cruce      -> SKU
+        Stock base -> QUANTITY
+        Escribe    -> QUANTITY
 
-        Ayuda
-        hidden
-        Publicaciones
-
-    En Publicaciones:
-
-        SKU       -> columna de cruce
-        QUANTITY  -> Stock en tu depósito
-
-    Los datos comienzan desde fila 6.
+    Las filas de publicaciones comienzan en la fila 6.
     """
-
     stock_lookup = dict(
         stock_items
     )
@@ -524,45 +564,34 @@ def _build_meli_workbook(
 
     ws = wb["Publicaciones"]
 
-    # Encabezados técnicos de MELI están en fila 1.
     sku_col = _find_header_column(
         ws,
         1,
-        [
-            "SKU",
-        ],
+        ["SKU"],
     )
 
     quantity_col = _find_header_column(
         ws,
         1,
-        [
-            "QUANTITY",
-        ],
+        ["QUANTITY"],
     )
 
     title_col = _find_header_column(
         ws,
         1,
-        [
-            "TITLE",
-        ],
+        ["TITLE"],
     )
 
     variation_col = _find_header_column(
         ws,
         1,
-        [
-            "VARIATIONS",
-        ],
+        ["VARIATIONS"],
     )
 
     item_col = _find_header_column(
         ws,
         1,
-        [
-            "ITEM_ID",
-        ],
+        ["ITEM_ID"],
     )
 
     if sku_col is None:
@@ -578,7 +607,6 @@ def _build_meli_workbook(
         )
 
     preview_rows = []
-
     matched_rows = 0
     unmatched_rows = 0
     publishable_units = 0
@@ -587,7 +615,6 @@ def _build_meli_workbook(
     matched_skus = set()
     unmatched_skus = set()
 
-    # La plantilla real comienza en fila 6.
     for row in range(
         6,
         ws.max_row + 1,
@@ -617,6 +644,11 @@ def _build_meli_workbook(
             sku_key in stock_lookup
         )
 
+        current_stock = ws.cell(
+            row=row,
+            column=quantity_col,
+        ).value
+
         new_stock = int(
             stock_lookup.get(
                 sku_key,
@@ -624,7 +656,13 @@ def _build_meli_workbook(
             )
         )
 
-        # Actualizar únicamente QUANTITY.
+        change, delta = _change_status(
+            current_stock,
+            new_stock,
+            found,
+        )
+
+        # Solo se actualiza QUANTITY.
         ws.cell(
             row=row,
             column=quantity_col,
@@ -641,13 +679,8 @@ def _build_meli_workbook(
                 sku_key
             )
 
-        publishable_units += (
-            new_stock
-        )
+        publishable_units += new_stock
 
-        # ====================================================
-        # PRODUCTO / TITLE REAL
-        # ====================================================
         raw_title = (
             ws.cell(
                 row=row,
@@ -659,17 +692,13 @@ def _build_meli_workbook(
 
         product_title = raw_title or ""
 
-        # Mercado Libre utiliza fórmulas para repetir el
-        # título del producto padre en las variaciones.
-        #
-        # Ejemplo:
-        # ="     "&F6
-        #
-        # En ese caso buscamos hacia arriba el último TITLE
-        # que sea texto real y no una fórmula.
+        # MELI puede repetir el TITLE mediante fórmula.
         if (
             title_col
-            and isinstance(raw_title, str)
+            and isinstance(
+                raw_title,
+                str,
+            )
             and raw_title.strip().startswith("=")
         ):
             for previous_row in range(
@@ -689,11 +718,10 @@ def _build_meli_workbook(
                     previous_title
                 ).strip()
 
-                if not previous_title:
-                    continue
-
-                # Ignorar otras fórmulas.
-                if previous_title.startswith("="):
+                if (
+                    not previous_title
+                    or previous_title.startswith("=")
+                ):
                     continue
 
                 product_title = previous_title
@@ -719,10 +747,13 @@ def _build_meli_workbook(
                     if variation_col
                     else ""
                 ),
-                "Stock actualizado": (
-                    new_stock
+                "Stock actual": _safe_int(
+                    current_stock
                 ),
-                "Coincidencia ERP": (
+                "Nuevo stock": new_stock,
+                "Diferencia": delta,
+                "Cambio": change,
+                "Coincidencia Stock CM": (
                     "Encontrado"
                     if found
                     else "Sin coincidencia"
@@ -731,29 +762,137 @@ def _build_meli_workbook(
         )
 
     output = BytesIO()
-
-    wb.save(
-        output
-    )
-
+    wb.save(output)
     output.seek(0)
 
-    stats = {
-        "rows": processed_rows,
-        "matched_rows": matched_rows,
-        "unmatched_rows": unmatched_rows,
-        "matched_skus": len(matched_skus),
-        "unmatched_skus": len(unmatched_skus),
-        "units": publishable_units,
-    }
+    preview = pd.DataFrame(
+        preview_rows
+    )
+
+    stats = _stats_from_preview(
+        preview,
+        {
+            "rows": processed_rows,
+            "matched_rows": matched_rows,
+            "unmatched_rows": unmatched_rows,
+            "matched_skus": len(matched_skus),
+            "unmatched_skus": len(unmatched_skus),
+            "units": publishable_units,
+        },
+    )
 
     return (
         output.getvalue(),
-        pd.DataFrame(
-            preview_rows
-        ),
+        preview,
         stats,
     )
+
+
+# ============================================================
+# COMPONENTES DE INTERFAZ
+# ============================================================
+
+def _marketplace_header(
+    name: str,
+    filename: str,
+    stats: dict,
+):
+    pct = float(
+        stats.get(
+            "match_pct",
+            0.0,
+        )
+    )
+
+    badge_class = (
+        "ok"
+        if pct >= 98
+        else "warn"
+        if pct >= 90
+        else "risk"
+    )
+
+    render_html(
+        f"""
+        <div class="mk2-platform-head">
+            <div class="mk2-platform-title">
+                <div class="mk2-platform-mark">
+                    {"P" if "Paris" in name else "ML"}
+                </div>
+                <div>
+                    <strong>{name}</strong>
+                    <span>Plantilla oficial · {filename}</span>
+                </div>
+            </div>
+
+            <div class="mk2-platform-badges">
+                <span class="mk2-badge neutral">CASA MATRIZ</span>
+                <span class="mk2-badge {badge_class}">
+                    {pct:.1f}% MATCH
+                </span>
+            </div>
+        </div>
+        """
+    )
+
+
+def _filter_preview(
+    preview: pd.DataFrame,
+    search: str,
+    change_filter: str,
+) -> pd.DataFrame:
+    view = preview.copy()
+
+    if search:
+        term = search.strip().lower()
+
+        text_columns = [
+            col
+            for col in view.columns
+            if (
+                view[col].dtype == object
+                or pd.api.types.is_string_dtype(
+                    view[col]
+                )
+            )
+        ]
+
+        mask = pd.Series(
+            False,
+            index=view.index,
+        )
+
+        for col in text_columns:
+            mask = (
+                mask
+                |
+                view[col]
+                .fillna("")
+                .astype(str)
+                .str.lower()
+                .str.contains(
+                    term,
+                    regex=False,
+                )
+            )
+
+        view = view[
+            mask
+        ].copy()
+
+    if change_filter == "Sin coincidencia":
+        if "Coincidencia Stock CM" in view.columns:
+            view = view[
+                view["Coincidencia Stock CM"].eq("Sin coincidencia")
+            ].copy()
+
+    elif change_filter == "Con cambio":
+        if "Cambio" in view.columns:
+            view = view[
+                ~view["Cambio"].eq("Sin cambios")
+            ].copy()
+
+    return view
 
 
 # ============================================================
@@ -772,19 +911,17 @@ def _render_marketplace_panel(
     if not path.exists():
         render_html(
             f"""
-            <div class="market-v60-card">
-                <div>
-                    <strong>
-                        {name}
-                    </strong>
-                    <span>
-                        Plantilla pendiente
-                    </span>
+            <div class="mk2-platform-head">
+                <div class="mk2-platform-title">
+                    <div class="mk2-platform-mark">
+                        {"P" if "Paris" in name else "ML"}
+                    </div>
+                    <div>
+                        <strong>{name}</strong>
+                        <span>Plantilla pendiente</span>
+                    </div>
                 </div>
-
-                <div class="market-v60-badge">
-                    Casa Matriz
-                </div>
+                <span class="mk2-badge risk">SIN PLANTILLA</span>
             </div>
             """
         )
@@ -793,65 +930,38 @@ def _render_marketplace_panel(
             f"No existe la plantilla oficial de {name}. "
             "Cárgala desde Plantillas."
         )
-
         return
 
-    render_html(
-        f"""
-        <div class="market-v60-card">
-
-            <div>
-                <strong>
-                    {name}
-                </strong>
-
-                <span>
-                    Plantilla oficial disponible ·
-                    {path.name}
-                </span>
-            </div>
-
-            <div class="market-v60-badge">
-                Casa Matriz
-            </div>
-
-        </div>
-        """
-    )
-
-    # ========================================================
+    # --------------------------------------------------------
     # CONTROLES
-    # ========================================================
+    # --------------------------------------------------------
     c1, c2 = st.columns(
-        [1.4, 1]
+        [1.55, 0.75],
+        gap="medium",
     )
 
     with c1:
         search = st.text_input(
-            "Buscar SKU",
+            "Buscar SKU o producto",
             placeholder=(
-                "Buscar código o producto"
+                "Ej: 13051205, parka, softshell..."
             ),
-            key=f"market_search_real_{key_name}",
+            key=f"market_search_v2_{key_name}",
         )
 
     with c2:
         reserve = st.number_input(
-            "Stock de reserva",
+            "Stock de seguridad",
             min_value=0,
             value=0,
             step=1,
             help=(
-                "Se descuenta esta cantidad del stock "
-                "disponible de Casa Matriz antes de "
-                "actualizar la plantilla."
+                "Stock a publicar = Stock Casa Matriz - reserva. "
+                "Nunca se publican cantidades negativas."
             ),
-            key=f"market_reserve_real_{key_name}",
+            key=f"market_reserve_v2_{key_name}",
         )
 
-    # ========================================================
-    # MAPA DE STOCK
-    # ========================================================
     lookup = _stock_map(
         house,
         reserve,
@@ -863,13 +973,8 @@ def _render_marketplace_panel(
         )
     )
 
-    template_bytes = (
-        path.read_bytes()
-    )
+    template_bytes = path.read_bytes()
 
-    # ========================================================
-    # GENERAR PLANTILLA REAL
-    # ========================================================
     try:
         if name == "Paris Marketplace":
             (
@@ -886,7 +991,7 @@ def _render_marketplace_panel(
             )
 
             button_label = (
-                "⬇ Descargar plantilla Paris actualizada"
+                "Descargar Paris actualizado"
             )
 
         else:
@@ -904,7 +1009,7 @@ def _render_marketplace_panel(
             )
 
             button_label = (
-                "⬇ Descargar plantilla Mercado Libre actualizada"
+                "Descargar Mercado Libre actualizado"
             )
 
     except Exception as exc:
@@ -913,157 +1018,120 @@ def _render_marketplace_panel(
         )
         return
 
-    # ========================================================
+    _marketplace_header(
+        name,
+        path.name,
+        stats,
+    )
+
+    # --------------------------------------------------------
     # KPI CRUCE
-    # ========================================================
+    # --------------------------------------------------------
     render_html(
         f"""
-        <div class="market-v60-summary">
-
+        <div class="mk2-summary-grid">
             <div>
-                <span>
-                    Filas plantilla
-                </span>
-                <strong>
-                    {stats["rows"]:,}
-                </strong>
+                <span>FILAS PLANTILLA</span>
+                <strong>{stats["rows"]:,}</strong>
+                <small>registros procesados</small>
             </div>
 
             <div>
-                <span>
-                    Coincidencias ERP
-                </span>
-                <strong>
-                    {stats["matched_rows"]:,}
-                </strong>
+                <span>SKU ENCONTRADOS</span>
+                <strong>{stats["matched_rows"]:,}</strong>
+                <small>coinciden con Casa Matriz</small>
             </div>
 
             <div>
-                <span>
-                    Sin coincidencia
-                </span>
-                <strong>
-                    {stats["unmatched_rows"]:,}
-                </strong>
+                <span>SIN COINCIDENCIA</span>
+                <strong>{stats["unmatched_rows"]:,}</strong>
+                <small>se exportarán con stock 0</small>
             </div>
 
             <div>
-                <span>
-                    Stock a publicar
-                </span>
-                <strong>
-                    {stats["units"]:,}
-                </strong>
+                <span>STOCK A PUBLICAR</span>
+                <strong>{stats["units"]:,}</strong>
+                <small>unidades después de reserva</small>
             </div>
-
         </div>
         """
     )
 
-    # ========================================================
-    # BUSCAR EN PREVIEW
-    # ========================================================
-    preview_view = (
-        preview.copy()
-    )
-
-    if search:
-        term = (
-            search
-            .strip()
-            .lower()
-        )
-
-        text_columns = [
-            col
-            for col in preview_view.columns
-            if preview_view[col].dtype == object
-        ]
-
-        mask = pd.Series(
-            False,
-            index=preview_view.index,
-        )
-
-        for col in text_columns:
-            mask = (
-                mask
-                |
-                preview_view[col]
-                .fillna("")
-                .astype(str)
-                .str.lower()
-                .str.contains(
-                    term,
-                    regex=False,
-                )
-            )
-
-        preview_view = preview_view[
-            mask
-        ].copy()
-
-    # ========================================================
-    # FILTRO DE COINCIDENCIA
-    # ========================================================
-    match_filter = st.radio(
+    # --------------------------------------------------------
+    # FILTRO
+    # --------------------------------------------------------
+    change_filter = st.radio(
         "Mostrar",
         [
             "Todos",
-            "Encontrados",
+            "Con cambio",
             "Sin coincidencia",
         ],
         horizontal=True,
-        key=f"market_match_filter_{key_name}",
+        key=f"market_change_filter_v2_{key_name}",
     )
 
-    if (
-        match_filter == "Encontrados"
-        and "Coincidencia ERP" in preview_view.columns
-    ):
-        preview_view = preview_view[
-            preview_view[
-                "Coincidencia ERP"
-            ].eq(
-                "Encontrado"
-            )
-        ]
+    preview_view = _filter_preview(
+        preview,
+        search,
+        change_filter,
+    )
 
-    elif (
-        match_filter == "Sin coincidencia"
-        and "Coincidencia ERP" in preview_view.columns
-    ):
-        preview_view = preview_view[
-            preview_view[
-                "Coincidencia ERP"
-            ].eq(
-                "Sin coincidencia"
-            )
-        ]
+    render_html(
+        f"""
+        <div class="mk2-table-head">
+            <div>
+                <strong>Stock a publicar</strong>
+                <span>
+                    {len(preview_view):,} registros visibles · Casa Matriz
+                </span>
+            </div>
+            <div>
+                Stock de seguridad:
+                <b>{int(reserve)}</b>
+            </div>
+        </div>
+        """
+    )
 
-    # ========================================================
-    # TABLA
-    # ========================================================
+    column_config = {
+        "Stock actual": st.column_config.NumberColumn(
+            "Stock actual",
+            format="%d",
+        ),
+        "Nuevo stock": st.column_config.NumberColumn(
+            "Nuevo stock",
+            format="%d",
+        ),
+        "Diferencia": st.column_config.NumberColumn(
+            "Diferencia",
+            format="%+d",
+        ),
+        "Cambio": st.column_config.TextColumn(
+            "Cambio",
+            width="medium",
+        ),
+        "Coincidencia Stock CM": st.column_config.TextColumn(
+            "Coincidencia",
+            width="medium",
+        ),
+    }
+
     st.dataframe(
         preview_view,
         hide_index=True,
         use_container_width=True,
-        height=440,
+        height=430,
+        column_config=column_config,
     )
 
-    # ========================================================
-    # AVISO SKU SIN MATCH
-    # ========================================================
     if stats["unmatched_rows"] > 0:
         st.warning(
-            f"{stats['unmatched_rows']:,} fila(s) de la plantilla "
-            "no tienen coincidencia con el ERP Stock de Casa Matriz. "
+            f"{stats['unmatched_rows']:,} fila(s) no tienen "
+            "coincidencia con el stock de Casa Matriz de Llegadas_OK. "
             "Esas filas se exportarán con stock 0."
         )
 
-    # ========================================================
-    # DESCARGA PLANTILLA ORIGINAL ACTUALIZADA
-    # ========================================================
     st.download_button(
         button_label,
         data=output_bytes,
@@ -1074,7 +1142,9 @@ def _render_marketplace_panel(
             "spreadsheetml.sheet"
         ),
         use_container_width=True,
-        key=f"market_download_real_{key_name}",
+        type="primary",
+        icon=":material/download:",
+        key=f"market_download_v2_{key_name}",
     )
 
 
@@ -1094,50 +1164,46 @@ def render(ctx):
         or {}
     )
 
-    # ========================================================
-    # HEADER
-    # ========================================================
     render_html(
         """
-        <div class="gm-page-head">
-
-            <div class="gm-page-title">
-                Marketplaces
+        <div class="mk2-page-head">
+            <div>
+                <div class="mk2-eyebrow">
+                    MARITEX / OPERACIÓN
+                </div>
+                <div class="mk2-title">
+                    Marketplace
+                </div>
+                <div class="mk2-subtitle">
+                    Sincronización de stock para Paris y Mercado Libre
+                    utilizando exclusivamente Casa Matriz.
+                </div>
             </div>
-
-            <div class="gm-page-subtitle">
-                Actualiza las plantillas oficiales de Paris y
-                Mercado Libre utilizando exclusivamente el
-                stock de Casa Matriz.
+            <div class="mk2-live">
+                <i></i>
+                Stock automático
             </div>
-
         </div>
         """
     )
 
     if df is None or df.empty:
         st.info(
-            "Carga ERP Stock desde Plantillas."
+            "No hay stock disponible desde Llegadas_OK."
         )
         return
 
-    # ========================================================
-    # CASA MATRIZ
-    # ========================================================
     house = _prepare_house_stock(
         df
     )
 
     if house.empty:
         st.warning(
-            "No se encontraron registros asociados "
-            "a Casa Matriz en ERP Stock."
+            "Llegadas_OK no contiene registros asociados "
+            "a Casa Matriz."
         )
         return
 
-    # ========================================================
-    # TOTALES CASA MATRIZ
-    # ========================================================
     available = pd.to_numeric(
         house["Disponible"],
         errors="coerce",
@@ -1160,178 +1226,59 @@ def render(ctx):
         (available <= 0).sum()
     )
 
-    # ========================================================
-    # FUENTE ACTIVA
-    # ========================================================
+    source_name = (
+        meta.get(
+            "filename"
+        )
+        or "Stock automático · Llegadas_OK"
+    )
+
+    loaded_at = (
+        meta.get(
+            "loaded_at"
+        )
+        or meta.get(
+            "generated_at"
+        )
+        or "actualización automática"
+    )
+
     render_html(
         f"""
-        <div class="stock-v60-file">
-
-            <div class="stock-v60-file-icon">
-                ▤
+        <div class="mk2-source">
+            <div class="mk2-source-icon">CM</div>
+            <div class="mk2-source-main">
+                <span>FUENTE DE STOCK</span>
+                <strong>{source_name}</strong>
+                <small>
+                    Bodega utilizada:
+                    <b>CASA MATRIZ</b>
+                    · {loaded_at}
+                </small>
             </div>
-
-            <div>
-
-                <div class="stock-v60-file-name">
-
-                    {meta.get("filename", "ERP Stock")}
-
-                    <span style="color:#27b66f">
-                        ●
-                    </span>
-
-                </div>
-
-                <div class="stock-v60-file-meta">
-
-                    Fuente de inventario ·
-                    {meta.get("loaded_at", "sesión actual")}
-
-                </div>
-
+            <div class="mk2-source-rule">
+                <span>REGLA</span>
+                <strong>Solo Casa Matriz</strong>
+                <small>CD, Patronato y Concepción excluidos</small>
             </div>
-
         </div>
         """
     )
 
-    # ========================================================
-    # KPI
-    # ========================================================
     render_html(
         f"""
-        <div class="stock-v60-kpis">
-
-            <div class="stock-v60-kpi">
-                <div class="stock-v60-kpi-row">
-
-                    <div class="stock-v60-kpi-icon purple">
-                        ◇
-                    </div>
-
-                    <div>
-                        <div class="stock-v60-kpi-label">
-                            SKU Casa Matriz
-                        </div>
-
-                        <div class="stock-v60-kpi-value">
-                            {total_skus:,}
-                        </div>
-                    </div>
-
-                </div>
-
-                <div class="stock-v60-kpi-foot">
-                    SKU únicos consolidados
-                </div>
-            </div>
-
-
-            <div class="stock-v60-kpi">
-                <div class="stock-v60-kpi-row">
-
-                    <div class="stock-v60-kpi-icon green">
-                        ▤
-                    </div>
-
-                    <div>
-                        <div class="stock-v60-kpi-label">
-                            Unidades disponibles
-                        </div>
-
-                        <div class="stock-v60-kpi-value">
-                            {total_available:,}
-                        </div>
-                    </div>
-
-                </div>
-
-                <div class="stock-v60-kpi-foot">
-                    Stock proyectado Casa Matriz
-                </div>
-            </div>
-
-
-            <div class="stock-v60-kpi">
-                <div class="stock-v60-kpi-row">
-
-                    <div class="stock-v60-kpi-icon blue">
-                        ✓
-                    </div>
-
-                    <div>
-                        <div class="stock-v60-kpi-label">
-                            SKU con stock
-                        </div>
-
-                        <div class="stock-v60-kpi-value">
-                            {positive_skus:,}
-                        </div>
-                    </div>
-
-                </div>
-
-                <div class="stock-v60-kpi-foot">
-                    Disponibles para publicación
-                </div>
-            </div>
-
-
-            <div class="stock-v60-kpi">
-                <div class="stock-v60-kpi-row">
-
-                    <div class="stock-v60-kpi-icon orange">
-                        !
-                    </div>
-
-                    <div>
-                        <div class="stock-v60-kpi-label">
-                            Sin disponibilidad
-                        </div>
-
-                        <div class="stock-v60-kpi-value">
-                            {zero_skus:,}
-                        </div>
-                    </div>
-
-                </div>
-
-                <div class="stock-v60-kpi-foot">
-                    SKU en cero o negativo
-                </div>
-            </div>
-
+        <div class="mk3-compact-summary">
+            <span><b>{total_skus:,}</b> SKU CM</span>
+            <span><b>{total_available:,}</b> unidades disponibles</span>
+            <span><b>{positive_skus:,}</b> con stock</span>
+            <span><b>{zero_skus:,}</b> sin disponibilidad</span>
         </div>
         """
     )
 
-    # ========================================================
-    # REGLA
-    # ========================================================
-    render_html(
-        """
-        <div class="market-v60-rule">
-
-            <strong>
-                Regla activa:
-            </strong>
-
-            únicamente el stock disponible de
-            <strong>Casa Matriz</strong>
-            puede actualizar las plantillas de Paris
-            y Mercado Libre.
-
-        </div>
-        """
-    )
-
-    # ========================================================
-    # TABS
-    # ========================================================
     paris_tab, meli_tab = st.tabs(
         [
-            "Paris Marketplace",
+            "Paris",
             "Mercado Libre",
         ]
     )
