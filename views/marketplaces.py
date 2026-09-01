@@ -1153,6 +1153,257 @@ def _render_marketplace_panel(
 # ============================================================
 
 def render(ctx):
+    # Tema visual Marketplace · Dark corporativo Maritex.
+    # Solo presentación: no altera cruces, stock, plantillas ni exportación.
+    st.markdown(
+        """
+        <style>
+        .mk2-page-head{
+            display:flex;justify-content:space-between;align-items:flex-start;
+            gap:18px;margin:2px 0 18px;
+        }
+        .mk2-eyebrow{
+            color:#FFC400!important;font-size:10px!important;font-weight:800!important;
+            letter-spacing:.8px!important;margin-bottom:5px!important;
+        }
+        .mk2-title{
+            color:#F7F8FA!important;font-size:30px!important;font-weight:800!important;
+            line-height:1.08!important;
+        }
+        .mk2-subtitle{color:#9FB0C0!important;margin-top:7px!important;}
+        .mk2-live{
+            color:#B8C5CF!important;background:#151F28!important;
+            border:1px solid #34414D!important;border-radius:999px!important;
+            padding:8px 12px!important;font-size:11px!important;white-space:nowrap!important;
+        }
+        .mk2-live i{
+            display:inline-block;width:8px;height:8px;border-radius:50%;
+            background:#22C55E;margin-right:7px;box-shadow:0 0 0 4px rgba(34,197,94,.10);
+        }
+
+        .mk2-source{
+            display:grid!important;grid-template-columns:auto 1fr auto!important;
+            align-items:center!important;gap:14px!important;
+            background:linear-gradient(145deg,#18242E,#121B23)!important;
+            border:1px solid #34414D!important;border-radius:12px!important;
+            padding:15px 17px!important;margin:0 0 10px!important;
+        }
+        .mk2-source-icon{
+            width:42px;height:42px;border-radius:10px;display:flex;align-items:center;
+            justify-content:center;background:#3B3007!important;color:#FFC400!important;
+            border:1px solid rgba(255,196,0,.35)!important;font-weight:900!important;
+        }
+        .mk2-source-main span,.mk2-source-rule span{
+            color:#8FA2B3!important;font-size:9px!important;font-weight:800!important;
+            letter-spacing:.6px!important;
+        }
+        .mk2-source-main strong,.mk2-source-rule strong{
+            display:block;color:#F7F8FA!important;font-weight:800!important;margin-top:2px!important;
+        }
+        .mk2-source-main small,.mk2-source-rule small{color:#9FB0C0!important;}
+        .mk2-source-main small b{color:#FFC400!important;}
+        .mk2-source-rule{
+            padding-left:18px!important;border-left:1px solid #34414D!important;
+        }
+
+        .mk3-compact-summary{
+            display:flex!important;gap:10px!important;flex-wrap:wrap!important;
+            background:#111B24!important;border:1px solid #34414D!important;
+            border-radius:10px!important;padding:10px 13px!important;margin-bottom:14px!important;
+            color:#9FB0C0!important;
+        }
+        .mk3-compact-summary span{
+            padding-right:12px!important;border-right:1px solid #34414D!important;
+        }
+        .mk3-compact-summary span:last-child{border-right:0!important;}
+        .mk3-compact-summary b{color:#F7F8FA!important;}
+
+        .mk2-platform-head{
+            display:flex!important;justify-content:space-between!important;align-items:center!important;
+            gap:14px!important;background:linear-gradient(145deg,#18242E,#121B23)!important;
+            border:1px solid #34414D!important;border-radius:12px!important;
+            padding:14px 16px!important;margin:8px 0 12px!important;
+        }
+        .mk2-platform-title{display:flex!important;align-items:center!important;gap:11px!important;}
+        .mk2-platform-mark{
+            min-width:38px;height:38px;border-radius:9px;display:flex;align-items:center;
+            justify-content:center;background:#3B3007!important;color:#FFC400!important;
+            border:1px solid rgba(255,196,0,.32)!important;font-weight:900!important;
+        }
+        .mk2-platform-title strong{display:block;color:#F7F8FA!important;}
+        .mk2-platform-title span{display:block;color:#9FB0C0!important;font-size:10px!important;margin-top:2px!important;}
+        .mk2-platform-badges{display:flex!important;gap:7px!important;flex-wrap:wrap!important;}
+        .mk2-badge{
+            border-radius:999px!important;padding:5px 9px!important;font-size:9px!important;
+            font-weight:800!important;letter-spacing:.35px!important;
+        }
+        .mk2-badge.neutral{background:#202C36!important;color:#C7D1D9!important;border:1px solid #40505D!important;}
+        .mk2-badge.ok{background:#123824!important;color:#70DF96!important;border:1px solid #236A40!important;}
+        .mk2-badge.warn{background:#453606!important;color:#FFD75A!important;border:1px solid #806407!important;}
+        .mk2-badge.risk{background:#4A2020!important;color:#FF8181!important;border:1px solid #843737!important;}
+
+        .mk2-summary-grid{
+            display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;
+            gap:12px!important;margin:12px 0 14px!important;
+        }
+        .mk2-summary-grid>div{
+            background:linear-gradient(145deg,#18242E,#121B23)!important;
+            border:1px solid #34414D!important;border-radius:11px!important;
+            padding:14px!important;min-height:94px!important;
+        }
+        .mk2-summary-grid span{
+            display:block;color:#9FB0C0!important;font-size:9px!important;
+            font-weight:800!important;letter-spacing:.45px!important;
+        }
+        .mk2-summary-grid strong{
+            display:block;color:#F7F8FA!important;font-size:22px!important;
+            line-height:1.15!important;margin:7px 0 4px!important;
+        }
+        .mk2-summary-grid small{color:#8FA2B3!important;}
+
+        .mk2-table-head{
+            display:flex!important;justify-content:space-between!important;align-items:end!important;
+            gap:12px!important;margin:14px 0 8px!important;
+        }
+        .mk2-table-head strong{display:block;color:#F7F8FA!important;font-size:14px!important;}
+        .mk2-table-head span,.mk2-table-head>div:last-child{color:#9FB0C0!important;font-size:10px!important;}
+        .mk2-table-head b{color:#FFC400!important;}
+
+        [data-testid="stTabs"] [data-baseweb="tab-list"]{
+            gap:8px!important;border-bottom:1px solid #34414D!important;
+        }
+        [data-testid="stTabs"] button[role="tab"]{
+            color:#9FB0C0!important;background:transparent!important;
+            border-radius:8px 8px 0 0!important;
+        }
+        [data-testid="stTabs"] button[role="tab"][aria-selected="true"]{
+            color:#FFC400!important;background:#18242E!important;
+        }
+        [data-testid="stTabs"] [data-baseweb="tab-highlight"]{background:#FFC400!important;}
+
+        [data-testid="stTextInput"] label p,
+        [data-testid="stNumberInput"] label p,
+        [data-testid="stRadio"] label p{color:#B8C5CF!important;}
+        [data-testid="stTextInput"] input,
+        [data-testid="stNumberInput"] input{
+            background:#141E27!important;color:#F7F8FA!important;
+        }
+        [data-testid="stRadio"] [role="radiogroup"]{
+            background:#111B24!important;border:1px solid #34414D!important;
+            border-radius:10px!important;padding:5px 9px!important;
+        }
+
+        [data-testid="stDataFrame"]{
+            background:#111B24!important;border:1px solid #34414D!important;
+            border-radius:10px!important;overflow:hidden!important;
+        }
+
+        [data-testid="stAlert"]{
+            background:#2A240E!important;border-color:#6F5B0B!important;color:#F5DE87!important;
+        }
+
+        .main .stDownloadButton>button[kind="primary"],
+        .main .stDownloadButton>button{
+            background:#FFC400!important;color:#111820!important;
+            border:1px solid #FFC400!important;font-weight:800!important;
+        }
+        .main .stDownloadButton>button:hover{
+            background:#FFD02D!important;color:#111820!important;border-color:#FFD02D!important;
+        }
+
+        @media(max-width:900px){
+            .mk2-source{grid-template-columns:auto 1fr!important;}
+            .mk2-source-rule{grid-column:1/-1;border-left:0!important;border-top:1px solid #34414D!important;padding:10px 0 0!important;}
+            .mk2-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;}
+        }
+
+        /* ============================================================
+           MARKETPLACE · CONTRASTE FINAL V2
+           Solo mejora legibilidad; no modifica lógica ni cálculos.
+           ============================================================ */
+
+        .mk2-source-main strong,
+        .mk2-source-rule strong,
+        .mk2-platform-title strong,
+        .mk2-summary-grid strong,
+        .mk2-table-head strong {
+            color:#F7F8FA !important;
+            opacity:1 !important;
+        }
+
+        .mk2-source-main span,
+        .mk2-source-rule span,
+        .mk2-source-main small,
+        .mk2-source-rule small,
+        .mk2-platform-title span,
+        .mk2-summary-grid span,
+        .mk2-summary-grid small,
+        .mk2-table-head span,
+        .mk2-table-head > div:last-child {
+            color:#AEBBC6 !important;
+            opacity:1 !important;
+        }
+
+        .mk2-source-main small b,
+        .mk2-table-head b {
+            color:#FFC400 !important;
+        }
+
+        .mk2-summary-grid > div {
+            background:linear-gradient(145deg,#1A2530,#141E27) !important;
+        }
+
+        .mk2-summary-grid > div strong {
+            color:#FFFFFF !important;
+            font-size:23px !important;
+            font-weight:850 !important;
+            text-shadow:none !important;
+        }
+
+        .mk2-platform-head {
+            background:linear-gradient(145deg,#1A2530,#141E27) !important;
+        }
+
+        .mk2-platform-title strong {
+            color:#FFFFFF !important;
+            font-weight:800 !important;
+        }
+
+        .mk2-badge.neutral {
+            background:#26333D !important;
+            color:#E9EEF2 !important;
+            border-color:#465764 !important;
+        }
+
+        .mk2-badge.risk {
+            background:#4A2020 !important;
+            color:#FF8A8A !important;
+            border-color:#8F3A3A !important;
+        }
+
+        .mk2-live {
+            background:#151F28 !important;
+            color:#D9E1E7 !important;
+            border-color:#3A4955 !important;
+        }
+
+        .mk3-compact-summary b {
+            color:#FFFFFF !important;
+        }
+
+        [data-testid="stTabs"] button[role="tab"] {
+            color:#CFD8DF !important;
+            font-weight:700 !important;
+        }
+
+        [data-testid="stTabs"] button[role="tab"][aria-selected="true"] {
+            color:#FFC400 !important;
+        }
+
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
     df = ctx.get(
         "stock_df"
     )

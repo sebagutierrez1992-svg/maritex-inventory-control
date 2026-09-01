@@ -22,277 +22,8 @@ html, body, [data-testid="stAppViewContainer"] {
 }
 
 
-/* ============================================================
-   SIDEBAR · MARITEX ADMIN
-   Navegación compacta, uniforme y sin radio-buttons visibles.
-   ============================================================ */
 
-[data-testid="stSidebar"]{
-    width:280px !important;
-    min-width:280px !important;
-    background:#070a0d !important;
-    border-right:1px solid #1c2228 !important;
-}
-
-[data-testid="stSidebar"] > div:first-child{
-    width:280px !important;
-    min-width:280px !important;
-    background:#070a0d !important;
-}
-
-/* Contenedor interno */
-[data-testid="stSidebarUserContent"]{
-    min-height:calc(100vh - 1.5rem);
-    display:flex;
-    flex-direction:column;
-    padding:26px 16px 18px !important;
-}
-
-/* Todo el texto del sidebar */
-[data-testid="stSidebar"]{
-    color:#f4f6f8;
-}
-
-[data-testid="stSidebar"] p,
-[data-testid="stSidebar"] span,
-[data-testid="stSidebar"] div{
-    color:inherit;
-}
-
-/* ------------------------------------------------------------
-   MARCA
-   ------------------------------------------------------------ */
-
-.sidebar-brand{
-    padding:4px 6px 21px;
-    margin-bottom:4px;
-}
-
-.sidebar-brand::before{
-    content:"";
-    display:block;
-    width:34px;
-    height:3px;
-    margin-bottom:15px;
-    border-radius:999px;
-    background:#d8ff00;
-}
-
-.sidebar-brand-name{
-    color:#ffffff !important;
-    font-size:18px;
-    line-height:1.2;
-    font-weight:800;
-    letter-spacing:-.025em;
-}
-
-.sidebar-brand-subtitle{
-    margin-top:5px;
-    color:#7f8993 !important;
-    font-size:11px;
-    line-height:1.35;
-    font-weight:550;
-}
-
-/* ------------------------------------------------------------
-   TÍTULO DE SECCIÓN
-   ------------------------------------------------------------ */
-
-.sidebar-section-title{
-    margin:5px 8px 8px;
-    color:#68727c !important;
-    font-size:9px;
-    font-weight:850;
-    line-height:1;
-    letter-spacing:.14em;
-    text-transform:uppercase;
-}
-
-/* ------------------------------------------------------------
-   RADIO -> MENÚ
-   ------------------------------------------------------------ */
-
-/* El radio no debe reservar margen lateral */
-[data-testid="stSidebar"] .stRadio{
-    width:100%;
-    margin:0 !important;
-}
-
-/* Grupo de opciones */
-[data-testid="stSidebar"] .stRadio div[role="radiogroup"]{
-    width:100%;
-    display:flex;
-    flex-direction:column;
-    gap:6px;
-}
-
-/* Cada opción ocupa exactamente el mismo ancho */
-[data-testid="stSidebar"] .stRadio div[role="radiogroup"] > label{
-    position:relative;
-    box-sizing:border-box;
-    width:100% !important;
-    min-width:100% !important;
-    max-width:100% !important;
-    min-height:44px !important;
-    margin:0 !important;
-    padding:0 13px !important;
-
-    display:flex !important;
-    align-items:center !important;
-
-    border:1px solid transparent !important;
-    border-radius:9px !important;
-    background:transparent !important;
-
-    color:#c9d0d6 !important;
-    cursor:pointer;
-    transition:
-        background .16s ease,
-        border-color .16s ease,
-        color .16s ease,
-        transform .16s ease;
-}
-
-/* Oculta el círculo del st.radio */
-[data-testid="stSidebar"] .stRadio div[role="radiogroup"] > label > div:first-child{
-    display:none !important;
-}
-
-/* Fallback para distintas versiones de Streamlit/BaseWeb */
-[data-testid="stSidebar"] .stRadio label [data-baseweb="radio"]{
-    display:none !important;
-}
-
-[data-testid="stSidebar"] .stRadio label input[type="radio"]{
-    position:absolute !important;
-    opacity:0 !important;
-    pointer-events:none !important;
-}
-
-/* Texto del botón */
-[data-testid="stSidebar"] .stRadio div[role="radiogroup"] > label p{
-    margin:0 !important;
-    color:inherit !important;
-    font-size:12px !important;
-    line-height:1.2 !important;
-    font-weight:650 !important;
-    white-space:nowrap;
-}
-
-/* Hover */
-[data-testid="stSidebar"] .stRadio div[role="radiogroup"] > label:hover{
-    background:#10151a !important;
-    border-color:#202831 !important;
-    color:#ffffff !important;
-    transform:translateX(1px);
-}
-
-/* Activo */
-[data-testid="stSidebar"] .stRadio div[role="radiogroup"] > label:has(input:checked){
-    background:#151b20 !important;
-    border-color:#273039 !important;
-    color:#ffffff !important;
-    box-shadow:none !important;
-}
-
-/* Barra lima del activo */
-[data-testid="stSidebar"] .stRadio div[role="radiogroup"] > label:has(input:checked)::before{
-    content:"";
-    position:absolute;
-    left:-1px;
-    top:8px;
-    bottom:8px;
-    width:3px;
-    border-radius:0 999px 999px 0;
-    background:#d8ff00;
-}
-
-/* Pequeño punto de estado seleccionado */
-[data-testid="stSidebar"] .stRadio div[role="radiogroup"] > label:has(input:checked)::after{
-    content:"";
-    position:absolute;
-    right:12px;
-    top:50%;
-    width:5px;
-    height:5px;
-    border-radius:50%;
-    background:#d8ff00;
-    transform:translateY(-50%);
-    box-shadow:0 0 0 3px rgba(216,255,0,.08);
-}
-
-/* Espacio para no superponer el punto derecho */
-[data-testid="stSidebar"] .stRadio div[role="radiogroup"] > label:has(input:checked) p{
-    padding-right:13px;
-}
-
-/* ------------------------------------------------------------
-   FOOTER / VERSIÓN
-   ------------------------------------------------------------ */
-
-.sidebar-info{
-    margin-top:auto;
-    padding:22px 6px 2px;
-}
-
-.sidebar-info-line{
-    height:1px;
-    margin-bottom:14px;
-    background:#1d242a;
-}
-
-.sidebar-version{
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    gap:10px;
-}
-
-.sidebar-version span{
-    color:#66717b !important;
-    font-size:8px;
-    font-weight:800;
-    letter-spacing:.10em;
-}
-
-.sidebar-version strong{
-    color:#aab2ba !important;
-    font-size:9px;
-    font-weight:750;
-}
-
-/* ------------------------------------------------------------
-   BOTÓN DE COLAPSAR SIDEBAR
-   ------------------------------------------------------------ */
-
-[data-testid="stSidebarCollapseButton"] button{
-    color:#8c969f !important;
-    border-radius:8px !important;
-}
-
-[data-testid="stSidebarCollapseButton"] button:hover{
-    background:#141a1f !important;
-    color:#ffffff !important;
-}
-
-/* ------------------------------------------------------------
-   RESPONSIVE
-   ------------------------------------------------------------ */
-
-@media(max-width:900px){
-    [data-testid="stSidebar"],
-    [data-testid="stSidebar"] > div:first-child{
-        width:260px !important;
-        min-width:260px !important;
-    }
-
-    [data-testid="stSidebarUserContent"]{
-        padding-left:13px !important;
-        padding-right:13px !important;
-    }
-}
-
-
+/* ===== VENDEDORES ===== */
 /* ============================================================
    V60 · VENDEDORES
    ============================================================ */
@@ -644,26 +375,12 @@ div[data-testid="stVerticalBlock"]:has(
 }
 
 
+
+/* ===== DASHBOARD COMPARTIDO / RESUMEN EJECUTIVO ===== */
 /* ============================================================
    V61.7 · FULL DASHBOARD V60
    Scoped styles by page classes to avoid cross-page conflicts.
    ============================================================ */
-
-:root{
-  --gm-bg:#f6f7f9;
-  --gm-card:#ffffff;
-  --gm-border:#e1e5e9;
-  --gm-text:#171b21;
-  --gm-muted:#7b8691;
-  --gm-purple:#6536f3;
-  --gm-green:#2dbf72;
-  --gm-blue:#4f7cd7;
-  --gm-orange:#ff9f2d;
-  --gm-red:#ef4444;
-}
-
-[data-testid="stAppViewContainer"]{background:var(--gm-bg);}
-.block-container{max-width:1580px;padding-top:1.15rem;padding-bottom:2.5rem;}
 
 /* ---------- Common page headers ---------- */
 .gm-page-head{
@@ -871,294 +588,8 @@ div[data-testid="stVerticalBlock"]:has(
   .exec-v60-note{text-align:left}
   .stock-v60-detail-grid{grid-template-columns:repeat(2,1fr)}
 }
-/* ============================================================
-   SIDEBAR · BOTONES FINAL
-   Debe ir AL FINAL del styles.css
-   ============================================================ */
 
-
-/* ------------------------------------------------------------
-   TODOS LOS BOTONES DEL SIDEBAR
-   ------------------------------------------------------------ */
-
-[data-testid="stSidebar"] .stButton,
-[data-testid="stSidebar"] [data-testid="stButton"]{
-    width:100% !important;
-    margin:0 0 9px 0 !important;
-}
-
-
-/* Botón normal + primary + secondary */
-
-[data-testid="stSidebar"] .stButton > button,
-[data-testid="stSidebar"] button[data-testid="stBaseButton-secondary"],
-[data-testid="stSidebar"] button[data-testid="stBaseButton-primary"]{
-
-    width:100% !important;
-
-    min-height:58px !important;
-    height:58px !important;
-
-    display:flex !important;
-    align-items:center !important;
-    justify-content:center !important;
-
-    padding:0 16px !important;
-
-    background:#151a1f !important;
-
-    border:1px solid #252d34 !important;
-
-    border-radius:10px !important;
-
-    color:#ffffff !important;
-
-    font-size:12px !important;
-    font-weight:750 !important;
-
-    box-shadow:none !important;
-
-    opacity:1 !important;
-
-    transition:
-        background .16s ease,
-        border-color .16s ease,
-        transform .16s ease !important;
-}
-
-
-/* ------------------------------------------------------------
-   TEXTO INTERNO
-   ------------------------------------------------------------ */
-
-[data-testid="stSidebar"] .stButton > button *,
-[data-testid="stSidebar"] button[data-testid="stBaseButton-secondary"] *,
-[data-testid="stSidebar"] button[data-testid="stBaseButton-primary"] *{
-
-    color:#ffffff !important;
-
-    opacity:1 !important;
-}
-
-
-/* ------------------------------------------------------------
-   BOTONES SECUNDARIOS
-   ------------------------------------------------------------ */
-
-[data-testid="stSidebar"]
-button[data-testid="stBaseButton-secondary"]{
-
-    background:#151a1f !important;
-
-    border-color:#252d34 !important;
-
-    color:#ffffff !important;
-}
-
-
-/* ------------------------------------------------------------
-   BOTÓN ACTIVO
-   Actualmente app.py usa type="primary"
-   ------------------------------------------------------------ */
-
-[data-testid="stSidebar"]
-button[data-testid="stBaseButton-primary"]{
-
-    position:relative !important;
-
-    background:#1a2025 !important;
-
-    border-color:#303941 !important;
-
-    color:#ffffff !important;
-
-    box-shadow:none !important;
-}
-
-
-/* barra lima del seleccionado */
-
-[data-testid="stSidebar"]
-button[data-testid="stBaseButton-primary"]::before{
-
-    content:"";
-
-    position:absolute;
-
-    left:-1px;
-    top:7px;
-    bottom:7px;
-
-    width:4px;
-
-    background:#d7ff00;
-
-    border-radius:
-        0 6px 6px 0;
-}
-
-
-/* ------------------------------------------------------------
-   HOVER
-   ------------------------------------------------------------ */
-
-[data-testid="stSidebar"]
-button[data-testid="stBaseButton-secondary"]:hover{
-
-    background:#1b2126 !important;
-
-    border-color:#343e47 !important;
-
-    color:#ffffff !important;
-
-    transform:translateY(-1px);
-}
-
-
-[data-testid="stSidebar"]
-button[data-testid="stBaseButton-primary"]:hover{
-
-    background:#1d242a !important;
-
-    border-color:#39444d !important;
-
-    color:#ffffff !important;
-}
-
-
-/* ------------------------------------------------------------
-   FOCUS / ACTIVE
-   Evitar rojo / blanco de Streamlit
-   ------------------------------------------------------------ */
-
-[data-testid="stSidebar"]
-button[data-testid="stBaseButton-primary"]:focus,
-
-[data-testid="stSidebar"]
-button[data-testid="stBaseButton-secondary"]:focus,
-
-[data-testid="stSidebar"]
-button[data-testid="stBaseButton-primary"]:active,
-
-[data-testid="stSidebar"]
-button[data-testid="stBaseButton-secondary"]:active{
-
-    box-shadow:none !important;
-
-    outline:none !important;
-
-    color:#ffffff !important;
-}
-
-
-/* ------------------------------------------------------------
-   SECCIONES
-   ------------------------------------------------------------ */
-
-.sidebar-section-final{
-
-    display:flex !important;
-
-    align-items:center !important;
-
-    gap:10px !important;
-
-    margin:
-        34px 0 11px 0 !important;
-}
-
-
-.sidebar-section-final:first-of-type{
-
-    margin-top:0 !important;
-}
-
-
-.sidebar-section-final span{
-
-    color:#7d8c98 !important;
-
-    font-size:8px !important;
-
-    font-weight:850 !important;
-
-    letter-spacing:.18em !important;
-}
-
-
-.sidebar-section-line{
-
-    height:1px !important;
-
-    flex:1 !important;
-
-    background:#242b31 !important;
-}
-
-
-/* ------------------------------------------------------------
-   BRAND
-   ------------------------------------------------------------ */
-
-.sidebar-brand-final{
-
-    display:flex !important;
-
-    align-items:center !important;
-
-    gap:10px !important;
-
-    margin:
-        32px 7px 48px 7px !important;
-}
-
-
-.sidebar-x{
-
-    color:#ff3044 !important;
-
-    font-size:32px !important;
-
-    line-height:1 !important;
-
-    font-weight:950 !important;
-
-    letter-spacing:-3px !important;
-}
-
-
-.sidebar-brand-text{
-
-    color:#ffffff !important;
-
-    font-size:20px !important;
-
-    font-weight:850 !important;
-
-    line-height:1 !important;
-
-    letter-spacing:-.03em !important;
-}
-
-
-/* ------------------------------------------------------------
-   SIDEBAR GENERAL
-   ------------------------------------------------------------ */
-
-[data-testid="stSidebar"]{
-
-    background:#070a0d !important;
-
-    border-right:1px solid #1c2228 !important;
-}
-
-
-[data-testid="stSidebarUserContent"]{
-
-    padding:
-        28px 17px 24px 17px !important;
-}
-
+/* ===== INICIO ===== */
 /* ============================================================
    MARITEX · INICIO EJECUTIVO
    Clases exclusivas mx-* para no afectar otras vistas.
@@ -1712,134 +1143,6 @@ div[data-testid="stVerticalBlockBorderWrapper"]{
 }
 
 /* ------------------------------------------------------------
-   SIDEBAR MODERN · clases que usa app.py actual
-   ------------------------------------------------------------ */
-
-.sidebar-brand-modern{
-    position:relative;
-    padding:5px 2px 22px;
-    margin-bottom:8px;
-}
-
-.sidebar-brand-accent{
-    width:34px;
-    height:3px;
-    margin-bottom:14px;
-    border-radius:999px;
-    background:#d8ff00;
-}
-
-.sidebar-brand-row{
-    display:flex;
-    align-items:flex-start;
-    justify-content:space-between;
-    gap:10px;
-}
-
-.sidebar-brand-modern .sidebar-brand-name{
-    color:#fff !important;
-    font-size:18px !important;
-    font-weight:850 !important;
-    letter-spacing:-.03em;
-}
-
-.sidebar-brand-sub{
-    margin-top:4px;
-    color:#77828c !important;
-    font-size:10px;
-    font-weight:600;
-}
-
-.sidebar-collapse{
-    color:#68737d !important;
-    font-size:15px;
-    font-weight:800;
-}
-
-.sidebar-section-modern{
-    margin:20px 3px 8px;
-    color:#65717c !important;
-    font-size:8px;
-    font-weight:850;
-    letter-spacing:.16em;
-}
-
-.sidebar-admin-note{
-    margin:0 2px 8px;
-    padding:12px 12px;
-    border:1px solid #1d252c;
-    border-radius:10px;
-    background:#0d1216;
-    color:#77838d !important;
-    font-size:9.5px;
-    line-height:1.9;
-}
-
-.sidebar-user-card{
-    display:grid;
-    grid-template-columns:34px 1fr auto;
-    align-items:center;
-    gap:9px;
-    margin-top:18px;
-    padding:11px 10px;
-    border-top:1px solid #1c242b;
-    color:#d8dde2 !important;
-}
-
-.sidebar-user-avatar{
-    width:34px;
-    height:34px;
-    display:grid;
-    place-items:center;
-    border-radius:9px;
-    background:#d8ff00;
-    color:#111820 !important;
-    font-size:9px;
-    font-weight:900;
-}
-
-.sidebar-user-card strong{
-    display:block;
-    color:#f4f6f8 !important;
-    font-size:9.5px;
-    font-weight:800;
-}
-
-.sidebar-user-card span{
-    display:block;
-    margin-top:2px;
-    color:#69757f !important;
-    font-size:8px;
-}
-
-/* Sidebar más compacto */
-[data-testid="stSidebar"],
-[data-testid="stSidebar"] > div:first-child{
-    width:252px !important;
-    min-width:252px !important;
-}
-
-[data-testid="stSidebarUserContent"]{
-    padding:22px 14px 18px !important;
-}
-
-[data-testid="stSidebar"] .stButton,
-[data-testid="stSidebar"] [data-testid="stButton"]{
-    margin:0 0 6px 0 !important;
-}
-
-[data-testid="stSidebar"] .stButton > button,
-[data-testid="stSidebar"] button[data-testid="stBaseButton-secondary"],
-[data-testid="stSidebar"] button[data-testid="stBaseButton-primary"]{
-    min-height:46px !important;
-    height:46px !important;
-    justify-content:flex-start !important;
-    padding:0 13px !important;
-    border-radius:9px !important;
-    font-size:10.5px !important;
-}
-
-/* ------------------------------------------------------------
    RESPONSIVE
    ------------------------------------------------------------ */
 
@@ -1895,6 +1198,8 @@ div[data-testid="stVerticalBlockBorderWrapper"]{
     }
 }
 
+
+/* ===== STOCK GENERAL ===== */
 /* ============================================================
    MARITEX · STOCK GENERAL V7
    Clases sg-* aisladas para no afectar otras vistas.
@@ -2853,6 +2158,8 @@ div[data-testid="stVerticalBlockBorderWrapper"]{
     }
 }
 
+
+/* ===== MÉTRICAS STOCK ===== */
 /* ============================================================
    MARITEX · MÉTRICAS DE STOCK V8
    ============================================================ */
@@ -3307,244 +2614,8 @@ div[data-testid="stVerticalBlockBorderWrapper"]{
     }
 }
 
-/* ============================================================
-   MARITEX · SIDEBAR CLARO MODERNO · FINAL
-   Este bloque debe permanecer al final del archivo.
-   ============================================================ */
 
-[data-testid="stSidebar"],
-[data-testid="stSidebar"] > div:first-child{
-    width:258px !important;
-    min-width:258px !important;
-    background:#ffffff !important;
-    border-right:1px solid #e7eaee !important;
-}
-
-[data-testid="stSidebarUserContent"]{
-    min-height:100vh !important;
-    padding:28px 18px 24px !important;
-    background:#ffffff !important;
-    color:#171b21 !important;
-}
-
-[data-testid="stSidebar"] p,
-[data-testid="stSidebar"] span,
-[data-testid="stSidebar"] div{
-    color:inherit;
-}
-
-.sidebar-brand-modern{
-    display:flex !important;
-    align-items:center !important;
-    gap:11px !important;
-    padding:2px 7px 28px !important;
-    margin:0 !important;
-}
-
-.sidebar-logo-mark{
-    position:relative;
-    width:29px;
-    height:25px;
-    flex:0 0 29px;
-}
-
-.sidebar-logo-mark span{
-    position:absolute;
-    top:2px;
-    width:8px;
-    height:22px;
-    background:#ffd600;
-    border-radius:2px;
-}
-
-.sidebar-logo-mark span:first-child{
-    left:4px;
-    transform:skewY(35deg);
-}
-
-.sidebar-logo-mark span:last-child{
-    right:4px;
-    transform:skewY(-35deg);
-}
-
-.sidebar-brand-modern .sidebar-brand-name{
-    color:#111418 !important;
-    font-size:20px !important;
-    line-height:1 !important;
-    font-weight:900 !important;
-    letter-spacing:.02em !important;
-}
-
-.sidebar-section-modern{
-    display:flex !important;
-    align-items:center !important;
-    gap:9px !important;
-    margin:25px 7px 10px !important;
-    color:#7d8792 !important;
-    font-size:8.5px !important;
-    line-height:1 !important;
-    font-weight:850 !important;
-    letter-spacing:.10em !important;
-}
-
-.sidebar-section-modern .sidebar-section-dot{
-    width:6px !important;
-    height:6px !important;
-    flex:0 0 6px !important;
-    border-radius:50% !important;
-    background:#ffd600 !important;
-}
-
-.sidebar-section-modern i{
-    display:block !important;
-    height:1px !important;
-    flex:1 !important;
-    margin-left:4px !important;
-    background:#e7eaee !important;
-}
-
-[data-testid="stSidebar"] .stButton,
-[data-testid="stSidebar"] [data-testid="stButton"]{
-    width:100% !important;
-    margin:0 0 5px !important;
-}
-
-[data-testid="stSidebar"] .stButton > button,
-[data-testid="stSidebar"] button[data-testid="stBaseButton-secondary"],
-[data-testid="stSidebar"] button[data-testid="stBaseButton-primary"]{
-    position:relative !important;
-    width:100% !important;
-    min-height:45px !important;
-    height:45px !important;
-    display:flex !important;
-    align-items:center !important;
-    justify-content:flex-start !important;
-    padding:0 14px !important;
-    border:1px solid transparent !important;
-    border-radius:10px !important;
-    background:transparent !important;
-    color:#252b32 !important;
-    box-shadow:none !important;
-    font-size:11px !important;
-    font-weight:720 !important;
-    text-align:left !important;
-    opacity:1 !important;
-    transition:background .15s ease,border-color .15s ease,transform .15s ease !important;
-}
-
-[data-testid="stSidebar"] .stButton > button *,
-[data-testid="stSidebar"] button[data-testid="stBaseButton-secondary"] *,
-[data-testid="stSidebar"] button[data-testid="stBaseButton-primary"] *{
-    color:inherit !important;
-    opacity:1 !important;
-}
-
-[data-testid="stSidebar"] button[data-testid="stBaseButton-secondary"]:hover{
-    background:#f6f7f8 !important;
-    border-color:#eef0f2 !important;
-    color:#111418 !important;
-    transform:translateX(1px);
-}
-
-[data-testid="stSidebar"] button[data-testid="stBaseButton-primary"]{
-    background:#fff8dc !important;
-    border-color:#fff0ac !important;
-    color:#15191e !important;
-    font-weight:820 !important;
-}
-
-[data-testid="stSidebar"] button[data-testid="stBaseButton-primary"]::before{
-    content:"" !important;
-    position:absolute !important;
-    left:-1px !important;
-    top:7px !important;
-    bottom:7px !important;
-    width:4px !important;
-    border-radius:0 999px 999px 0 !important;
-    background:#ffd600 !important;
-}
-
-[data-testid="stSidebar"] button[data-testid="stBaseButton-primary"]:hover{
-    background:#fff5c7 !important;
-    border-color:#ffe982 !important;
-    color:#111418 !important;
-}
-
-[data-testid="stSidebar"] button[data-testid="stBaseButton-primary"]:focus,
-[data-testid="stSidebar"] button[data-testid="stBaseButton-secondary"]:focus,
-[data-testid="stSidebar"] button[data-testid="stBaseButton-primary"]:active,
-[data-testid="stSidebar"] button[data-testid="stBaseButton-secondary"]:active{
-    box-shadow:none !important;
-    outline:none !important;
-}
-
-[data-testid="stSidebarCollapseButton"] button{
-    color:#7d8792 !important;
-    background:#f5f6f7 !important;
-    border:1px solid #e7eaee !important;
-    border-radius:999px !important;
-}
-
-[data-testid="stSidebarCollapseButton"] button:hover{
-    color:#171b21 !important;
-    background:#eef0f2 !important;
-}
-
-/* Oculta cualquier bloque antiguo del sidebar que haya quedado
-   definido en CSS pero que ya no se renderiza desde app.py. */
-.sidebar-admin-note,
-.sidebar-user-card,
-.sidebar-brand-sub,
-.sidebar-brand-accent,
-.sidebar-collapse{
-    display:none !important;
-}
-
-@media(max-width:900px){
-    [data-testid="stSidebar"],
-    [data-testid="stSidebar"] > div:first-child{
-        width:250px !important;
-        min-width:250px !important;
-    }
-
-    [data-testid="stSidebarUserContent"]{
-        padding:22px 14px 20px !important;
-    }
-}
-
-/* ============================================================
-   MARITEX · SIDEBAR ICONOS MATERIAL · FINAL
-   ============================================================ */
-
-[data-testid="stSidebar"] .stButton > button{
-    gap:11px !important;
-}
-
-[data-testid="stSidebar"] .stButton > button [data-testid="stIconMaterial"]{
-    font-size:19px !important;
-    width:21px !important;
-    min-width:21px !important;
-    height:21px !important;
-    display:flex !important;
-    align-items:center !important;
-    justify-content:center !important;
-    color:#20262d !important;
-}
-
-[data-testid="stSidebar"] button[data-testid="stBaseButton-primary"] [data-testid="stIconMaterial"]{
-    color:#171b21 !important;
-}
-
-[data-testid="stSidebar"] button[data-testid="stBaseButton-secondary"]:hover [data-testid="stIconMaterial"]{
-    color:#111418 !important;
-}
-
-/* Mantiene el texto alineado aunque los iconos sean distintos */
-[data-testid="stSidebar"] .stButton > button p{
-    margin:0 !important;
-    line-height:1.1 !important;
-}
-
+/* ===== MARKETPLACE ===== */
 /* ============================================================
    MARITEX · MARKETPLACE V2
    Llegadas_OK -> CASA MATRIZ -> Paris / Mercado Libre
@@ -4108,6 +3179,8 @@ div[data-testid="stTabs"]:has(.mk2-platform-head) button[role="tab"]{
     }
 }
 
+
+/* ===== PLANTILLAS ===== */
 /* ============================================================
    MARITEX · PLANTILLAS V2
    ============================================================ */
@@ -4523,4 +3596,947 @@ div[data-testid="stTabs"]:has(.mk2-platform-head) button[role="tab"]{
     .mk3-compact-summary{
         gap:7px 12px;
     }
+}
+
+/* ============================================================
+   MARITEX · SISTEMA VISUAL GLOBAL · PRODUCCIÓN
+   ÚNICA CAPA FINAL DE LAYOUT / ESCALA / SIDEBAR
+   ============================================================ */
+
+:root{
+    --mx-bg:#f5f6f8;
+    --mx-surface:#ffffff;
+    --mx-border:#dde2e7;
+    --mx-text:#171b21;
+    --mx-muted:#77828d;
+    --mx-yellow:#ffc400;
+    --mx-yellow-2:#ffd21a;
+    --mx-black:#080808;
+    --mx-green:#62b943;
+    --mx-orange:#f5a623;
+    --mx-red:#e64b4b;
+}
+
+/* ---------- BASE ---------- */
+html{
+    font-size:16px;
+}
+
+html, body, [data-testid="stAppViewContainer"]{
+    background:var(--mx-bg) !important;
+    color:var(--mx-text) !important;
+}
+
+[data-testid="stHeader"]{
+    background:transparent !important;
+}
+
+[data-testid="stAppViewContainer"] > .main{
+    background:var(--mx-bg) !important;
+}
+
+.block-container{
+    width:100% !important;
+    max-width:1720px !important;
+    padding-top:2rem !important;
+    padding-right:2.25rem !important;
+    padding-bottom:3rem !important;
+    padding-left:2.25rem !important;
+}
+
+/* ---------- STREAMLIT: CONTROLES ---------- */
+[data-testid="stSelectbox"] label p,
+[data-testid="stMultiSelect"] label p,
+[data-testid="stTextInput"] label p,
+[data-testid="stDateInput"] label p,
+[data-testid="stNumberInput"] label p,
+[data-testid="stRadio"] label p{
+    font-size:11.5px !important;
+    font-weight:750 !important;
+    color:#626d78 !important;
+}
+
+div[data-baseweb="select"] > div,
+[data-testid="stTextInput"] input,
+[data-testid="stDateInput"] input,
+[data-testid="stNumberInput"] input{
+    min-height:45px !important;
+    border-radius:10px !important;
+    border-color:#dce1e6 !important;
+    background:#fff !important;
+    font-size:13px !important;
+}
+
+[data-testid="stTextInput"] input{
+    padding-top:10px !important;
+    padding-bottom:10px !important;
+}
+
+div[data-testid="stVerticalBlockBorderWrapper"]{
+    border-color:var(--mx-border) !important;
+    border-radius:14px !important;
+    background:#fff !important;
+    box-shadow:0 1px 3px rgba(17,24,39,.025) !important;
+}
+
+[data-testid="stDataFrame"]{
+    border:1px solid #e1e5e9 !important;
+    border-radius:11px !important;
+    overflow:hidden !important;
+}
+
+/* ---------- ESCALA DE TÍTULOS ---------- */
+.mx-home-title,
+.sg-title,
+.ms-title,
+.mk2-title,
+.tpl2-title,
+.tpl3-title,
+.exec-v60-title{
+    font-size:34px !important;
+    line-height:1.08 !important;
+    font-weight:860 !important;
+}
+
+.seller-title{
+    font-size:29px !important;
+}
+
+.mx-home-subtitle,
+.sg-subtitle,
+.ms-subtitle,
+.mk2-subtitle,
+.tpl2-subtitle,
+.tpl3-subtitle,
+.exec-v60-subtitle,
+.seller-subtitle{
+    font-size:13px !important;
+}
+
+.gm-section-title,
+.sg-section-head,
+.ms-section-head,
+.mk2-section-head,
+.tpl2-section-head{
+    font-size:15px !important;
+}
+
+/* ---------- INICIO ---------- */
+.mx-kpi-grid{
+    gap:14px !important;
+}
+
+.mx-kpi{
+    min-height:164px !important;
+    padding:18px 18px !important;
+}
+
+.mx-kpi-icon{
+    width:38px !important;
+    height:38px !important;
+}
+
+.mx-kpi-label{
+    font-size:10.5px !important;
+}
+
+.mx-kpi-value{
+    font-size:29px !important;
+}
+
+.mx-kpi-helper{
+    font-size:10.5px !important;
+}
+
+.mx-card-head strong{
+    font-size:15px !important;
+}
+
+.mx-card-head span{
+    font-size:11px !important;
+}
+
+/* ---------- STOCK GENERAL ---------- */
+.sg-kpi-grid{
+    gap:14px !important;
+}
+
+.sg-kpi{
+    min-height:122px !important;
+    padding:17px !important;
+}
+
+.sg-kpi-label{
+    font-size:10.5px !important;
+}
+
+.sg-kpi-value{
+    font-size:27px !important;
+}
+
+.sg-kpi-helper{
+    font-size:10px !important;
+}
+
+.sg-source,
+.sg-alert,
+.sg-detail{
+    padding:17px !important;
+}
+
+.sg-card-head strong,
+.sg-detail-title{
+    font-size:14px !important;
+}
+
+.sg-card-head span{
+    font-size:10.5px !important;
+}
+
+/* ---------- MÉTRICAS STOCK ---------- */
+.ms-kpi-grid{
+    gap:14px !important;
+}
+
+.ms-kpi{
+    min-height:118px !important;
+    padding:16px !important;
+}
+
+.ms-kpi-label{
+    font-size:10.5px !important;
+}
+
+.ms-kpi-value{
+    font-size:25px !important;
+}
+
+/* ---------- RESUMEN EJECUTIVO ---------- */
+.exec-v60-kpi{
+    min-height:128px !important;
+    padding:19px 18px !important;
+}
+
+.exec-v60-kpi span{
+    font-size:10.5px !important;
+}
+
+.exec-v60-kpi strong{
+    font-size:25px !important;
+}
+
+.exec-v60-kpi small{
+    font-size:9.5px !important;
+}
+
+.exec-v60-strip{
+    padding:14px 16px !important;
+}
+
+.exec-v60-strip span{
+    font-size:10px !important;
+}
+
+.exec-v60-strip strong{
+    font-size:12px !important;
+}
+
+/* ---------- MARKETPLACE / PLANTILLAS ---------- */
+.mk2-kpi,
+.mk2-health,
+.mk2-source,
+.mk2-change,
+.tpl2-market-card,
+.tpl2-sales-card,
+.tpl3-card{
+    border-color:var(--mx-border) !important;
+}
+
+.mk2-page-head,
+.tpl2-page-head,
+.tpl3-head{
+    margin-bottom:18px !important;
+}
+
+/* ============================================================
+   SIDEBAR NEGRO + AMARILLO MARITEX
+   Fallback global; app.py conserva sus clases específicas.
+   ============================================================ */
+
+[data-testid="stSidebar"],
+[data-testid="stSidebar"] > div,
+[data-testid="stSidebarContent"],
+[data-testid="stSidebarUserContent"]{
+    background:
+        radial-gradient(circle at 18% 0%, rgba(255,196,0,.07) 0%, rgba(255,196,0,0) 31%),
+        linear-gradient(180deg,#0a0a0a 0%,#080808 58%,#050505 100%) !important;
+}
+
+[data-testid="stSidebar"]{
+    width:280px !important;
+    min-width:280px !important;
+    border-right:1px solid rgba(255,196,0,.16) !important;
+    box-shadow:10px 0 28px rgba(0,0,0,.14) !important;
+}
+
+[data-testid="stSidebar"] > div:first-child,
+[data-testid="stSidebarContent"]{
+    width:280px !important;
+    min-width:280px !important;
+}
+
+[data-testid="stSidebarUserContent"]{
+    min-height:100vh !important;
+    max-width:280px !important;
+    padding:14px 16px 20px !important;
+    color:#f5f6f7 !important;
+}
+
+[data-testid="stSidebarUserContent"] [data-testid="stVerticalBlock"]{
+    gap:.18rem !important;
+}
+
+/* Logo / marca actual app.py */
+.sidebar-brand-c{
+    min-height:70px !important;
+    margin-bottom:8px !important;
+    border-bottom:1px solid rgba(255,255,255,.10) !important;
+}
+
+.sidebar-brand-c .brand-mark:before,
+.sidebar-brand-c .brand-mark:after{
+    background:var(--mx-yellow) !important;
+}
+
+.sidebar-brand-c .brand-name{
+    color:#fff !important;
+    font-size:20px !important;
+}
+
+.sidebar-brand-c .brand-subtitle{
+    color:#b7bec5 !important;
+    font-size:8.8px !important;
+}
+
+/* Secciones */
+.sidebar-section-modern{
+    color:var(--mx-yellow) !important;
+    font-size:9px !important;
+    letter-spacing:1.25px !important;
+}
+
+.sidebar-section-modern i{
+    background:linear-gradient(90deg,rgba(255,196,0,.52),rgba(255,196,0,0)) !important;
+}
+
+/* Navegación */
+[data-testid="stSidebar"] div.stButton{
+    width:100% !important;
+    margin:0 !important;
+}
+
+[data-testid="stSidebar"] div.stButton > button{
+    width:100% !important;
+    min-height:45px !important;
+    height:45px !important;
+    display:flex !important;
+    align-items:center !important;
+    justify-content:flex-start !important;
+    gap:11px !important;
+    padding:0 13px !important;
+    border-radius:9px !important;
+    border:1px solid transparent !important;
+    box-shadow:none !important;
+    font-size:13px !important;
+    font-weight:680 !important;
+}
+
+/* Inactivo */
+[data-testid="stSidebar"] div.stButton > button[kind="secondary"],
+[data-testid="stSidebar"] button[data-testid="stBaseButton-secondary"]{
+    background:transparent !important;
+    border-color:transparent !important;
+    color:#f0f2f4 !important;
+}
+
+[data-testid="stSidebar"] div.stButton > button[kind="secondary"] *,
+[data-testid="stSidebar"] button[data-testid="stBaseButton-secondary"] *{
+    color:#f0f2f4 !important;
+    opacity:1 !important;
+}
+
+[data-testid="stSidebar"] div.stButton > button[kind="secondary"]:hover,
+[data-testid="stSidebar"] button[data-testid="stBaseButton-secondary"]:hover{
+    background:rgba(255,196,0,.08) !important;
+    border-color:rgba(255,196,0,.17) !important;
+    color:#fff !important;
+    transform:translateX(2px);
+}
+
+/* Activo */
+[data-testid="stSidebar"] div.stButton > button[kind="primary"],
+[data-testid="stSidebar"] button[data-testid="stBaseButton-primary"]{
+    position:relative !important;
+    overflow:hidden !important;
+    background:linear-gradient(90deg,var(--mx-yellow-2),var(--mx-yellow)) !important;
+    border-color:rgba(255,196,0,.48) !important;
+    color:#111 !important;
+    font-weight:850 !important;
+}
+
+[data-testid="stSidebar"] div.stButton > button[kind="primary"] *,
+[data-testid="stSidebar"] button[data-testid="stBaseButton-primary"] *{
+    color:#111 !important;
+    opacity:1 !important;
+}
+
+[data-testid="stSidebar"] div.stButton > button[kind="primary"]::before,
+[data-testid="stSidebar"] button[data-testid="stBaseButton-primary"]::before{
+    content:"" !important;
+    position:absolute !important;
+    left:0 !important;
+    top:5px !important;
+    bottom:5px !important;
+    width:4px !important;
+    border-radius:0 4px 4px 0 !important;
+    background:#111 !important;
+}
+
+/* Material icons */
+[data-testid="stSidebar"] .stButton > button [data-testid="stIconMaterial"]{
+    flex:0 0 22px !important;
+    width:22px !important;
+    min-width:22px !important;
+    height:22px !important;
+    display:flex !important;
+    align-items:center !important;
+    justify-content:center !important;
+    font-size:20px !important;
+}
+
+[data-testid="stSidebar"] button[data-testid="stBaseButton-secondary"] [data-testid="stIconMaterial"]{
+    color:#f0f2f4 !important;
+}
+
+[data-testid="stSidebar"] button[data-testid="stBaseButton-primary"] [data-testid="stIconMaterial"]{
+    color:#111 !important;
+}
+
+.sidebar-footer-c{
+    border-top:1px solid rgba(255,255,255,.10) !important;
+    color:#84909a !important;
+}
+
+.sidebar-footer-c strong{
+    color:var(--mx-yellow) !important;
+}
+
+/* Collapse */
+[data-testid="stSidebarCollapseButton"] button{
+    color:#7c8791 !important;
+    background:#f4f5f6 !important;
+    border:1px solid #e2e6ea !important;
+    border-radius:999px !important;
+}
+
+/* ---------- RESPONSIVE ---------- */
+@media(max-width:1450px){
+    .block-container{
+        max-width:100% !important;
+        padding-right:1.65rem !important;
+        padding-left:1.65rem !important;
+    }
+}
+
+@media(max-width:1100px){
+    [data-testid="stSidebar"],
+    [data-testid="stSidebar"] > div:first-child,
+    [data-testid="stSidebarContent"]{
+        width:260px !important;
+        min-width:260px !important;
+    }
+
+    [data-testid="stSidebarUserContent"]{
+        max-width:260px !important;
+        padding-left:14px !important;
+        padding-right:14px !important;
+    }
+
+    .mx-home-title,
+    .sg-title,
+    .ms-title,
+    .mk2-title,
+    .tpl2-title,
+    .tpl3-title,
+    .exec-v60-title{
+        font-size:30px !important;
+    }
+}
+
+@media(max-width:900px){
+    .block-container{
+        padding-top:1.35rem !important;
+        padding-right:1rem !important;
+        padding-left:1rem !important;
+    }
+}
+
+/* ======================================================================
+   MARITEX · DARK FINAL
+   Capa autoritativa. Debe permanecer AL FINAL de styles.css.
+   No modifica lógica: solo presentación.
+   ====================================================================== */
+
+:root{
+    --mx-dark-bg:#0d1720;
+    --mx-dark-bg2:#111c26;
+    --mx-dark-panel:#151f28;
+    --mx-dark-panel2:#19242e;
+    --mx-dark-border:#34434f;
+    --mx-dark-border-soft:#2b3944;
+    --mx-dark-text:#f6f8fa;
+    --mx-dark-muted:#9da9b4;
+    --mx-dark-yellow:#ffc400;
+}
+
+/* ---------- APP / WORKSPACE ---------- */
+html,
+body,
+.stApp,
+[data-testid="stAppViewContainer"],
+[data-testid="stAppViewContainer"] > .main,
+section.main,
+.main{
+    background:
+        radial-gradient(circle at 88% 0%,rgba(45,75,96,.20),rgba(45,75,96,0) 30%),
+        linear-gradient(135deg,#121e28 0%,#0d1720 62%,#0a131a 100%) !important;
+    color:var(--mx-dark-text) !important;
+}
+
+[data-testid="stHeader"]{
+    background:rgba(13,23,32,.92) !important;
+    border-bottom:1px solid rgba(61,78,91,.42) !important;
+    backdrop-filter:blur(10px) !important;
+}
+
+.block-container{
+    background:transparent !important;
+}
+
+/* ---------- GLOBAL TEXT ---------- */
+.main h1,.main h2,.main h3,.main h4,.main h5,.main h6,
+.main p,.main li{
+    color:var(--mx-dark-text);
+}
+
+/* ---------- STREAMLIT LABELS ---------- */
+[data-testid="stSelectbox"] label,
+[data-testid="stMultiSelect"] label,
+[data-testid="stTextInput"] label,
+[data-testid="stDateInput"] label,
+[data-testid="stNumberInput"] label,
+[data-testid="stRadio"] label,
+[data-testid="stFileUploader"] label,
+[data-testid="stToggle"] label{
+    color:#b8c2cb !important;
+}
+
+[data-testid="stSelectbox"] label p,
+[data-testid="stMultiSelect"] label p,
+[data-testid="stTextInput"] label p,
+[data-testid="stDateInput"] label p,
+[data-testid="stNumberInput"] label p,
+[data-testid="stRadio"] label p,
+[data-testid="stFileUploader"] label p,
+[data-testid="stToggle"] label p{
+    color:#b8c2cb !important;
+}
+
+/* ---------- INPUTS / SELECTS ---------- */
+div[data-baseweb="select"] > div,
+[data-testid="stTextInput"] input,
+[data-testid="stDateInput"] input,
+[data-testid="stNumberInput"] input,
+[data-testid="stMultiSelect"] > div > div{
+    background:#141e27 !important;
+    border:1px solid #3a4955 !important;
+    color:#f4f7f9 !important;
+    box-shadow:none !important;
+}
+
+div[data-baseweb="select"] *,
+[data-testid="stTextInput"] input,
+[data-testid="stDateInput"] input,
+[data-testid="stNumberInput"] input{
+    color:#eef2f5 !important;
+}
+
+div[data-baseweb="popover"],
+div[data-baseweb="menu"],
+ul[role="listbox"],
+li[role="option"]{
+    background:#17232d !important;
+    color:#eef2f5 !important;
+}
+li[role="option"]:hover{
+    background:#24323d !important;
+}
+
+/* ---------- ALL BORDERED STREAMLIT PANELS ---------- */
+div[data-testid="stVerticalBlockBorderWrapper"],
+div[data-testid="stVerticalBlockBorderWrapper"] > div{
+    background:linear-gradient(145deg,#17222c,#111a22) !important;
+    border-color:var(--mx-dark-border) !important;
+    box-shadow:0 10px 28px rgba(0,0,0,.14) !important;
+}
+
+/* ---------- RESUMEN EJECUTIVO ---------- */
+.re-head,
+.re-head > div{
+    background:transparent !important;
+}
+
+.re-title{
+    color:#f7f9fb !important;
+}
+.re-sub{
+    color:#a6b2bc !important;
+}
+
+.re-info{
+    background:#111a22 !important;
+    border:1px solid #3b4b57 !important;
+    color:#d1d8de !important;
+    box-shadow:none !important;
+}
+.re-info strong{
+    color:var(--mx-dark-yellow) !important;
+}
+
+.re-kpi{
+    background:linear-gradient(145deg,#1b2731,#141e27) !important;
+    border:1px solid var(--mx-dark-border) !important;
+    box-shadow:0 8px 22px rgba(0,0,0,.13) !important;
+}
+.re-kpi-label{color:#aeb8c2 !important;}
+.re-kpi-value{color:#fff !important;}
+.re-kpi-foot{color:#96a3ae !important;}
+.re-kpi-foot span{color:#96a3ae !important;}
+
+.re-card-title{
+    color:#f7f9fb !important;
+}
+.re-card-sub{
+    color:#9da9b4 !important;
+}
+
+.re-client-head,
+.re-rank-head{
+    color:#9da9b4 !important;
+    border-color:#34434f !important;
+}
+.re-client-row,
+.re-rank-row{
+    color:#e7edf1 !important;
+    border-color:#2d3c47 !important;
+}
+.re-client-rank{color:#8997a3 !important;}
+.re-client-name,
+.re-client-value,
+.re-rank-name,
+.re-rank-value{
+    color:#f2f5f7 !important;
+}
+.re-rank-row.current{
+    background:#332b0c !important;
+}
+
+.re-detail-pill{
+    background:#17232d !important;
+    border-color:#3b4a56 !important;
+    color:#dce3e8 !important;
+}
+
+.re-goal{
+    background:linear-gradient(145deg,#1a2530,#141e27) !important;
+    border-color:#34434f !important;
+}
+.re-goal-title,
+.re-projection{
+    color:#aeb8c2 !important;
+}
+.re-goal-title strong{
+    color:#fff !important;
+}
+.re-goal-track{
+    background:#2b3944 !important;
+}
+
+/* botones específicos del resumen */
+.st-key-re_open_docs button{
+    background:rgba(37,99,235,.11) !important;
+    border-color:#3268b7 !important;
+    color:#73a9ff !important;
+}
+.st-key-re_open_clients button{
+    background:rgba(124,58,237,.12) !important;
+    border-color:#6c48ad !important;
+    color:#c28cff !important;
+}
+.st-key-re_open_nc button{
+    background:rgba(220,38,38,.13) !important;
+    border-color:#ad3939 !important;
+    color:#ff7878 !important;
+}
+
+/* ---------- ALTAIR / VEGA ---------- */
+[data-testid="stVegaLiteChart"],
+[data-testid="stVegaLiteChart"] > div,
+[data-testid="stVegaLiteChart"] canvas,
+[data-testid="stVegaLiteChart"] svg{
+    background:#111a22 !important;
+}
+
+/* ---------- DATAFRAMES ---------- */
+[data-testid="stDataFrame"]{
+    background:#111a22 !important;
+    border:1px solid var(--mx-dark-border) !important;
+    border-radius:10px !important;
+}
+
+/* ---------- BUTTONS / DOWNLOAD ---------- */
+.main .stButton > button,
+.main .stDownloadButton > button{
+    background:#17232d !important;
+    color:#eef2f5 !important;
+    border:1px solid #3b4a56 !important;
+    box-shadow:none !important;
+}
+.main .stButton > button:hover,
+.main .stDownloadButton > button:hover{
+    background:#202d38 !important;
+    color:#fff !important;
+    border-color:#566675 !important;
+}
+
+/* ---------- EXPANDERS / ALERTS ---------- */
+[data-testid="stExpander"]{
+    background:#141f28 !important;
+    border-color:#34434f !important;
+}
+[data-testid="stExpander"] summary,
+[data-testid="stExpander"] summary *{
+    color:#eef2f5 !important;
+}
+
+[data-testid="stAlert"]{
+    background:#17232d !important;
+    border-color:#3b4a56 !important;
+    color:#e7edf1 !important;
+}
+[data-testid="stAlert"] *{
+    color:inherit !important;
+}
+
+/* ---------- INICIO ---------- */
+.homepro-kpi,
+.homepro-attention,
+.homepro-status-summary > div,
+.homepro-table,
+.homepro-card{
+    background:linear-gradient(145deg,#1a2530,#141e27) !important;
+    border-color:#34434f !important;
+}
+.homepro-greeting,
+.homepro-card-title,
+.homepro-kpi-value,
+.homepro-alert strong,
+.homepro-status-summary strong,
+.homepro-product-main strong,
+.homepro-num,
+.homepro-money{
+    color:#f7f9fb !important;
+}
+.homepro-sub,
+.homepro-card-sub,
+.homepro-update,
+.homepro-kpi-label,
+.homepro-kpi-helper,
+.homepro-alert small,
+.homepro-status-summary span,
+.homepro-product-main span{
+    color:#9da9b4 !important;
+}
+.homepro-alert,
+.homepro-product-row,
+.homepro-table th,
+.homepro-table td{
+    border-color:#2d3c47 !important;
+}
+.homepro-table th{color:#9da9b4 !important;}
+.homepro-table td{color:#dfe5ea !important;}
+
+/* ---------- STOCK GENERAL ---------- */
+.sgx-search-card,
+.sgx-kpi,
+.sgx-product-meta > div,
+.sgx-wh-total,
+.sgx-detail-hero,
+.sgx-card{
+    background:linear-gradient(145deg,#1a2530,#141e27) !important;
+    border-color:#34434f !important;
+}
+.sgx-title,
+.sgx-card-title,
+.sgx-search-head strong,
+.sgx-product-meta strong,
+.sgx-kpi-copy > strong,
+.sgx-status-row strong,
+.sgx-wh-value,
+.sgx-ring strong{
+    color:#f7f9fb !important;
+}
+.sgx-subtitle,
+.sgx-update,
+.sgx-search-head span,
+.sgx-card-sub,
+.sgx-kpi-copy > span,
+.sgx-kpi-copy > small,
+.sgx-product-meta span,
+.sgx-status-row span,
+.sgx-wh-name,
+.sgx-ring span{
+    color:#9da9b4 !important;
+}
+.sgx-wh-track{background:#273640 !important;}
+.sgx-ring{
+    background:
+        radial-gradient(circle at center,#16212a 57%,transparent 58%),
+        conic-gradient(#79c35a var(--p),#ffc400 var(--p),#26343f 0) !important;
+}
+
+/* ---------- MARKETPLACE ---------- */
+.mk2-source,
+.mk2-platform-head,
+.mk2-summary-grid > div,
+.mk3-compact-summary{
+    background:linear-gradient(145deg,#1a2530,#141e27) !important;
+    border-color:#34434f !important;
+    color:#dfe5ea !important;
+}
+.mk2-title,
+.mk2-platform-title,
+.mk3-compact-summary b{
+    color:#f7f9fb !important;
+}
+.mk2-subtitle,
+.mk2-live,
+.mk3-compact-summary{
+    color:#9da9b4 !important;
+}
+
+/* ---------- MÉTRICAS STOCK ---------- */
+.ms-source,
+.ms-kpi,
+.ms-risk-strip,
+.ms-info-box,
+.ms-movement-summary > div{
+    background:linear-gradient(145deg,#1a2530,#141e27) !important;
+    border-color:#34434f !important;
+}
+.ms-title,
+.ms-section-head,
+.ms-card-head,
+.ms-kpi-value,
+.ms-source-item strong{
+    color:#f7f9fb !important;
+}
+.ms-subtitle,
+.ms-head-badge,
+.ms-kpi-label,
+.ms-kpi-helper,
+.ms-source-update,
+.ms-source-item span{
+    color:#9da9b4 !important;
+}
+
+/* ---------- MÉTRICAS VENDEDORES ---------- */
+.seller-rule,
+.sales-rule-strip,
+.sales-data-status,
+.seller-card,
+.client-search-summary,
+.sales-detail-box,
+.seller-goal-wrap{
+    background:linear-gradient(145deg,#1a2530,#141e27) !important;
+    border-color:#34434f !important;
+    color:#dfe5ea !important;
+}
+.seller-title,
+.seller-card-title,
+.seller-section-title,
+.client-search-title,
+.sales-detail-title,
+.seller-goal-title{
+    color:#f7f9fb !important;
+}
+.seller-subtitle,
+.sales-detail-subtitle,
+.seller-goal-sub,
+.seller-goal-foot{
+    color:#9da9b4 !important;
+}
+.sales-kpi-button-wrap .stButton > button{
+    background:linear-gradient(145deg,#1a2530,#141e27) !important;
+    border-color:#34434f !important;
+    color:#f4f7f9 !important;
+}
+
+/* ---------- PLANTILLAS ---------- */
+.tpl3-card,
+.tpl3-source{
+    background:linear-gradient(145deg,#1a2530,#141e27) !important;
+    border-color:#34434f !important;
+}
+.tpl3-title,
+.tpl3-name,
+.tpl3-source strong{
+    color:#f7f9fb !important;
+}
+.tpl3-subtitle,
+.tpl3-file,
+.tpl3-date,
+.tpl3-source span{
+    color:#9da9b4 !important;
+}
+
+/* ---------- SIDEBAR: conservar negro / amarillo ---------- */
+[data-testid="stSidebar"],
+[data-testid="stSidebar"] > div,
+[data-testid="stSidebarContent"],
+[data-testid="stSidebarUserContent"]{
+    background:
+        radial-gradient(circle at 18% 0%,rgba(255,196,0,.06),rgba(255,196,0,0) 30%),
+        linear-gradient(180deg,#080a0b 0%,#050708 65%,#030405 100%) !important;
+}
+[data-testid="stSidebar"]{
+    border-right:1px solid rgba(255,196,0,.14) !important;
+}
+.sidebar-section-modern,
+.sidebar-footer-c strong{
+    color:#ffc400 !important;
+}
+.sidebar-brand-c .brand-name{
+    color:#fff !important;
+}
+.sidebar-brand-c .brand-subtitle,
+.sidebar-footer-c{
+    color:#8795a1 !important;
+}
+
+/* ---------- SCROLLBAR ---------- */
+::-webkit-scrollbar-track{background:#0d1720;}
+::-webkit-scrollbar-thumb{
+    background:#34434f;
+    border-radius:999px;
 }

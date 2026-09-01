@@ -1197,6 +1197,46 @@ def _inject_css():
                 display:none;
             }
         }
+
+        /* MARITEX DARK CORPORATIVO · INICIO */
+        .homepro-greeting,.homepro-card-title,.homepro-quick-title{color:#F7F8FA!important}
+        .homepro-sub,.homepro-update,.homepro-card-sub,.homepro-foot{color:#9FB0C0!important}
+        .homepro-kpi{background:#151F28!important;border:1px solid #34414D!important;box-shadow:none!important}
+        .homepro-kpi-label{color:#AFC0CF!important}
+        .homepro-kpi-value{color:#F7F8FA!important}
+        .homepro-kpi-helper{color:#8FA2B3!important}
+        div[data-testid="stVerticalBlockBorderWrapper"]{border-color:#34414D!important;background:#111B24!important;box-shadow:none!important}
+        .homepro-alert{border-bottom-color:#34414D!important}
+        .homepro-alert strong{color:#F7F8FA!important}
+        .homepro-alert small{color:#9FB0C0!important}
+        .homepro-alert-value{color:#AFC0CF!important}
+        .homepro-status-summary>div{border-color:#34414D!important;background:#151F28!important}
+        .homepro-status-summary span{color:#9FB0C0!important}
+        .homepro-status-summary strong{color:#F7F8FA!important}
+        .homepro-product-row{border-bottom-color:#34414D!important}
+        .homepro-rank,.homepro-product-main span{color:#8FA2B3!important}
+        .homepro-product-main strong,.homepro-num,.homepro-money{color:#F7F8FA!important}
+        .homepro-attention{background:linear-gradient(90deg,rgba(255,196,0,.15),rgba(255,196,0,.07) 70%,rgba(255,196,0,.025))!important;border:1px solid rgba(255,196,0,.38)!important}
+        .homepro-attention strong{color:#FFC400!important}
+        .homepro-attention span{color:#C7D1DA!important}
+        .homepro-table th{color:#9FB0C0!important;border-bottom-color:#44515D!important}
+        .homepro-table td{color:#F0F3F6!important;border-bottom-color:#2E3B47!important}
+        .homepro-health-ring{background:radial-gradient(circle at center,#151F28 58%,transparent 59%),conic-gradient(#8FC267 var(--p),#34414D 0)!important}
+        .homepro-health-ring strong{color:#F7F8FA!important}
+        .homepro-health-ring span,.homepro-health-copy p{color:#9FB0C0!important}
+        .homepro-health-copy strong{color:#F7F8FA!important}
+        .homepro-status-row span{color:#AFC0CF!important}
+        .homepro-status-row strong{color:#F7F8FA!important}
+        .homepro-wh-name{color:#AFC0CF!important}
+        .homepro-wh-track{background:#E9EDF2!important}
+        .homepro-wh-value{color:#F7F8FA!important}
+        .homepro-wh-total{border-top-color:#44515D!important;color:#9FB0C0!important}
+        .homepro-wh-total strong{color:#F7F8FA!important}
+        .homepro-inventory-mini{margin-top:10px;padding:12px;border-radius:9px;background:#151F28;border:1px solid #34414D}
+        .homepro-inventory-mini-label{font-size:9px;color:#9FB0C0;text-transform:uppercase;letter-spacing:.4px}
+        .homepro-inventory-mini-value{font-size:19px;font-weight:800;color:#F7F8FA;margin-top:4px}
+        .homepro-inventory-mini-sub{font-size:9.5px;color:#9FB0C0;margin-top:4px}
+
         </style>
         """,
         unsafe_allow_html=True,
@@ -1483,9 +1523,9 @@ def render(ctx):
                             title=None,
                             axis=alt.Axis(
                                 format="%d %b",
-                                labelColor="#7c8792",
+                                labelColor="#AFC0CF",
                                 domain=False,
-                                tickColor="#e8ecef",
+                                tickColor="#34414D",
                             ),
                         ),
                         y=alt.Y(
@@ -1493,9 +1533,9 @@ def render(ctx):
                             title=None,
                             axis=alt.Axis(
                                 format="~s",
-                                labelColor="#7c8792",
+                                labelColor="#AFC0CF",
                                 domain=False,
-                                gridColor="#edf0f2",
+                                gridColor="#34414D",
                             ),
                         ),
                         tooltip=[
@@ -1503,7 +1543,7 @@ def render(ctx):
                             alt.Tooltip("Venta:Q", title="Venta", format=",.0f"),
                         ],
                     )
-                    .properties(height=270)
+                    .properties(height=270, background="#111B24")
                 )
 
                 st.altair_chart(
@@ -1582,7 +1622,7 @@ def render(ctx):
                             legend=alt.Legend(
                                 orient="bottom",
                                 columns=2,
-                                labelColor="#6d7781",
+                                labelColor="#AFC0CF",
                                 title=None,
                             ),
                         ),
@@ -1591,7 +1631,7 @@ def render(ctx):
                             alt.Tooltip("Venta:Q", title="Venta", format=",.0f"),
                         ],
                     )
-                    .properties(height=270)
+                    .properties(height=270, background="#111B24")
                 )
 
                 st.altair_chart(
@@ -1980,36 +2020,10 @@ def render(ctx):
 
             render_html(
                 f"""
-                <div style="
-                    margin-top:10px;
-                    padding:12px;
-                    border-radius:9px;
-                    background:#f8fafb;
-                    border:1px solid #edf0f2;
-                ">
-                    <div style="
-                        font-size:9px;
-                        color:#919aa3;
-                        text-transform:uppercase;
-                        letter-spacing:.4px;
-                    ">
-                        Resumen de inventario
-                    </div>
-                    <div style="
-                        font-size:19px;
-                        font-weight:800;
-                        color:#151b21;
-                        margin-top:4px;
-                    ">
-                        {_fmt_int(stock['units'])} UND
-                    </div>
-                    <div style="
-                        font-size:9.5px;
-                        color:#7e8791;
-                        margin-top:4px;
-                    ">
-                        {_fmt_int(stock['sku'])} SKU activos
-                    </div>
+                <div class="homepro-inventory-mini">
+                    <div class="homepro-inventory-mini-label">Resumen de inventario</div>
+                    <div class="homepro-inventory-mini-value">{_fmt_int(stock['units'])} UND</div>
+                    <div class="homepro-inventory-mini-sub">{_fmt_int(stock['sku'])} SKU activos</div>
                 </div>
                 """
             )

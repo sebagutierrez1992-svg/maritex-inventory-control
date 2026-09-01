@@ -1,11 +1,13 @@
 [server]
 headless = true
-address = "0.0.0.0"
-enableCORS = false
-enableXsrfProtection = false
 
 [browser]
 gatherUsageStats = false
 
 [theme]
-base = "light"
+base = "dark"
+primaryColor = "#FFC400"
+backgroundColor = "#0D1720"
+secondaryBackgroundColor = "#151F28"
+textColor = "#F6F8FA"
+font = "sans serif"
