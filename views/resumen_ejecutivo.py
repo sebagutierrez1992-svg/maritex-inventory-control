@@ -37,7 +37,7 @@ SELLER_CATALOG = {
     "45": ("MARIELY ROSALES", "Vendedores"),
     "46": ("MELANY VARGAS", "Vendedores"),
     "47": ("MARIA BERNARD", "Vendedores"),
-    "48": ("ELURO QUIÑONEZ", "Vendedores"),
+    "48": ("EURO QUIÑONEZ", "Vendedores"),
     "49": ("FRANCISCO PEREZ", "Vendedores"),
     "50": ("GINO MATIUS", "Vendedores"),
     "51": ("NELSON SAN MARTIN", "Vendedores"),
