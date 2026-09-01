@@ -65,7 +65,7 @@ PAGE_MAP = {
 
 
 # ============================================================
-# CARGA ERP STOCK
+# STOCK ERP MANUAL
 # ============================================================
 
 @st.cache_data(
@@ -75,38 +75,13 @@ def prepare_stock_context(
     raw: bytes,
     filename: str,
 ):
-    """
-    Lee y prepara ERP Stock UNA SOLA VEZ.
-
-    Devuelve:
-
-    raw_df
-        ERP Stock procesado por services.erp_stock.
-
-    normalized
-        Vista normalizada SKU + Bodega.
-
-    consolidated
-        Vista consolidada por SKU.
-
-    De esta forma Stock General, Métricas Stock
-    y Marketplaces reutilizan los mismos datos.
-    """
-
     raw_df = read_stock_source(
         raw,
         filename,
     )
 
-    if (
-        raw_df is None
-        or raw_df.empty
-    ):
-        return (
-            raw_df,
-            None,
-            None,
-        )
+    if raw_df is None or raw_df.empty:
+        return raw_df, None, None
 
     normalized = stock_view(
         raw_df
@@ -124,7 +99,52 @@ def prepare_stock_context(
 
 
 # ============================================================
-# CARGA ERP VENTAS
+# STOCK REMOTO
+# ============================================================
+
+@st.cache_data(
+    ttl=300,
+    show_spinner=False,
+)
+def prepare_remote_stock_context():
+    """
+    Descarga y transforma Llegadas_OK una sola vez cada 5 minutos.
+
+    Evita volver a ejecutar:
+    - stock_view()
+    - consolidate_inventory()
+
+    cada vez que Streamlit hace rerun.
+    """
+
+    remote_df, remote_meta = load_remote_stock()
+
+    if remote_df is None or remote_df.empty:
+        return (
+            remote_df,
+            None,
+            None,
+            remote_meta,
+        )
+
+    normalized = stock_view(
+        remote_df
+    )
+
+    consolidated = consolidate_inventory(
+        normalized
+    )
+
+    return (
+        remote_df,
+        normalized,
+        consolidated,
+        remote_meta,
+    )
+
+
+# ============================================================
+# VENTAS
 # ============================================================
 
 @st.cache_data(
@@ -134,19 +154,49 @@ def prepare_sales_context(
     raw: bytes,
     filename: str,
 ):
-    """
-    ERP Ventas también queda cacheado.
-
-    Más adelante podemos agregar aquí una capa
-    normalizada compartida para:
-    - Métricas Vendedores
-    - Resumen Ejecutivo
-    """
-
     return read_sales_source(
         raw,
         filename,
     )
+
+
+# ============================================================
+# CARGA ARCHIVOS LOCALES
+# ============================================================
+
+@st.cache_data(
+    show_spinner=False,
+)
+def load_saved_source_cached(
+    data_path: str,
+    meta_path: str,
+    modified_time: float | None,
+):
+    """
+    Lee archivos guardados solamente cuando cambian físicamente.
+
+    modified_time forma parte de la clave del caché y permite que
+    Streamlit detecte una nueva carga ERP sin releer el archivo en
+    cada navegación.
+    """
+
+    return load_source(
+        data_path,
+        meta_path,
+    )
+
+
+def _file_modified_time(
+    path,
+) -> float | None:
+
+    try:
+        if path.exists():
+            return path.stat().st_mtime
+    except Exception:
+        pass
+
+    return None
 
 
 # ============================================================
@@ -156,17 +206,27 @@ def prepare_sales_context(
 def build_context():
 
     # --------------------------------------------------------
-    # LEER FUENTES GUARDADAS
+    # ERP STOCK LOCAL
     # --------------------------------------------------------
 
-    stock_raw, stock_meta = load_source(
-        ERP_STOCK_FILE,
-        ERP_STOCK_META,
+    stock_raw, stock_meta = load_saved_source_cached(
+        str(ERP_STOCK_FILE),
+        str(ERP_STOCK_META),
+        _file_modified_time(
+            ERP_STOCK_FILE
+        ),
     )
 
-    sales_raw, sales_meta = load_source(
-        ERP_SALES_FILE,
-        ERP_SALES_META,
+    # --------------------------------------------------------
+    # ERP VENTAS LOCAL
+    # --------------------------------------------------------
+
+    sales_raw, sales_meta = load_saved_source_cached(
+        str(ERP_SALES_FILE),
+        str(ERP_SALES_META),
+        _file_modified_time(
+            ERP_SALES_FILE
+        ),
     )
 
     # --------------------------------------------------------
@@ -180,28 +240,49 @@ def build_context():
     sales_df = None
 
     # --------------------------------------------------------
-    # STOCK
-    # Prioridad: fuente automática Llegadas_OK.
-    # Si falla, se conserva ERP Stock cargado manualmente.
+    # STOCK AUTOMÁTICO
     # --------------------------------------------------------
 
     remote_error = None
 
     try:
-        remote_df, remote_meta = load_remote_stock()
 
-        if remote_df is not None and not remote_df.empty:
+        (
+            remote_df,
+            remote_normalized,
+            remote_consolidated,
+            remote_meta,
+        ) = prepare_remote_stock_context()
+
+        if (
+            remote_df is not None
+            and not remote_df.empty
+        ):
+
             stock_df = remote_df
-            stock_normalized = stock_view(remote_df)
-            stock_consolidated = consolidate_inventory(stock_normalized)
+            stock_normalized = remote_normalized
+            stock_consolidated = remote_consolidated
             stock_meta = remote_meta
 
     except Exception as exc:
+
         remote_error = str(exc)
 
-    if stock_df is None or stock_df.empty:
+    # --------------------------------------------------------
+    # FALLBACK ERP STOCK
+    # --------------------------------------------------------
+
+    if (
+        stock_df is None
+        or stock_df.empty
+    ):
+
         if stock_raw:
-            stock_filename = (stock_meta or {}).get(
+
+            stock_filename = (
+                stock_meta
+                or {}
+            ).get(
                 "filename",
                 "erp_stock.xlsx",
             )
@@ -215,10 +296,19 @@ def build_context():
                 stock_filename,
             )
 
-            stock_meta = dict(stock_meta or {})
-            stock_meta["mode"] = "manual_fallback"
+            stock_meta = dict(
+                stock_meta
+                or {}
+            )
+
+            stock_meta[
+                "mode"
+            ] = "manual_fallback"
+
             if remote_error:
-                stock_meta["remote_error"] = remote_error
+                stock_meta[
+                    "remote_error"
+                ] = remote_error
 
     # --------------------------------------------------------
     # VENTAS
@@ -240,27 +330,16 @@ def build_context():
         )
 
     # --------------------------------------------------------
-    # CONTEXTO GLOBAL
+    # CONTEXTO FINAL
     # --------------------------------------------------------
 
     return {
-
-        # ERP STOCK original
         "stock_df": stock_df,
-
-        # ERP STOCK normalizado por SKU + Bodega
         "stock_normalized": stock_normalized,
-
-        # ERP STOCK consolidado por SKU
         "stock_consolidated": stock_consolidated,
-
-        # Metadata Stock
         "stock_meta": stock_meta,
 
-        # ERP VENTAS
         "sales_df": sales_df,
-
-        # Metadata Ventas
         "sales_meta": sales_meta,
     }
 
@@ -295,7 +374,6 @@ def sidebar_button(
     key: str,
     icon: str,
 ):
-    """Botón de navegación del sidebar con icono Material."""
 
     active = (
         st.session_state.page
@@ -338,7 +416,12 @@ with st.sidebar:
         """
     )
 
-    sidebar_button("Inicio", "Inicio", "nav_inicio", ":material/home:")
+    sidebar_button(
+        "Inicio",
+        "Inicio",
+        "nav_inicio",
+        ":material/home:",
+    )
 
     render_html(
         """
@@ -349,9 +432,27 @@ with st.sidebar:
         </div>
         """
     )
-    sidebar_button("Stock General", "Stock General", "nav_stock_general", ":material/inventory_2:")
-    sidebar_button("Marketplace", "Marketplace", "nav_marketplace", ":material/storefront:")
-    sidebar_button("Resumen Ejecutivo", "Resumen Ejecutivo", "nav_resumen_ejecutivo", ":material/dashboard:")
+
+    sidebar_button(
+        "Stock General",
+        "Stock General",
+        "nav_stock_general",
+        ":material/inventory_2:",
+    )
+
+    sidebar_button(
+        "Marketplace",
+        "Marketplace",
+        "nav_marketplace",
+        ":material/storefront:",
+    )
+
+    sidebar_button(
+        "Resumen Ejecutivo",
+        "Resumen Ejecutivo",
+        "nav_resumen_ejecutivo",
+        ":material/dashboard:",
+    )
 
     render_html(
         """
@@ -362,8 +463,20 @@ with st.sidebar:
         </div>
         """
     )
-    sidebar_button("Métricas Stock", "Métricas Stock", "nav_metricas_stock", ":material/monitoring:")
-    sidebar_button("Métricas Vendedores", "Métricas Vendedores", "nav_metricas_vendedores", ":material/groups:")
+
+    sidebar_button(
+        "Métricas Stock",
+        "Métricas Stock",
+        "nav_metricas_stock",
+        ":material/monitoring:",
+    )
+
+    sidebar_button(
+        "Métricas Vendedores",
+        "Métricas Vendedores",
+        "nav_metricas_vendedores",
+        ":material/groups:",
+    )
 
     render_html(
         """
@@ -374,11 +487,17 @@ with st.sidebar:
         </div>
         """
     )
-    sidebar_button("Plantillas", "Plantillas", "nav_plantillas", ":material/description:")
+
+    sidebar_button(
+        "Plantillas",
+        "Plantillas",
+        "nav_plantillas",
+        ":material/description:",
+    )
 
 
 # ============================================================
-# CONSTRUIR DATOS
+# CONTEXTO
 # ============================================================
 
 ctx = build_context()
@@ -388,17 +507,12 @@ ctx = build_context()
 # VALIDAR PÁGINA
 # ============================================================
 
-page = (
-    st.session_state.page
-)
+page = st.session_state.page
 
 if page not in PAGE_MAP:
 
     page = "Inicio"
-
-    st.session_state.page = (
-        page
-    )
+    st.session_state.page = page
 
 
 # ============================================================
