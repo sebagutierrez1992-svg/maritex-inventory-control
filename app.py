@@ -63,38 +63,49 @@ PAGE_MAP = {
     "Plantillas": plantillas.render,
 }
 
+STOCK_PAGES = {
+    "Inicio",
+    "Stock General",
+    "Marketplace",
+    "Métricas Stock",
+    "Resumen Ejecutivo",
+}
+
+SALES_PAGES = {
+    "Inicio",
+    "Métricas Vendedores",
+    "Resumen Ejecutivo",
+}
+
 
 # ============================================================
-# STOCK ERP MANUAL
+# HELPERS
 # ============================================================
 
-@st.cache_data(
-    show_spinner=False,
-)
-def prepare_stock_context(
-    raw: bytes,
-    filename: str,
+def _file_modified_time(path) -> float | None:
+    try:
+        if path.exists():
+            return path.stat().st_mtime
+    except Exception:
+        pass
+
+    return None
+
+
+@st.cache_data(show_spinner=False)
+def _load_source_cached(
+    data_path: str,
+    meta_path: str,
+    data_mtime: float | None,
+    meta_mtime: float | None,
 ):
-    raw_df = read_stock_source(
-        raw,
-        filename,
-    )
-
-    if raw_df is None or raw_df.empty:
-        return raw_df, None, None
-
-    normalized = stock_view(
-        raw_df
-    )
-
-    consolidated = consolidate_inventory(
-        normalized
-    )
-
-    return (
-        raw_df,
-        normalized,
-        consolidated,
+    """
+    Lee el archivo guardado solo cuando cambia físicamente.
+    La clave del caché usa rutas y fechas de modificación.
+    """
+    return load_source(
+        data_path,
+        meta_path,
     )
 
 
@@ -108,13 +119,7 @@ def prepare_stock_context(
 )
 def prepare_remote_stock_context():
     """
-    Descarga y transforma Llegadas_OK una sola vez cada 5 minutos.
-
-    Evita volver a ejecutar:
-    - stock_view()
-    - consolidate_inventory()
-
-    cada vez que Streamlit hace rerun.
+    Descarga y transforma Llegadas_OK una vez cada 5 minutos.
     """
 
     remote_df, remote_meta = load_remote_stock()
@@ -144,204 +149,238 @@ def prepare_remote_stock_context():
 
 
 # ============================================================
-# VENTAS
+# STOCK LOCAL - FALLBACK
 # ============================================================
 
-@st.cache_data(
-    show_spinner=False,
-)
-def prepare_sales_context(
-    raw: bytes,
-    filename: str,
-):
-    return read_sales_source(
-        raw,
-        filename,
-    )
-
-
-# ============================================================
-# CARGA ARCHIVOS LOCALES
-# ============================================================
-
-@st.cache_data(
-    show_spinner=False,
-)
-def load_saved_source_cached(
+@st.cache_data(show_spinner=False)
+def _load_and_prepare_local_stock(
     data_path: str,
     meta_path: str,
-    modified_time: float | None,
+    data_mtime: float | None,
+    meta_mtime: float | None,
 ):
     """
-    Lee archivos guardados solamente cuando cambian físicamente.
-
-    modified_time forma parte de la clave del caché y permite que
-    Streamlit detecte una nueva carga ERP sin releer el archivo en
-    cada navegación.
+    Lee y procesa ERP Stock usando únicamente una clave pequeña:
+    ruta + mtime. Evita pasar bytes grandes entre cachés.
     """
 
-    return load_source(
+    raw, meta = load_source(
         data_path,
         meta_path,
     )
 
+    if not raw:
+        return (
+            None,
+            None,
+            None,
+            meta,
+        )
 
-def _file_modified_time(
-    path,
-) -> float | None:
+    filename = (
+        meta
+        or {}
+    ).get(
+        "filename",
+        "erp_stock.xlsx",
+    )
+
+    raw_df = read_stock_source(
+        raw,
+        filename,
+    )
+
+    if raw_df is None or raw_df.empty:
+        return (
+            raw_df,
+            None,
+            None,
+            meta,
+        )
+
+    normalized = stock_view(
+        raw_df
+    )
+
+    consolidated = consolidate_inventory(
+        normalized
+    )
+
+    return (
+        raw_df,
+        normalized,
+        consolidated,
+        meta,
+    )
+
+
+def build_stock_context() -> dict:
+    """
+    Prioridad:
+    1. Llegadas_OK
+    2. ERP Stock local como fallback
+    """
+
+    remote_error = None
 
     try:
-        if path.exists():
-            return path.stat().st_mtime
-    except Exception:
-        pass
+        (
+            stock_df,
+            stock_normalized,
+            stock_consolidated,
+            stock_meta,
+        ) = prepare_remote_stock_context()
 
-    return None
+        if (
+            stock_df is not None
+            and not stock_df.empty
+        ):
+            return {
+                "stock_df": stock_df,
+                "stock_normalized": stock_normalized,
+                "stock_consolidated": stock_consolidated,
+                "stock_meta": stock_meta,
+            }
 
+    except Exception as exc:
+        remote_error = str(exc)
 
-# ============================================================
-# CONSTRUIR CONTEXTO
-# ============================================================
-
-def build_context():
-
-    # --------------------------------------------------------
-    # ERP STOCK LOCAL
-    # --------------------------------------------------------
-
-    stock_raw, stock_meta = load_saved_source_cached(
+    (
+        stock_df,
+        stock_normalized,
+        stock_consolidated,
+        stock_meta,
+    ) = _load_and_prepare_local_stock(
         str(ERP_STOCK_FILE),
         str(ERP_STOCK_META),
         _file_modified_time(
             ERP_STOCK_FILE
         ),
-    )
-
-    # --------------------------------------------------------
-    # ERP VENTAS LOCAL
-    # --------------------------------------------------------
-
-    sales_raw, sales_meta = load_saved_source_cached(
-        str(ERP_SALES_FILE),
-        str(ERP_SALES_META),
         _file_modified_time(
-            ERP_SALES_FILE
+            ERP_STOCK_META
         ),
     )
 
-    # --------------------------------------------------------
-    # DEFAULTS
-    # --------------------------------------------------------
+    stock_meta = dict(
+        stock_meta
+        or {}
+    )
 
-    stock_df = None
-    stock_normalized = None
-    stock_consolidated = None
+    if stock_df is not None and not stock_df.empty:
+        stock_meta["mode"] = "manual_fallback"
 
-    sales_df = None
-
-    # --------------------------------------------------------
-    # STOCK AUTOMÁTICO
-    # --------------------------------------------------------
-
-    remote_error = None
-
-    try:
-
-        (
-            remote_df,
-            remote_normalized,
-            remote_consolidated,
-            remote_meta,
-        ) = prepare_remote_stock_context()
-
-        if (
-            remote_df is not None
-            and not remote_df.empty
-        ):
-
-            stock_df = remote_df
-            stock_normalized = remote_normalized
-            stock_consolidated = remote_consolidated
-            stock_meta = remote_meta
-
-    except Exception as exc:
-
-        remote_error = str(exc)
-
-    # --------------------------------------------------------
-    # FALLBACK ERP STOCK
-    # --------------------------------------------------------
-
-    if (
-        stock_df is None
-        or stock_df.empty
-    ):
-
-        if stock_raw:
-
-            stock_filename = (
-                stock_meta
-                or {}
-            ).get(
-                "filename",
-                "erp_stock.xlsx",
-            )
-
-            (
-                stock_df,
-                stock_normalized,
-                stock_consolidated,
-            ) = prepare_stock_context(
-                stock_raw,
-                stock_filename,
-            )
-
-            stock_meta = dict(
-                stock_meta
-                or {}
-            )
-
-            stock_meta[
-                "mode"
-            ] = "manual_fallback"
-
-            if remote_error:
-                stock_meta[
-                    "remote_error"
-                ] = remote_error
-
-    # --------------------------------------------------------
-    # VENTAS
-    # --------------------------------------------------------
-
-    if sales_raw:
-
-        sales_filename = (
-            sales_meta
-            or {}
-        ).get(
-            "filename",
-            "erp_ventas.xls",
-        )
-
-        sales_df = prepare_sales_context(
-            sales_raw,
-            sales_filename,
-        )
-
-    # --------------------------------------------------------
-    # CONTEXTO FINAL
-    # --------------------------------------------------------
+    if remote_error:
+        stock_meta["remote_error"] = remote_error
 
     return {
         "stock_df": stock_df,
         "stock_normalized": stock_normalized,
         "stock_consolidated": stock_consolidated,
         "stock_meta": stock_meta,
+    }
 
+
+# ============================================================
+# VENTAS - CARGA DIFERIDA
+# ============================================================
+
+@st.cache_data(show_spinner=False)
+def _load_and_prepare_sales(
+    data_path: str,
+    meta_path: str,
+    data_mtime: float | None,
+    meta_mtime: float | None,
+):
+    """
+    Lee y procesa ERP Ventas únicamente cuando una página lo necesita.
+
+    Importante:
+    los ~MB del ERP no se usan como argumento del caché.
+    Streamlit solo hashea strings y mtimes pequeños.
+    """
+
+    raw, meta = load_source(
+        data_path,
+        meta_path,
+    )
+
+    if not raw:
+        return (
+            None,
+            meta,
+        )
+
+    filename = (
+        meta
+        or {}
+    ).get(
+        "filename",
+        "erp_ventas.xls",
+    )
+
+    sales_df = read_sales_source(
+        raw,
+        filename,
+    )
+
+    return (
+        sales_df,
+        meta,
+    )
+
+
+def build_sales_context() -> dict:
+
+    sales_df, sales_meta = _load_and_prepare_sales(
+        str(ERP_SALES_FILE),
+        str(ERP_SALES_META),
+        _file_modified_time(
+            ERP_SALES_FILE
+        ),
+        _file_modified_time(
+            ERP_SALES_META
+        ),
+    )
+
+    return {
         "sales_df": sales_df,
         "sales_meta": sales_meta,
     }
+
+
+# ============================================================
+# CONTEXTO POR PÁGINA
+# ============================================================
+
+def build_context_for_page(
+    page_name: str,
+) -> dict:
+    """
+    Lazy loading.
+
+    Cada página carga solamente las fuentes que realmente necesita.
+    """
+
+    ctx = {
+        "stock_df": None,
+        "stock_normalized": None,
+        "stock_consolidated": None,
+        "stock_meta": {},
+        "sales_df": None,
+        "sales_meta": {},
+    }
+
+    if page_name in STOCK_PAGES:
+        ctx.update(
+            build_stock_context()
+        )
+
+    if page_name in SALES_PAGES:
+        ctx.update(
+            build_sales_context()
+        )
+
+    return ctx
 
 
 # ============================================================
@@ -359,7 +398,6 @@ if "page" not in st.session_state:
 def change_page(
     page_name: str,
 ):
-
     if page_name in PAGE_MAP:
         st.session_state.page = page_name
 
@@ -389,7 +427,7 @@ def sidebar_button(
     st.button(
         label,
         key=key,
-        use_container_width=True,
+        width="stretch",
         type=button_type,
         icon=icon,
         on_click=change_page,
@@ -497,22 +535,23 @@ with st.sidebar:
 
 
 # ============================================================
-# CONTEXTO
-# ============================================================
-
-ctx = build_context()
-
-
-# ============================================================
 # VALIDAR PÁGINA
 # ============================================================
 
 page = st.session_state.page
 
 if page not in PAGE_MAP:
-
     page = "Inicio"
     st.session_state.page = page
+
+
+# ============================================================
+# CARGA DIFERIDA DEL CONTEXTO
+# ============================================================
+
+ctx = build_context_for_page(
+    page
+)
 
 
 # ============================================================
