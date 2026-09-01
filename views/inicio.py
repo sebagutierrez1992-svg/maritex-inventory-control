@@ -1,7 +1,8 @@
+from __future__ import annotations
 
-
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from html import escape
+from zoneinfo import ZoneInfo
 
 import altair as alt
 import pandas as pd
@@ -15,50 +16,52 @@ from utils.numbers import format_clp
 # HELPERS
 # ============================================================
 
-def _num(df: pd.DataFrame | None, column: str) -> pd.Series:
-    if df is None:
-        return pd.Series(dtype="float64")
-    if column not in df.columns:
-        return pd.Series(0.0, index=df.index, dtype="float64")
-    return pd.to_numeric(df[column], errors="coerce").fillna(0.0)
+CHILE_TZ = ZoneInfo("America/Santiago")
 
 
-def _money(value: float) -> str:
-    return format_clp(float(value))
-
-
-def _money_compact(value: float) -> str:
-    """Formato compacto para tarjetas KPI, evitando desbordes."""
-    try:
-        value = float(value)
-    except Exception:
-        return "$0"
-
-    abs_value = abs(value)
-
-    if abs_value >= 1_000_000_000:
-        millions = value / 1_000_000
-        txt = f"{millions:,.1f}"
-        txt = txt.replace(",", "X").replace(".", ",").replace("X", ".")
-        return f"${txt} MM"
-
-    if abs_value >= 1_000_000:
-        millions = value / 1_000_000
-        txt = f"{millions:,.1f}"
-        txt = txt.replace(",", "X").replace(".", ",").replace("X", ".")
-        return f"${txt} MM"
-
-    return format_clp(value)
-
-
-def _fmt_int(value: float | int) -> str:
+def _fmt_int(value) -> str:
     try:
         return f"{int(round(float(value))):,}".replace(",", ".")
     except Exception:
         return "0"
 
 
-def _find_col(df: pd.DataFrame | None, candidates: list[str]) -> str | None:
+def _money(value) -> str:
+    try:
+        return format_clp(float(value))
+    except Exception:
+        return "$0"
+
+
+def _money_compact(value) -> str:
+    try:
+        n = float(value)
+    except Exception:
+        return "$0"
+
+    sign = "-" if n < 0 else ""
+    n = abs(n)
+
+    if n >= 1_000_000_000:
+        return f"{sign}${n / 1_000_000_000:.2f} mil MM".replace(".", ",")
+    if n >= 1_000_000:
+        return f"{sign}${n / 1_000_000:.1f} MM".replace(".", ",")
+    if n >= 1_000:
+        return f"{sign}${n / 1_000:.1f} mil".replace(".", ",")
+
+    return f"{sign}${n:,.0f}".replace(",", ".")
+
+
+def _normalize_sku(series: pd.Series) -> pd.Series:
+    return (
+        series.fillna("")
+        .astype(str)
+        .str.strip()
+        .str.replace(r"\.0$", "", regex=True)
+    )
+
+
+def _find_exact(df: pd.DataFrame | None, candidates: list[str]) -> str | None:
     if df is None or df.empty:
         return None
 
@@ -87,118 +90,167 @@ def _find_contains(df: pd.DataFrame | None, tokens: list[str]) -> str | None:
     return None
 
 
-def _normalize_sku(series: pd.Series) -> pd.Series:
-    return (
-        series
-        .fillna("")
-        .astype(str)
-        .str.strip()
-        .str.replace(r"\.0$", "", regex=True)
+def _period_from_sales(sales_df: pd.DataFrame | None) -> tuple[date, date]:
+    if sales_df is None or sales_df.empty:
+        end = date.today()
+        return end - timedelta(days=30), end
+
+    date_col = _find_exact(
+        sales_df,
+        ["Fecha_dt", "Fecha", "Fecha Emision", "FechaEmision"],
     )
 
-
-def _period_from_sales(sales: pd.DataFrame | None) -> tuple[date, date]:
-    if sales is None or sales.empty or "Fecha_dt" not in sales.columns:
+    if not date_col:
         end = date.today()
         return end - timedelta(days=30), end
 
     valid = pd.to_datetime(
-        sales["Fecha_dt"],
+        sales_df[date_col],
         errors="coerce",
+        dayfirst=True,
     ).dropna()
 
-    if valid.empty:
-        end = date.today()
-    else:
-        end = valid.max().date()
-
+    end = valid.max().date() if not valid.empty else date.today()
     return end - timedelta(days=30), end
 
 
 def _prepare_sales(
-    sales: pd.DataFrame | None,
+    sales_df: pd.DataFrame | None,
     start: date,
     end: date,
 ) -> pd.DataFrame:
-    if sales is None or sales.empty:
+    if sales_df is None or sales_df.empty:
         return pd.DataFrame()
 
-    work = sales.copy()
+    work = sales_df.copy()
 
-    if "Fecha_dt" not in work.columns:
+    date_col = _find_exact(
+        work,
+        ["Fecha_dt", "Fecha", "Fecha Emision", "FechaEmision"],
+    )
+
+    if not date_col:
         return pd.DataFrame()
 
-    work["Fecha_dt"] = pd.to_datetime(
-        work["Fecha_dt"],
+    work["FechaDashboard"] = pd.to_datetime(
+        work[date_col],
         errors="coerce",
+        dayfirst=True,
     )
 
     work = work[
-        work["Fecha_dt"].notna()
-        & (work["Fecha_dt"].dt.date >= start)
-        & (work["Fecha_dt"].dt.date <= end)
+        work["FechaDashboard"].notna()
+        & (work["FechaDashboard"].dt.date >= start)
+        & (work["FechaDashboard"].dt.date <= end)
     ].copy()
 
     if work.empty:
         return work
 
-    if "Grupo comercial" in work.columns:
+    group_col = _find_exact(
+        work,
+        ["Grupo comercial", "GrupoComercial"],
+    )
+
+    if group_col:
         allowed = {
             "Factura",
             "Boleta",
             "Nota de crédito",
         }
         work = work[
-            work["Grupo comercial"].isin(allowed)
+            work[group_col].isin(allowed)
         ].copy()
 
-    if "VentaMonto_num" not in work.columns:
-        work["VentaMonto_num"] = 0.0
-
-    work["VentaMonto_num"] = pd.to_numeric(
-        work["VentaMonto_num"],
-        errors="coerce",
-    ).fillna(0.0).abs()
-
-    work["VentaFirmadaConIVA"] = work["VentaMonto_num"]
-
-    if "Grupo comercial" in work.columns:
-        credit_mask = work["Grupo comercial"].eq(
-            "Nota de crédito"
-        )
-        work.loc[
-            credit_mask,
+    amount_col = _find_exact(
+        work,
+        [
             "VentaFirmadaConIVA",
-        ] *= -1
+            "VentaMonto_num",
+            "Total",
+            "Monto",
+            "Venta Neta",
+        ],
+    )
 
-    if "Cantidad_num" not in work.columns:
-        work["Cantidad_num"] = 0.0
+    if amount_col:
+        amount = pd.to_numeric(
+            work[amount_col],
+            errors="coerce",
+        ).fillna(0.0)
 
-    work["Cantidad_num"] = pd.to_numeric(
-        work["Cantidad_num"],
-        errors="coerce",
-    ).fillna(0.0).abs()
+        if amount_col != "VentaFirmadaConIVA":
+            amount = amount.abs()
 
-    work["CantidadFirmada"] = work["Cantidad_num"]
+        if group_col and amount_col != "VentaFirmadaConIVA":
+            credit_mask = work[group_col].eq("Nota de crédito")
+            amount.loc[credit_mask] *= -1
 
-    if "Grupo comercial" in work.columns:
-        credit_mask = work["Grupo comercial"].eq(
-            "Nota de crédito"
-        )
-        work.loc[
-            credit_mask,
+        work["VentaDashboard"] = amount
+    else:
+        work["VentaDashboard"] = 0.0
+
+    qty_col = _find_exact(
+        work,
+        [
             "CantidadFirmada",
-        ] *= -1
+            "Cantidad_num",
+            "Cantidad",
+            "Unidades",
+        ],
+    )
 
-    if "SKU" in work.columns:
-        work["SKU"] = _normalize_sku(work["SKU"])
+    if qty_col:
+        qty = pd.to_numeric(
+            work[qty_col],
+            errors="coerce",
+        ).fillna(0.0)
+
+        if qty_col != "CantidadFirmada":
+            qty = qty.abs()
+
+        if group_col and qty_col != "CantidadFirmada":
+            credit_mask = work[group_col].eq("Nota de crédito")
+            qty.loc[credit_mask] *= -1
+
+        work["CantidadDashboard"] = qty
+    else:
+        work["CantidadDashboard"] = 0.0
+
+    sku_col = _find_exact(
+        work,
+        ["SKU", "Codigo", "Código", "CodigoProducto", "Código Producto"],
+    )
+
+    if sku_col:
+        work["SKUDashboard"] = _normalize_sku(
+            work[sku_col]
+        )
+    else:
+        work["SKUDashboard"] = ""
 
     return work
 
 
-def _channel_column(sales: pd.DataFrame | None) -> str | None:
-    col = _find_col(
-        sales,
+def _delta(current: float, previous: float) -> tuple[str, str]:
+    if previous == 0:
+        if current == 0:
+            return "Sin variación", "neutral"
+        return "Sin base comparable", "neutral"
+
+    pct = ((current - previous) / abs(previous)) * 100
+
+    if pct > 0.05:
+        return f"↑ {abs(pct):.1f}% vs. período anterior", "positive"
+    if pct < -0.05:
+        return f"↓ {abs(pct):.1f}% vs. período anterior", "negative"
+
+    return f"• {abs(pct):.1f}% vs. período anterior", "neutral"
+
+
+def _channel_column(sales_df: pd.DataFrame | None) -> str | None:
+    col = _find_exact(
+        sales_df,
         [
             "Marketplace",
             "MarketPlace",
@@ -212,838 +264,938 @@ def _channel_column(sales: pd.DataFrame | None) -> str | None:
         return col
 
     return _find_contains(
-        sales,
+        sales_df,
+        ["marketplace", "canal", "tienda", "origen"],
+    )
+
+
+def _document_column(sales_df: pd.DataFrame | None) -> str | None:
+    return _find_exact(
+        sales_df,
         [
-            "marketplace",
-            "canal",
-            "tienda",
-            "origen",
+            "Numero",
+            "Número",
+            "Folio",
+            "NroDocumento",
+            "NumeroDocumento",
         ],
     )
 
 
-def _apply_channel(
-    sales: pd.DataFrame,
-    channel_col: str | None,
-    channel_value: str,
-) -> pd.DataFrame:
-    if (
-        sales is None
-        or sales.empty
-        or not channel_col
-        or channel_col not in sales.columns
-        or channel_value == "Todos"
-    ):
-        return sales
-
-    values = (
-        sales[channel_col]
-        .fillna("Sin canal")
-        .astype(str)
-        .str.strip()
-        .replace("", "Sin canal")
-    )
-
-    return sales[
-        values.eq(channel_value)
-    ].copy()
-
-
-def _delta_text(
-    current: float,
-    previous: float,
-    suffix: str = "",
-) -> tuple[str, str]:
-    if previous == 0:
-        if current == 0:
-            return "Sin variación", "neutral"
-        return "Sin base comparable", "neutral"
-
-    delta = ((current - previous) / abs(previous)) * 100
-
-    if delta > 0.05:
-        return f"▲ {abs(delta):.1f}%{suffix}", "positive"
-
-    if delta < -0.05:
-        return f"▼ {abs(delta):.1f}%{suffix}", "negative"
-
-    return f"• {abs(delta):.1f}%{suffix}", "neutral"
-
-
-def _status_counts(cons: pd.DataFrame) -> dict[str, int]:
-    state = cons.get(
-        "Estado",
-        pd.Series("", index=cons.index),
-    ).fillna("").astype(str)
-
-    return {
-        "healthy": int(
-            state.eq("🟢 Disponible").sum()
-        ),
-        "low": int(
-            state.eq("🟡 Stock bajo").sum()
-        ),
-        "zero": int(
-            state.isin(
-                [
-                    "🔴 Sin stock",
-                    "🔴 Negativo",
-                ]
-            ).sum()
-        ),
-        "risk": int(
-            state.eq("🟠 Riesgo despacho").sum()
-        ),
+def _stock_metrics(cons: pd.DataFrame | None) -> dict:
+    result = {
+        "sku": 0,
+        "units": 0,
+        "healthy": 0,
+        "low": 0,
+        "risk": 0,
+        "zero": 0,
     }
 
+    if cons is None or cons.empty:
+        return result
 
-def _daily_sales(sales: pd.DataFrame) -> pd.DataFrame:
-    if sales is None or sales.empty:
-        return pd.DataFrame()
-
-    daily = (
-        sales.assign(
-            Día=sales["Fecha_dt"].dt.floor("D")
-        )
-        .groupby("Día", as_index=False)
-        .agg(
-            Venta=("VentaFirmadaConIVA", "sum"),
-            Unidades=("CantidadFirmada", "sum"),
-        )
-        .sort_values("Día")
+    code_col = _find_exact(
+        cons,
+        ["Código", "Codigo", "SKU"],
     )
 
-    return daily
-
-
-def _marketplace_data(
-    sales: pd.DataFrame,
-    channel_col: str | None,
-) -> pd.DataFrame:
-    if (
-        sales is None
-        or sales.empty
-        or not channel_col
-        or channel_col not in sales.columns
-    ):
-        return pd.DataFrame()
-
-    work = sales.copy()
-
-    work["CanalDashboard"] = (
-        work[channel_col]
-        .fillna("Sin canal")
-        .astype(str)
-        .str.strip()
-        .replace("", "Sin canal")
+    available_col = _find_exact(
+        cons,
+        ["Disponible", "Stock", "Stock Disponible"],
     )
 
-    result = (
-        work.groupby(
-            "CanalDashboard",
-            as_index=False,
-        )["VentaFirmadaConIVA"]
-        .sum()
-        .rename(
-            columns={
-                "CanalDashboard": "Canal",
-                "VentaFirmadaConIVA": "Venta",
-            }
-        )
-        .sort_values(
-            "Venta",
-            ascending=False,
-        )
+    state_col = _find_exact(
+        cons,
+        ["Estado", "Estado Stock"],
     )
+
+    if code_col:
+        result["sku"] = int(cons[code_col].nunique())
+    else:
+        result["sku"] = len(cons)
+
+    if available_col:
+        available = pd.to_numeric(
+            cons[available_col],
+            errors="coerce",
+        ).fillna(0)
+        result["units"] = int(round(available.clip(lower=0).sum()))
+
+    if state_col:
+        states = cons[state_col].fillna("").astype(str)
+
+        result["healthy"] = int(
+            states.str.contains(
+                "Disponible|Saludable",
+                case=False,
+                regex=True,
+            ).sum()
+        )
+        result["low"] = int(
+            states.str.contains(
+                "Stock bajo|Bajo",
+                case=False,
+                regex=True,
+            ).sum()
+        )
+        result["risk"] = int(
+            states.str.contains(
+                "Riesgo",
+                case=False,
+                regex=True,
+            ).sum()
+        )
+        result["zero"] = int(
+            states.str.contains(
+                "Sin stock|Negativo|Agotado",
+                case=False,
+                regex=True,
+            ).sum()
+        )
+    elif available_col:
+        available = pd.to_numeric(
+            cons[available_col],
+            errors="coerce",
+        ).fillna(0)
+
+        result["zero"] = int((available <= 0).sum())
+        result["low"] = int(((available > 0) & (available <= 5)).sum())
+        result["healthy"] = int((available > 5).sum())
 
     return result
 
 
+def _warehouse_summary(raw: pd.DataFrame | None) -> pd.DataFrame:
+    if raw is None or raw.empty:
+        return pd.DataFrame(columns=["Bodega", "Stock"])
+
+    warehouse_col = _find_exact(
+        raw,
+        ["Bodega", "Warehouse"],
+    )
+
+    stock_col = _find_exact(
+        raw,
+        ["Stock", "Disponible", "Stock Disponible"],
+    )
+
+    if not warehouse_col or not stock_col:
+        return pd.DataFrame(columns=["Bodega", "Stock"])
+
+    work = raw[[warehouse_col, stock_col]].copy()
+    work[stock_col] = pd.to_numeric(
+        work[stock_col],
+        errors="coerce",
+    ).fillna(0)
+
+    return (
+        work.groupby(warehouse_col, as_index=False)[stock_col]
+        .sum()
+        .rename(
+            columns={
+                warehouse_col: "Bodega",
+                stock_col: "Stock",
+            }
+        )
+        .sort_values("Stock", ascending=False)
+    )
+
+
 def _top_products(
-    stock: pd.DataFrame | None,
+    raw_stock: pd.DataFrame | None,
     sales: pd.DataFrame,
-    limit: int = 6,
+    limit: int = 5,
 ) -> pd.DataFrame:
-    if (
-        sales is None
-        or sales.empty
-        or "SKU" not in sales.columns
-    ):
+    if sales is None or sales.empty:
+        return pd.DataFrame()
+
+    if "SKUDashboard" not in sales.columns:
         return pd.DataFrame()
 
     work = (
-        sales.groupby(
-            "SKU",
-            as_index=False,
-        )
+        sales[sales["SKUDashboard"].ne("")]
+        .groupby("SKUDashboard", as_index=False)
         .agg(
-            Unidades=("CantidadFirmada", "sum"),
-            Venta=("VentaFirmadaConIVA", "sum"),
+            Unidades=("CantidadDashboard", "sum"),
+            Venta=("VentaDashboard", "sum"),
         )
     )
+
+    if work.empty:
+        return work
 
     work["Unidades"] = work["Unidades"].clip(lower=0)
 
-    work = work.sort_values(
-        ["Unidades", "Venta"],
-        ascending=False,
-    ).head(limit)
-
-    if (
-        stock is not None
-        and not stock.empty
-        and "Código" in stock.columns
-    ):
-        stock_names = stock.copy()
-        stock_names["SKU"] = _normalize_sku(
-            stock_names["Código"]
+    if raw_stock is not None and not raw_stock.empty:
+        code_col = _find_exact(
+            raw_stock,
+            ["Código", "Codigo", "SKU", "Producto"],
+        )
+        product_col = _find_exact(
+            raw_stock,
+            ["Producto", "Descripción", "Descripcion"],
         )
 
-        if "Producto" not in stock_names.columns:
-            stock_names["Producto"] = stock_names["SKU"]
+        if code_col and product_col:
+            names = raw_stock[
+                [code_col, product_col]
+            ].copy()
 
-        names = (
-            stock_names[
-                [
-                    "SKU",
-                    "Producto",
+            names["SKUDashboard"] = _normalize_sku(
+                names[code_col]
+            )
+
+            names = (
+                names[
+                    ["SKUDashboard", product_col]
                 ]
-            ]
-            .drop_duplicates("SKU")
-        )
+                .drop_duplicates("SKUDashboard")
+                .rename(columns={product_col: "Producto"})
+            )
 
-        work = work.merge(
-            names,
-            on="SKU",
-            how="left",
-        )
+            work = work.merge(
+                names,
+                on="SKUDashboard",
+                how="left",
+            )
 
     if "Producto" not in work.columns:
-        work["Producto"] = work["SKU"]
+        work["Producto"] = work["SKUDashboard"]
 
     work["Producto"] = (
         work["Producto"]
-        .fillna(work["SKU"])
+        .fillna(work["SKUDashboard"])
         .astype(str)
     )
 
-    return work
+    return (
+        work.sort_values(
+            ["Venta", "Unidades"],
+            ascending=False,
+        )
+        .head(limit)
+        .reset_index(drop=True)
+    )
 
 
-def _operational_table(
-    cons: pd.DataFrame,
-    sales_30: pd.DataFrame,
+def _critical_products(
+    cons: pd.DataFrame | None,
+    limit: int = 5,
 ) -> pd.DataFrame:
     if cons is None or cons.empty:
         return pd.DataFrame()
 
-    stock = cons.copy()
+    code_col = _find_exact(cons, ["Código", "Codigo", "SKU"])
+    product_col = _find_exact(cons, ["Producto", "Descripción", "Descripcion"])
+    available_col = _find_exact(cons, ["Disponible", "Stock", "Stock Disponible"])
+    state_col = _find_exact(cons, ["Estado", "Estado Stock"])
 
-    if "Código" not in stock.columns:
+    if not code_col or not available_col:
         return pd.DataFrame()
 
-    stock["SKU"] = _normalize_sku(
-        stock["Código"]
-    )
+    cols = [code_col, available_col]
+    if product_col:
+        cols.append(product_col)
+    if state_col:
+        cols.append(state_col)
 
-    if "Producto" not in stock.columns:
-        stock["Producto"] = stock["SKU"]
-
-    if "Disponible" not in stock.columns:
-        stock["Disponible"] = 0
-
-    stock["Disponible"] = pd.to_numeric(
-        stock["Disponible"],
+    work = cons[cols].copy()
+    work[available_col] = pd.to_numeric(
+        work[available_col],
         errors="coerce",
     ).fillna(0)
 
-    stock_columns = [
-        "SKU",
-        "Producto",
-        "Disponible",
-    ]
+    if state_col:
+        priority_mask = work[state_col].fillna("").astype(str).str.contains(
+            "Sin stock|Negativo|Stock bajo|Riesgo|Agotado|Bajo",
+            case=False,
+            regex=True,
+        )
+        work = work[priority_mask].copy()
+    else:
+        work = work[work[available_col] <= 5].copy()
 
-    if "Estado" in stock.columns:
-        stock_columns.append("Estado")
+    if work.empty:
+        return work
 
-    stock = (
-        stock[stock_columns]
-        .drop_duplicates("SKU")
+    work = work.sort_values(
+        available_col,
+        ascending=True,
+    ).head(limit)
+
+    out = pd.DataFrame()
+    out["SKU"] = _normalize_sku(work[code_col])
+    out["Producto"] = (
+        work[product_col].astype(str)
+        if product_col
+        else out["SKU"]
     )
+    out["Stock Actual"] = work[available_col].round().astype(int)
 
-    if (
-        sales_30 is not None
-        and not sales_30.empty
-        and "SKU" in sales_30.columns
-    ):
-        demand = (
-            sales_30.groupby(
-                "SKU",
-                as_index=False,
-            )
-            .agg(
-                Venta30=("VentaFirmadaConIVA", "sum"),
-                Unidades30=("CantidadFirmada", "sum"),
-            )
+    if state_col:
+        out["Estado"] = work[state_col].astype(str)
+    else:
+        out["Estado"] = out["Stock Actual"].apply(
+            lambda x: "SIN STOCK" if x <= 0 else "BAJO"
         )
 
-        demand["Unidades30"] = demand[
-            "Unidades30"
-        ].clip(lower=0)
+    return out.reset_index(drop=True)
 
-        stock = stock.merge(
-            demand,
-            on="SKU",
-            how="left",
-        )
 
-    if "Venta30" not in stock.columns:
-        stock["Venta30"] = 0.0
+def _margin_data(sales: pd.DataFrame) -> tuple[float | None, float | None]:
+    """
+    Solo calcula margen si existen columnas explícitas de costo.
+    Nunca usa CentroCosto ni columnas parecidas.
+    """
+    if sales is None or sales.empty:
+        return None, None
 
-    if "Unidades30" not in stock.columns:
-        stock["Unidades30"] = 0.0
-
-    stock["Venta30"] = pd.to_numeric(
-        stock["Venta30"],
-        errors="coerce",
-    ).fillna(0.0)
-
-    stock["Unidades30"] = pd.to_numeric(
-        stock["Unidades30"],
-        errors="coerce",
-    ).fillna(0.0)
-
-    daily_demand = stock["Unidades30"] / 30.0
-
-    stock["Cobertura"] = (
-        stock["Disponible"]
-        / daily_demand.where(
-            daily_demand > 0
-        )
-    )
-
-    def priority(row: pd.Series) -> tuple[int, str]:
-        available = float(row["Disponible"])
-        demand30 = float(row["Unidades30"])
-        coverage = row["Cobertura"]
-
-        if demand30 > 0 and available <= 0:
-            return 1, "🔴 Crítico"
-
-        if (
-            demand30 > 0
-            and pd.notna(coverage)
-            and coverage <= 7
-        ):
-            return 2, "🔴 Crítico"
-
-        if demand30 > 0 and available <= 5:
-            return 3, "🟠 Reponer"
-
-        if (
-            demand30 > 0
-            and pd.notna(coverage)
-            and coverage <= 15
-        ):
-            return 4, "🟡 Atención"
-
-        if demand30 == 0 and available > 0:
-            return 6, "⚪ Sin venta 30d"
-
-        return 5, "🟢 Saludable"
-
-    priorities = stock.apply(
-        priority,
-        axis=1,
-        result_type="expand",
-    )
-
-    stock["PrioridadOrden"] = priorities[0]
-    stock["Prioridad"] = priorities[1]
-
-    stock["Cobertura días"] = stock["Cobertura"].apply(
-        lambda value: (
-            "—"
-            if pd.isna(value)
-            else f"{value:.1f}"
-        )
-    )
-
-    stock["Stock"] = (
-        stock["Disponible"]
-        .round()
-        .astype(int)
-    )
-
-    stock["Unidades 30d"] = (
-        stock["Unidades30"]
-        .round()
-        .astype(int)
-    )
-
-    stock["Ventas 30d"] = stock["Venta30"].apply(
-        _money
-    )
-
-    result = (
-        stock.sort_values(
-            [
-                "PrioridadOrden",
-                "Unidades30",
-                "Disponible",
-            ],
-            ascending=[
-                True,
-                False,
-                True,
-            ],
-        )
-        .head(15)
+    cost_col = _find_exact(
+        sales,
         [
-            [
-                "Prioridad",
-                "SKU",
-                "Producto",
-                "Stock",
-                "Unidades 30d",
-                "Ventas 30d",
-                "Cobertura días",
-            ]
-        ]
+            "Costo",
+            "Costo_num",
+            "Costo Total",
+            "CostoTotal",
+            "Costo Venta",
+            "CostoVenta",
+        ],
     )
 
-    return result
+    if not cost_col:
+        return None, None
+
+    cost = pd.to_numeric(
+        sales[cost_col],
+        errors="coerce",
+    ).fillna(0).abs().sum()
+
+    revenue = float(
+        sales.get(
+            "VentaDashboard",
+            pd.Series(dtype="float64"),
+        ).sum()
+    )
+
+    margin = revenue - cost
+
+    margin_pct = (
+        margin / revenue * 100
+        if revenue != 0
+        else None
+    )
+
+    return margin, margin_pct
 
 
-def _kpi_card(
+def _kpi_html(
     label: str,
     value: str,
     helper: str,
     icon: str,
-    tone: str = "lime",
-    delta: str | None = None,
-    delta_tone: str = "neutral",
+    tone: str = "yellow",
 ) -> str:
-    delta_html = ""
-
-    if delta:
-        delta_html = (
-            f"<span class='mx-kpi-delta {delta_tone}'>"
-            f"{escape(delta)}"
-            f"</span>"
-        )
-
     return f"""
-    <div class="mx-kpi">
-        <div class="mx-kpi-top">
-            <div class="mx-kpi-icon {tone}">
-                {escape(icon)}
-            </div>
-            {delta_html}
+    <div class="homepro-kpi">
+        <div class="homepro-kpi-top">
+            <span class="homepro-kpi-label">{escape(label)}</span>
+            <span class="homepro-kpi-icon {escape(tone)}">{escape(icon)}</span>
         </div>
-        <div class="mx-kpi-label">{escape(label)}</div>
-        <div class="mx-kpi-value">{escape(value)}</div>
-        <div class="mx-kpi-helper">{escape(helper)}</div>
+        <div class="homepro-kpi-value">{escape(value)}</div>
+        <div class="homepro-kpi-helper {escape(tone)}">{escape(helper)}</div>
     </div>
     """
 
 
+def _nav_button(label: str, target: str, key: str):
+    if st.button(label, key=key, width="stretch"):
+        st.session_state.page = target
+        st.rerun()
+
+
 # ============================================================
-# VISUAL HELPERS — HOME V2
+# CSS
 # ============================================================
 
-def _home_css():
+def _inject_css():
     st.markdown(
         """
         <style>
-        /* =====================================================
-           MARITEX HOME — VISUAL EJECUTIVO CLARO
-           ===================================================== */
         .block-container {
-            padding-top: .75rem !important;
-            padding-bottom: 2rem !important;
-            max-width: 1600px !important;
+            max-width: 1600px;
+            padding-top: 1.05rem;
+            padding-bottom: 2.2rem;
         }
 
-        .mx2-head {
+        div[data-testid="stVerticalBlock"] {
+            gap: .72rem;
+        }
+
+        .homepro-head {
             display:flex;
             align-items:flex-start;
             justify-content:space-between;
-            gap:22px;
-            margin: 2px 0 14px 0;
-        }
-        .mx2-greeting {
-            font-size: 28px;
-            line-height: 1.05;
-            font-weight: 800;
-            color:#111827;
-            letter-spacing:-0.6px;
-            margin:0;
-        }
-        .mx2-subtitle {
-            margin-top:7px;
-            color:#7b8490;
-            font-size:13px;
-        }
-        .mx2-pill {
-            display:inline-flex;
-            align-items:center;
-            gap:8px;
-            padding:9px 12px;
-            border:1px solid #e7ebef;
-            border-radius:10px;
-            background:#fff;
-            color:#5f6875;
-            font-size:12px;
-            box-shadow:0 2px 10px rgba(17,24,39,.03);
-            white-space:nowrap;
-        }
-        .mx2-pill-dot {
-            width:8px;height:8px;border-radius:50%;
-            background:#7fc600;
-            box-shadow:0 0 0 4px rgba(127,198,0,.11);
+            gap:24px;
+            margin-bottom:8px;
         }
 
-        .mx2-kpi-grid {
+        .homepro-greeting {
+            font-size:29px;
+            font-weight:800;
+            color:#121820;
+            letter-spacing:-.8px;
+            line-height:1.1;
+        }
+
+        .homepro-sub {
+            margin-top:7px;
+            font-size:13px;
+            color:#7d8792;
+        }
+
+        .homepro-update {
+            display:flex;
+            gap:9px;
+            align-items:center;
+            color:#747d87;
+            font-size:12px;
+            white-space:nowrap;
+            padding-top:5px;
+        }
+
+        .homepro-update-dot {
+            width:8px;
+            height:8px;
+            border-radius:999px;
+            background:#22c55e;
+            box-shadow:0 0 0 4px rgba(34,197,94,.10);
+        }
+
+        .homepro-kpis {
             display:grid;
             grid-template-columns:repeat(5,minmax(0,1fr));
             gap:12px;
-            margin:10px 0 16px 0;
+            margin:6px 0 4px 0;
         }
-        .mx2-kpi {
-            min-height:108px;
-            min-width:0;
-            overflow:hidden;
-            border:1px solid #e7ebef;
-            border-radius:14px;
-            background:#fff;
-            padding:15px 15px 13px 15px;
-            box-shadow:0 4px 18px rgba(17,24,39,.035);
-        }
-        .mx2-kpi-row {
-            display:flex;
-            align-items:center;
-            gap:13px;
-        }
-        .mx2-kpi-icon {
-            width:44px;height:44px;
-            min-width:44px;
-            border-radius:50%;
-            display:flex;
-            align-items:center;
-            justify-content:center;
-            background:#fff2c9;
-            color:#111827;
-            font-size:20px;
-            font-weight:800;
-        }
-        .mx2-kpi-label {
-            font-size:11px;
-            font-weight:800;
-            color:#202630;
-            letter-spacing:.15px;
-            text-transform:uppercase;
-        }
-        .mx2-kpi-value {
-            margin-top:4px;
-            color:#111827;
-            font-size:clamp(17px, 1.20vw, 21px);
-            line-height:1.08;
-            font-weight:800;
-            letter-spacing:-.25px;
-            white-space:nowrap;
-            overflow:visible;
-            max-width:100%;
-        }
-        .mx2-kpi-delta {
-            margin-top:7px;
-            font-size:9.5px;
-            line-height:1.25;
-            color:#7b8490;
-            padding-left:57px;
-            min-height:22px;
-        }
-        .mx2-kpi-delta .positive { color:#14a44d;font-weight:700; }
-        .mx2-kpi-delta .negative { color:#e43d3d;font-weight:700; }
-        .mx2-kpi-delta .neutral { color:#7b8490;font-weight:700; }
 
-        .mx2-card-head {
+        .homepro-kpi {
+            background:#fff;
+            border:1px solid #e9edf1;
+            border-radius:12px;
+            padding:17px 17px 14px 17px;
+            min-height:112px;
+            box-shadow:0 3px 12px rgba(20,30,45,.035);
+        }
+
+        .homepro-kpi-top {
             display:flex;
             align-items:center;
             justify-content:space-between;
-            gap:16px;
-            padding:2px 1px 10px 1px;
+            gap:8px;
         }
-        .mx2-card-title {
-            color:#18202a;
+
+        .homepro-kpi-label {
+            font-size:12px;
+            color:#303943;
+            font-weight:650;
+        }
+
+        .homepro-kpi-icon {
+            width:29px;
+            height:29px;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            border-radius:999px;
+            font-size:14px;
+            font-weight:800;
+        }
+
+        .homepro-kpi-icon.yellow {
+            background:#fff6d6;
+            color:#e3a600;
+        }
+
+        .homepro-kpi-icon.green {
+            background:#eaf8ec;
+            color:#22a447;
+        }
+
+        .homepro-kpi-icon.red {
+            background:#fff0ee;
+            color:#dd584c;
+        }
+
+        .homepro-kpi-icon.blue {
+            background:#eef5ff;
+            color:#3f7fd6;
+        }
+
+        .homepro-kpi-value {
+            margin-top:12px;
+            color:#10161d;
+            font-size:22px;
+            font-weight:800;
+            line-height:1;
+            letter-spacing:-.45px;
+        }
+
+        .homepro-kpi-helper {
+            margin-top:12px;
+            font-size:10.5px;
+            font-weight:600;
+            color:#89929c;
+        }
+
+        .homepro-kpi-helper.green,
+        .homepro-kpi-helper.positive {
+            color:#15a34a;
+        }
+
+        .homepro-kpi-helper.red,
+        .homepro-kpi-helper.negative {
+            color:#dc5148;
+        }
+
+        .homepro-card-title {
             font-size:13px;
             font-weight:800;
-            text-transform:uppercase;
-            letter-spacing:.12px;
+            color:#1a2027;
+            margin-bottom:2px;
         }
-        .mx2-card-sub {
-            display:block;
-            margin-top:3px;
-            color:#8a929d;
-            font-size:11px;
-            font-weight:400;
-            text-transform:none;
-            letter-spacing:0;
-        }
-        .mx2-link {
-            color:#e9a900;
-            font-size:11px;
-            font-weight:800;
-            white-space:nowrap;
+
+        .homepro-card-sub {
+            color:#8b949e;
+            font-size:10.5px;
+            margin-bottom:4px;
         }
 
         div[data-testid="stVerticalBlockBorderWrapper"] {
-            border-color:#e7ebef !important;
-            border-radius:14px !important;
-            background:#fff !important;
-            box-shadow:0 4px 18px rgba(17,24,39,.035) !important;
+            border-color:#e9edf1 !important;
+            border-radius:12px !important;
+            background:white !important;
+            box-shadow:0 3px 12px rgba(20,30,45,.025);
         }
 
-        .mx2-inventory-shell {
+        .homepro-alerts {
+            display:flex;
+            flex-direction:column;
+            gap:0;
+            margin-top:1px;
+        }
+
+        .homepro-alert {
             display:grid;
-            grid-template-columns:.76fr 1.35fr 1.25fr;
-            border:1px solid #edf0f3;
-            border-radius:11px;
-            overflow:hidden;
+            grid-template-columns:30px 1fr auto;
+            align-items:center;
+            gap:10px;
+            padding:13px 0;
+            border-bottom:1px solid #edf0f2;
+        }
+
+        .homepro-alert:last-child {
+            border-bottom:0;
+        }
+
+        .homepro-alert-icon {
+            width:28px;
+            height:28px;
+            border-radius:8px;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            font-size:13px;
+            font-weight:900;
+        }
+
+        .homepro-alert-icon.red {
+            background:#fff0ed;
+            color:#ec5447;
+        }
+
+        .homepro-alert-icon.yellow {
+            background:#fff7dd;
+            color:#e7a900;
+        }
+
+        .homepro-alert-icon.blue {
+            background:#eef5ff;
+            color:#4283d4;
+        }
+
+        .homepro-alert-icon.green {
+            background:#edf9ef;
+            color:#35a756;
+        }
+
+        .homepro-alert strong {
+            display:block;
+            font-size:12px;
+            color:#20272e;
+            margin-bottom:2px;
+        }
+
+        .homepro-alert small {
+            font-size:9.5px;
+            color:#9099a3;
+        }
+
+        .homepro-alert-value {
+            font-size:11px;
+            color:#4b5560;
+            font-weight:700;
+        }
+
+        .homepro-status-summary {
+            display:grid;
+            grid-template-columns:repeat(3,1fr);
+            gap:8px;
+            margin-top:3px;
+        }
+
+        .homepro-status-summary > div {
+            border:1px solid #edf0f2;
+            border-radius:9px;
+            padding:8px;
+        }
+
+        .homepro-status-summary span {
+            display:block;
+            color:#8c949e;
+            font-size:9px;
+        }
+
+        .homepro-status-summary strong {
+            display:block;
+            color:#161c22;
+            font-size:13px;
             margin-top:2px;
-            min-height:255px;
         }
-        .mx2-inv-side {
-            padding:19px 18px;
-            border-right:1px solid #edf0f3;
+
+        .homepro-product-list {
+            margin-top:4px;
         }
-        .mx2-inv-metric + .mx2-inv-metric {
-            margin-top:28px;
-            padding-top:22px;
-            border-top:1px solid #edf0f3;
-        }
-        .mx2-inv-label {
-            color:#5f6874;font-size:11px;font-weight:600;
-        }
-        .mx2-inv-number {
-            color:#111827;font-size:26px;font-weight:800;margin-top:6px;
-        }
-        .mx2-inv-helper {
-            color:#8b949f;font-size:10px;margin-top:3px;
-        }
-        .mx2-warehouse {
-            padding:17px 17px;
-            border-right:1px solid #edf0f3;
-        }
-        .mx2-small-title {
-            color:#232a34;font-size:11px;font-weight:800;margin-bottom:16px;
-        }
-        .mx2-wh-row {
+
+        .homepro-product-row {
             display:grid;
-            grid-template-columns:88px minmax(70px,1fr) 62px;
+            grid-template-columns:28px minmax(0,1fr) 85px 110px;
+            gap:10px;
+            align-items:center;
+            min-height:42px;
+            border-bottom:1px solid #edf0f2;
+            font-size:10.5px;
+        }
+
+        .homepro-product-row:last-child {
+            border-bottom:0;
+        }
+
+        .homepro-rank {
+            color:#9ba3ac;
+            font-weight:700;
+        }
+
+        .homepro-product-main strong {
+            display:block;
+            color:#252d35;
+            font-size:10.5px;
+            white-space:nowrap;
+            overflow:hidden;
+            text-overflow:ellipsis;
+        }
+
+        .homepro-product-main span {
+            color:#9aa2ab;
+            font-size:9px;
+        }
+
+        .homepro-num {
+            text-align:right;
+            font-weight:700;
+            color:#303840;
+        }
+
+        .homepro-money {
+            text-align:right;
+            font-weight:700;
+            color:#121820;
+        }
+
+        .homepro-attention {
+            background:linear-gradient(90deg,#fff8df 0%,#fffdf6 70%,#fff 100%);
+            border:1px solid #f4e8ba;
+            border-radius:11px;
+            padding:13px 15px;
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            gap:15px;
+        }
+
+        .homepro-attention strong {
+            display:block;
+            font-size:12px;
+            color:#242b32;
+        }
+
+        .homepro-attention span {
+            display:block;
+            margin-top:2px;
+            font-size:9.5px;
+            color:#8e876d;
+        }
+
+        .homepro-table {
+            width:100%;
+            border-collapse:collapse;
+            font-size:10px;
+        }
+
+        .homepro-table th {
+            text-align:left;
+            color:#68727d;
+            padding:9px 10px;
+            border-bottom:1px solid #e8ecef;
+            font-size:9px;
+            text-transform:uppercase;
+            letter-spacing:.25px;
+        }
+
+        .homepro-table td {
+            padding:10px;
+            border-bottom:1px solid #edf0f2;
+            color:#2b333b;
+        }
+
+        .homepro-table tr:last-child td {
+            border-bottom:0;
+        }
+
+        .homepro-badge {
+            display:inline-flex;
+            align-items:center;
+            justify-content:center;
+            min-width:54px;
+            border-radius:999px;
+            padding:4px 8px;
+            font-size:8px;
+            font-weight:800;
+        }
+
+        .homepro-badge.red {
+            background:#ffe3dd;
+            color:#c94d42;
+        }
+
+        .homepro-badge.yellow {
+            background:#fff0bf;
+            color:#a66c00;
+        }
+
+        .homepro-badge.orange {
+            background:#ffead8;
+            color:#b75f16;
+        }
+
+        .homepro-quick-title {
+            font-size:12px;
+            font-weight:800;
+            color:#222a31;
+            margin-bottom:8px;
+        }
+
+        .homepro-foot {
+            text-align:center;
+            color:#a0a8b0;
+            font-size:9px;
+            padding:14px 0 0 0;
+        }
+
+        .stButton > button {
+            border-radius:9px !important;
+            min-height:40px !important;
+            font-size:11px !important;
+            font-weight:700 !important;
+        }
+
+
+        .homepro-inventory-hero {
+            display:flex;
+            align-items:center;
+            gap:16px;
+            margin-top:10px;
+            margin-bottom:14px;
+        }
+
+        .homepro-health-ring {
+            --p: 0%;
+            width:96px;
+            height:96px;
+            flex:0 0 96px;
+            border-radius:50%;
+            background:
+                radial-gradient(circle at center, #fff 58%, transparent 59%),
+                conic-gradient(#8fc267 var(--p), #eef1f3 0);
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            position:relative;
+        }
+
+        .homepro-health-ring > div {
+            text-align:center;
+            line-height:1;
+        }
+
+        .homepro-health-ring strong {
+            display:block;
+            font-size:24px;
+            font-weight:850;
+            color:#141a20;
+            letter-spacing:-.5px;
+        }
+
+        .homepro-health-ring span {
+            display:block;
+            margin-top:5px;
+            font-size:9px;
+            color:#8b949d;
+        }
+
+        .homepro-health-copy {
+            min-width:0;
+            flex:1;
+        }
+
+        .homepro-health-copy strong {
+            display:block;
+            color:#1e252c;
+            font-size:12px;
+            margin-bottom:5px;
+        }
+
+        .homepro-health-copy p {
+            margin:0;
+            color:#8a939c;
+            font-size:9.5px;
+            line-height:1.45;
+        }
+
+        .homepro-status-list {
+            display:flex;
+            flex-direction:column;
+            gap:9px;
+        }
+
+        .homepro-status-row {
+            display:grid;
+            grid-template-columns:10px minmax(0,1fr) auto;
             align-items:center;
             gap:9px;
-            margin:14px 0;
             font-size:10px;
-            color:#424b56;
         }
-        .mx2-bar {
-            height:10px;
-            border-radius:2px;
+
+        .homepro-status-row i {
+            width:8px;
+            height:8px;
+            border-radius:999px;
+        }
+
+        .homepro-status-row i.green { background:#8fc267; }
+        .homepro-status-row i.yellow { background:#ffc400; }
+        .homepro-status-row i.orange { background:#f4a44b; }
+        .homepro-status-row i.red { background:#ef6656; }
+
+        .homepro-status-row span {
+            color:#69737d;
+        }
+
+        .homepro-status-row strong {
+            color:#20272e;
+            font-size:10.5px;
+        }
+
+        .homepro-wh-list {
+            display:flex;
+            flex-direction:column;
+            gap:13px;
+            margin-top:13px;
+        }
+
+        .homepro-wh-row {
+            display:grid;
+            grid-template-columns:88px minmax(0,1fr) 62px;
+            align-items:center;
+            gap:10px;
+        }
+
+        .homepro-wh-name {
+            color:#59636d;
+            font-size:10px;
+            white-space:nowrap;
+            overflow:hidden;
+            text-overflow:ellipsis;
+        }
+
+        .homepro-wh-track {
+            position:relative;
+            height:12px;
+            border-radius:999px;
             background:#f1f3f5;
             overflow:hidden;
         }
-        .mx2-bar > i {
-            display:block;
+
+        .homepro-wh-bar {
             height:100%;
-            background:#f7b900;
-            border-radius:2px;
+            min-width:3px;
+            border-radius:999px;
+            background:linear-gradient(90deg,#ffc400,#ffd553);
         }
-        .mx2-donut-side { padding:17px 17px; }
 
-        .mx2-status-legend {
-            display:grid;
-            grid-template-columns:1fr;
-            gap:8px;
-            margin-top:2px;
-        }
-        .mx2-status-item {
-            display:grid;
-            grid-template-columns:10px 1fr auto;
-            align-items:center;
-            gap:8px;
+        .homepro-wh-value {
+            text-align:right;
+            color:#303840;
             font-size:10px;
-            color:#535d69;
-        }
-        .mx2-status-item i { width:8px;height:8px;border-radius:50%;display:block; }
-        .mx2-status-item strong { color:#111827;font-size:11px; }
-
-        .mx2-sales-foot {
-            display:grid;
-            grid-template-columns:repeat(4,1fr);
-            gap:8px;
-            margin-top:6px;
-        }
-        .mx2-sales-mini {
-            border:1px solid #edf0f3;
-            border-radius:9px;
-            padding:10px 11px;
-            background:#fff;
-        }
-        .mx2-sales-mini span {
-            color:#7e8792;font-size:9px;display:block;margin-bottom:5px;
-        }
-        .mx2-sales-mini strong {
-            color:#111827;
-            font-size:12.5px;
-            white-space:nowrap;
+            font-weight:750;
         }
 
-        .mx2-product-table {
-            width:100%;
-            border-collapse:collapse;
-            font-size:10px;
-        }
-        .mx2-product-table th {
-            text-align:left;
-            color:#737d89;
-            font-weight:600;
-            background:#fafbfc;
-            padding:8px 7px;
-            border-bottom:1px solid #edf0f3;
-        }
-        .mx2-product-table td {
-            padding:9px 7px;
-            border-bottom:1px solid #f0f2f4;
-            color:#303944;
-            vertical-align:middle;
-        }
-        .mx2-product-table td.num { text-align:right; }
-        .mx2-product-table tr:last-child td { border-bottom:0; }
-
-        .mx2-alert-list { margin-top:1px; }
-        .mx2-alert-row {
-            display:grid;
-            grid-template-columns:38px 46px 1fr 18px;
+        .homepro-wh-total {
+            display:flex;
             align-items:center;
-            gap:8px;
-            padding:12px 2px;
-            border-bottom:1px solid #edf0f3;
-        }
-        .mx2-alert-row:last-child { border-bottom:0; }
-        .mx2-alert-ico {
-            width:30px;height:30px;border-radius:50%;
-            display:flex;align-items:center;justify-content:center;
-            font-weight:800;font-size:13px;
-        }
-        .mx2-alert-ico.red { background:#ffe2e2;color:#e73535; }
-        .mx2-alert-ico.yellow { background:#fff0c7;color:#e8a900; }
-        .mx2-alert-ico.blue { background:#e5f0ff;color:#3274c8; }
-        .mx2-alert-n {
-            color:#111827;
-            font-size:20px;
-            font-weight:800;
-        }
-        .mx2-alert-text strong {
-            display:block;color:#202833;font-size:10px;margin-bottom:2px;
-        }
-        .mx2-alert-text span { color:#8a929c;font-size:9px; }
-        .mx2-arrow { color:#7a838e;font-size:17px; }
-
-        .mx2-repo-table {
-            width:100%;
-            border-collapse:collapse;
+            justify-content:space-between;
+            gap:12px;
+            margin-top:15px;
+            padding-top:11px;
+            border-top:1px solid #edf0f2;
+            color:#9099a3;
             font-size:9.5px;
         }
-        .mx2-repo-table th {
-            color:#717b86;
-            background:#fafbfc;
-            font-weight:600;
-            padding:8px 6px;
-            text-align:left;
-            border-bottom:1px solid #edf0f3;
-        }
-        .mx2-repo-table td {
-            padding:9px 6px;
-            color:#333d48;
-            border-bottom:1px solid #f0f2f4;
-        }
-        .mx2-repo-table td.num { text-align:right; }
-        .mx2-repo-table td.miss { color:#e03636;font-weight:800; }
-        .mx2-repo-table tr:last-child td { border-bottom:0; }
 
-        .mx2-bottom-grid {
-            display:grid;
-            grid-template-columns:1.28fr .90fr 1.28fr;
-            gap:16px;
-            margin-top:16px;
-            align-items:stretch;
-        }
-        .mx2-bottom-card {
-            min-width:0;
-            min-height:315px;
-            height:100%;
-            border:1px solid #e7ebef;
-            border-radius:14px;
-            background:#fff;
-            padding:16px 18px;
-            box-shadow:0 4px 18px rgba(17,24,39,.035);
-            overflow:hidden;
-        }
-        .mx2-bottom-card .mx2-empty {
-            min-height:225px;
-        }
-        .mx2-bottom-card .mx2-alert-row {
-            padding:10px 1px;
-        }
-        .mx2-bottom-card .mx2-alert-text span {
-            line-height:1.25;
+        .homepro-wh-total strong {
+            color:#20272e;
+            font-size:11px;
         }
 
-        .mx2-empty {
-            min-height:160px;
-            display:flex;align-items:center;justify-content:center;
-            text-align:center;color:#8b949f;font-size:12px;
-        }
-        .mx2-foot {
-            text-align:center;
-            color:#98a0aa;
-            font-size:10px;
-            margin-top:16px;
+        @media (max-width: 1100px) {
+            .homepro-kpis {
+                grid-template-columns:repeat(2,minmax(0,1fr));
+            }
         }
 
-        [data-testid="stHorizontalBlock"] {
-            gap: 1rem !important;
-        }
-
-        [data-testid="stDateInput"],
-        [data-testid="stSelectbox"] {
-            margin-bottom: 2px !important;
-        }
-
-        [data-testid="stDateInput"] label,
-        [data-testid="stSelectbox"] label {
-            color:#7c8590 !important;
-            font-size:11px !important;
-            font-weight:600 !important;
-        }
-        div[data-baseweb="select"] > div,
-        [data-testid="stDateInput"] input {
-            border-color:#e5e9ed !important;
-            border-radius:10px !important;
-            background:#fff !important;
-        }
-
-        @media (max-width: 1250px) {
-            .mx2-kpi-grid { grid-template-columns:repeat(3,1fr); }
-            .mx2-bottom-grid { grid-template-columns:1fr 1fr; }
-        }
-        @media (max-width: 900px) {
-            .mx2-kpi-grid { grid-template-columns:repeat(2,1fr); }
-            .mx2-inventory-shell { grid-template-columns:1fr; }
-            .mx2-inv-side,.mx2-warehouse { border-right:0;border-bottom:1px solid #edf0f3; }
-            .mx2-sales-foot { grid-template-columns:repeat(2,1fr); }
-            .mx2-bottom-grid { grid-template-columns:1fr; }
+        @media (max-width: 700px) {
+            .homepro-head {
+                flex-direction:column;
+            }
+            .homepro-kpis {
+                grid-template-columns:1fr;
+            }
+            .homepro-product-row {
+                grid-template-columns:24px minmax(0,1fr) 62px;
+            }
+            .homepro-product-row .homepro-money {
+                display:none;
+            }
         }
         </style>
         """,
@@ -1051,530 +1203,279 @@ def _home_css():
     )
 
 
-def _warehouse_summary(raw: pd.DataFrame | None) -> pd.DataFrame:
-    if raw is None or raw.empty:
-        return pd.DataFrame(columns=["Bodega", "Stock"])
-
-    warehouse_col = _find_col(raw, ["Bodega", "Sucursal", "Warehouse"])
-    if not warehouse_col:
-        warehouse_col = _find_contains(raw, ["bodega", "sucursal", "warehouse"])
-
-    value_col = _find_col(raw, ["Stock", "Disponible", "Stock Proyectado"])
-    if not value_col:
-        value_col = _find_contains(raw, ["stock", "disponible"])
-
-    if not warehouse_col or not value_col:
-        return pd.DataFrame(columns=["Bodega", "Stock"])
-
-    work = raw[[warehouse_col, value_col]].copy()
-    work[warehouse_col] = (
-        work[warehouse_col].fillna("Sin bodega").astype(str).str.strip()
-    )
-    work[value_col] = pd.to_numeric(work[value_col], errors="coerce").fillna(0.0)
-    work[value_col] = work[value_col].clip(lower=0)
-
-    return (
-        work.groupby(warehouse_col, as_index=False)[value_col]
-        .sum()
-        .rename(columns={warehouse_col: "Bodega", value_col: "Stock"})
-        .sort_values("Stock", ascending=False)
-    )
-
-
-def _gross_margin(sales: pd.DataFrame) -> tuple[float | None, str]:
-    if sales is None or sales.empty:
-        return None, "Sin ventas"
-
-    cost_col = _find_col(
-        sales,
-        [
-            "CostoTotal",
-            "Costo Total",
-            "Costo",
-            "CostoVenta",
-            "Costo Venta",
-            "Costo_num",
-        ],
-    )
-    # No usar búsqueda parcial por "costo": podría confundir "CentroCosto"
-    # con una columna monetaria de costo.
-    if not cost_col:
-        return None, "Costo no disponible"
-
-    cost = pd.to_numeric(sales[cost_col], errors="coerce").fillna(0.0).abs()
-    revenue = pd.to_numeric(
-        sales.get("VentaFirmadaConIVA", 0),
-        errors="coerce",
-    ).fillna(0.0)
-    margin = float(revenue.sum() - cost.sum())
-    return margin, "Venta neta menos costo"
-
-
-def _kpi_v2(label, value, icon, delta_text="", delta_tone="neutral"):
-    delta_html = ""
-    if delta_text:
-        comparative = (
-            f"{escape(delta_text)} vs período anterior"
-            if delta_text.startswith(("▲", "▼", "•"))
-            else escape(delta_text)
-        )
-        delta_html = (
-            f"<div class='mx2-kpi-delta'>"
-            f"<span class='{escape(delta_tone)}'>{comparative}</span>"
-            f"</div>"
-        )
-
-    return f"""
-    <div class="mx2-kpi">
-        <div class="mx2-kpi-row">
-            <div class="mx2-kpi-icon">{escape(icon)}</div>
-            <div style="min-width:0;">
-                <div class="mx2-kpi-label">{escape(label)}</div>
-                <div class="mx2-kpi-value">{escape(value)}</div>
-            </div>
-        </div>
-        {delta_html}
-    </div>
-    """
-
-
-def _safe_doc_count(sales: pd.DataFrame) -> int:
-    if sales is None or sales.empty:
-        return 0
-    doc_col = _find_col(sales, ["Numero", "NroComprobante", "N° Documento", "Documento"])
-    if doc_col and doc_col in sales.columns:
-        return int(sales[doc_col].dropna().astype(str).nunique())
-    return len(sales)
-
-
-def _best_day(daily: pd.DataFrame):
-    if daily is None or daily.empty:
-        return 0.0, "—"
-    row = daily.loc[daily["Venta"].idxmax()]
-    day = pd.to_datetime(row["Día"], errors="coerce")
-    label = day.strftime("%d/%m") if pd.notna(day) else "—"
-    return float(row["Venta"]), label
-
-
-def _inventory_html(warehouse: pd.DataFrame, stock_units: int, sku_active: int):
-    if warehouse.empty:
-        wh_html = "<div class='mx2-empty'>Sin detalle por bodega.</div>"
-    else:
-        max_stock = max(float(warehouse["Stock"].max()), 1.0)
-        rows = []
-        for row in warehouse.head(5).itertuples(index=False):
-            value = max(float(row.Stock), 0.0)
-            width = min(value / max_stock * 100, 100)
-            rows.append(
-                f"""
-                <div class="mx2-wh-row">
-                    <span>{escape(str(row.Bodega)[:22])}</span>
-                    <div class="mx2-bar"><i style="width:{width:.1f}%"></i></div>
-                    <strong>{_fmt_int(value)}</strong>
-                </div>
-                """
-            )
-        wh_html = "".join(rows)
-
-    return f"""
-    <div class="mx2-inventory-shell">
-        <div class="mx2-inv-side">
-            <div class="mx2-inv-metric">
-                <div class="mx2-inv-label">Stock total</div>
-                <div class="mx2-inv-number">{_fmt_int(stock_units)}</div>
-                <div class="mx2-inv-helper">unidades disponibles</div>
-            </div>
-            <div class="mx2-inv-metric">
-                <div class="mx2-inv-label">SKUs activos</div>
-                <div class="mx2-inv-number">{_fmt_int(sku_active)}</div>
-                <div class="mx2-inv-helper">con disponibilidad</div>
-            </div>
-        </div>
-        <div class="mx2-warehouse">
-            <div class="mx2-small-title">Stock por bodega</div>
-            {wh_html}
-        </div>
-        <div class="mx2-donut-side">
-            <div class="mx2-small-title">Estado del inventario (SKUs)</div>
-            <div id="mx2-donut-target"></div>
-        </div>
-    </div>
-    """
-
-
-def _top_products_html(top: pd.DataFrame, total_revenue: float) -> str:
-    if top is None or top.empty:
-        return "<div class='mx2-empty'>No hay ventas por SKU disponibles.</div>"
-
-    rows = []
-    for row in top.head(5).itertuples(index=False):
-        sale = max(float(getattr(row, "Venta", 0.0)), 0.0)
-        units = max(float(getattr(row, "Unidades", 0.0)), 0.0)
-        share = sale / total_revenue * 100 if total_revenue > 0 else 0
-        rows.append(
-            f"""
-            <tr>
-                <td>{escape(str(getattr(row, "Producto", ""))[:42])}</td>
-                <td>{escape(str(getattr(row, "SKU", "")))}</td>
-                <td class="num">{_fmt_int(units)}</td>
-                <td class="num">{_money(sale)}</td>
-                <td class="num">{share:.1f}%</td>
-            </tr>
-            """
-        )
-
-    return f"""
-    <table class="mx2-product-table">
-        <thead>
-            <tr>
-                <th>Producto</th>
-                <th>SKU</th>
-                <th style="text-align:right">Unidades</th>
-                <th style="text-align:right">Venta neta</th>
-                <th style="text-align:right">% total</th>
-            </tr>
-        </thead>
-        <tbody>{''.join(rows)}</tbody>
-    </table>
-    """
-
-
-def _repo_html(operational: pd.DataFrame) -> str:
-    if operational is None or operational.empty:
-        return "<div class='mx2-empty'>Sin reposiciones críticas.</div>"
-
-    work = operational.copy()
-    work = work[
-        work["Prioridad"].astype(str).str.contains(
-            "Crítico|Reponer|Atención",
-            regex=True,
-            na=False,
-        )
-    ].head(5)
-
-    if work.empty:
-        return "<div class='mx2-empty'>No hay reposiciones prioritarias.</div>"
-
-    rows = []
-    for _, row in work.iterrows():
-        stock = int(pd.to_numeric(row.get("Stock", 0), errors="coerce") or 0)
-        units_30 = int(pd.to_numeric(row.get("Unidades 30d", 0), errors="coerce") or 0)
-
-        # Objetivo simple: 15 días de demanda, con mínimo operativo de 6 unidades.
-        objective = max(6, int(round(units_30 / 30.0 * 15)))
-        missing = max(objective - stock, 0)
-
-        product = str(row.get("Producto", ""))
-        sku = str(row.get("SKU", ""))
-
-        rows.append(
-            f"""
-            <tr>
-                <td>{escape(product[:34])}</td>
-                <td>{escape(sku)}</td>
-                <td class="num">{stock}</td>
-                <td class="num">{objective}</td>
-                <td class="num miss">{missing}</td>
-            </tr>
-            """
-        )
-
-    return f"""
-    <table class="mx2-repo-table">
-        <thead>
-            <tr>
-                <th>Producto</th>
-                <th>SKU</th>
-                <th style="text-align:right">Stock actual</th>
-                <th style="text-align:right">Stock objetivo</th>
-                <th style="text-align:right">Faltante</th>
-            </tr>
-        </thead>
-        <tbody>{''.join(rows)}</tbody>
-    </table>
-    """
-
-
 # ============================================================
 # RENDER
 # ============================================================
 
 def render(ctx):
-    _home_css()
+    _inject_css()
 
     raw = ctx.get("stock_normalized")
     cons = ctx.get("stock_consolidated")
     sales_df = ctx.get("sales_df")
     stock_meta = ctx.get("stock_meta") or {}
-    sales_meta = ctx.get("sales_meta") or {}
 
     default_start, default_end = _period_from_sales(sales_df)
 
-    if "home_period_v2" not in st.session_state:
-        st.session_state.home_period_v2 = (default_start, default_end)
+    if "homepro_period" not in st.session_state:
+        st.session_state.homepro_period = (
+            default_start,
+            default_end,
+        )
 
-    # HEADER + FILTERS — misma fila, como el mockup
-    h_left, h_period, h_wh = st.columns([1.75, .74, .64], gap="medium")
+    now_cl = datetime.now(CHILE_TZ)
+    greeting = (
+        "Buenos días"
+        if now_cl.hour < 12
+        else "Buenas tardes"
+        if now_cl.hour < 20
+        else "Buenas noches"
+    )
 
-    with h_left:
-        render_html(
-            f"""
-            <div style="padding-top:8px;">
-                <div class="mx2-greeting">¡Buenos días! 👋</div>
-                <div class="mx2-subtitle">
-                    Resumen general de la operación al {default_end.strftime("%d/%m/%Y")}
+    updated = (
+        stock_meta.get("generatedAt")
+        or stock_meta.get("loaded_at")
+        or now_cl.strftime("%d/%m/%Y %H:%M")
+    )
+
+    render_html(
+        f"""
+        <div class="homepro-head">
+            <div>
+                <div class="homepro-greeting">{greeting}, Sebastián 👋</div>
+                <div class="homepro-sub">
+                    Aquí tienes un resumen general del negocio.
                 </div>
             </div>
-            """
-        )
+            <div class="homepro-update">
+                <span class="homepro-update-dot"></span>
+                <span>Última actualización: {escape(str(updated))}</span>
+            </div>
+        </div>
+        """
+    )
 
-    with h_period:
+    # --------------------------------------------------------
+    # FILTRO DE FECHA
+    # --------------------------------------------------------
+
+    filter_left, filter_right = st.columns([1.25, 4.75])
+
+    with filter_left:
         period = st.date_input(
             "Período",
-            value=st.session_state.home_period_v2,
-            key="home_period_v2_picker",
+            value=st.session_state.homepro_period,
+            key="homepro_period_picker",
             format="DD/MM/YYYY",
         )
-        if isinstance(period, (tuple, list)) and len(period) == 2:
-            start, end = period
+
+    # st.date_input con rango puede devolver:
+    # - una fecha única,
+    # - una tupla de 1 elemento mientras el usuario elige el segundo día,
+    # - una tupla de 2 fechas cuando el rango está completo.
+    if isinstance(period, (tuple, list)):
+        if len(period) >= 2:
+            start, end = period[0], period[1]
+        elif len(period) == 1:
+            start = end = period[0]
         else:
-            start = end = period
-        st.session_state.home_period_v2 = (start, end)
+            start, end = default_start, default_end
+    else:
+        start = end = period
 
-    warehouse = _warehouse_summary(raw)
-    wh_options = ["Todas las bodegas"] + warehouse["Bodega"].astype(str).tolist()
+    st.session_state.homepro_period = (start, end)
 
-    with h_wh:
-        selected_wh = st.selectbox(
-            "Bodega",
-            wh_options,
-            index=0,
-            key="home_warehouse_v2",
-        )
+    # --------------------------------------------------------
+    # DATOS VENTAS
+    # --------------------------------------------------------
 
-    # SALES
-    current_sales = _prepare_sales(sales_df, start, end)
+    current_sales = _prepare_sales(
+        sales_df,
+        start,
+        end,
+    )
+
     days = max((end - start).days + 1, 1)
-
     prev_end = start - timedelta(days=1)
     prev_start = prev_end - timedelta(days=days - 1)
-    previous_sales = _prepare_sales(sales_df, prev_start, prev_end)
+
+    previous_sales = _prepare_sales(
+        sales_df,
+        prev_start,
+        prev_end,
+    )
 
     current_revenue = float(
-        current_sales.get("VentaFirmadaConIVA", pd.Series(dtype="float64")).sum()
+        current_sales.get(
+            "VentaDashboard",
+            pd.Series(dtype="float64"),
+        ).sum()
     )
+
     previous_revenue = float(
-        previous_sales.get("VentaFirmadaConIVA", pd.Series(dtype="float64")).sum()
+        previous_sales.get(
+            "VentaDashboard",
+            pd.Series(dtype="float64"),
+        ).sum()
     )
+
     current_units = max(
-        float(current_sales.get("CantidadFirmada", pd.Series(dtype="float64")).sum()),
-        0.0,
+        float(
+            current_sales.get(
+                "CantidadDashboard",
+                pd.Series(dtype="float64"),
+            ).sum()
+        ),
+        0,
     )
+
     previous_units = max(
-        float(previous_sales.get("CantidadFirmada", pd.Series(dtype="float64")).sum()),
-        0.0,
+        float(
+            previous_sales.get(
+                "CantidadDashboard",
+                pd.Series(dtype="float64"),
+            ).sum()
+        ),
+        0,
     )
 
-    sales_delta, sales_tone = _delta_text(current_revenue, previous_revenue)
-    units_delta, units_tone = _delta_text(current_units, previous_units)
+    revenue_delta, revenue_tone = _delta(
+        current_revenue,
+        previous_revenue,
+    )
 
-    if cons is None or cons.empty:
-        render_html(
-            "<div class='mx2-empty'>No hay inventario consolidado disponible.</div>"
-        )
-        return
+    units_delta, units_tone = _delta(
+        current_units,
+        previous_units,
+    )
 
-    counts = _status_counts(cons)
-    stock_series = _num(cons, "Disponible").clip(lower=0)
-    stock_units = int(round(stock_series.sum()))
-    sku_total = int(cons["Código"].nunique()) if "Código" in cons.columns else len(cons)
-    sku_active = int((stock_series > 0).sum())
+    margin, margin_pct = _margin_data(current_sales)
 
-    rotation = current_units / stock_units if stock_units > 0 else 0.0
-    prev_rotation = previous_units / stock_units if stock_units > 0 else 0.0
-    rotation_delta, rotation_tone = _delta_text(rotation, prev_rotation)
+    stock = _stock_metrics(cons)
 
-    margin_value, margin_helper = _gross_margin(current_sales)
-    if margin_value is None:
-        margin_display = "—"
-        margin_delta = margin_helper
-        margin_tone = "neutral"
+    total_states = max(
+        stock["healthy"]
+        + stock["low"]
+        + stock["risk"]
+        + stock["zero"],
+        1,
+    )
+
+    healthy_pct = (
+        stock["healthy"] / total_states * 100
+    )
+
+    if margin is None:
+        margin_value = "—"
+        margin_helper = "Costo no disponible en ERP"
+        margin_tone = "yellow"
     else:
-        prev_margin, _ = _gross_margin(previous_sales)
-        margin_display = _money_compact(margin_value)
-        if prev_margin is None:
-            margin_delta, margin_tone = "Sin base comparable", "neutral"
-        else:
-            margin_delta, margin_tone = _delta_text(margin_value, prev_margin)
+        margin_value = _money_compact(margin)
+        margin_helper = (
+            f"{margin_pct:.1f}% sobre venta neta"
+            if margin_pct is not None
+            else "Margen calculado"
+        )
+        margin_tone = "green" if margin >= 0 else "red"
 
-    # KPI ROW
+    # --------------------------------------------------------
+    # KPIs
+    # --------------------------------------------------------
+
     kpis = "".join(
         [
-            _kpi_v2("VENTA NETA", _money_compact(current_revenue), "↗", sales_delta, sales_tone),
-            _kpi_v2("UNIDADES VENDIDAS", _fmt_int(current_units), "▣", units_delta, units_tone),
-            _kpi_v2("MARGEN BRUTO", margin_display, "$", margin_delta, margin_tone),
-            _kpi_v2("SKUs ACTIVOS", _fmt_int(sku_active), "◇", f"{_fmt_int(sku_total)} SKU totales", "neutral"),
-            _kpi_v2("ROTACIÓN PROMEDIO", f"{rotation:.2f}", "↻", rotation_delta, rotation_tone),
+            _kpi_html(
+                "Ventas Netas",
+                _money_compact(current_revenue),
+                revenue_delta,
+                "↗",
+                "green" if revenue_tone == "positive" else (
+                    "red" if revenue_tone == "negative" else "yellow"
+                ),
+            ),
+            _kpi_html(
+                "Margen Bruto",
+                margin_value,
+                margin_helper,
+                "◫",
+                margin_tone,
+            ),
+            _kpi_html(
+                "Unidades Vendidas",
+                _fmt_int(current_units),
+                units_delta,
+                "▣",
+                "green" if units_tone == "positive" else (
+                    "red" if units_tone == "negative" else "yellow"
+                ),
+            ),
+            _kpi_html(
+                "Stock Total (UND)",
+                _fmt_int(stock["units"]),
+                f"{healthy_pct:.0f}% del inventario saludable",
+                "⬡",
+                "yellow",
+            ),
+            _kpi_html(
+                "SKU Activos",
+                _fmt_int(stock["sku"]),
+                f"{_fmt_int(stock['low'] + stock['zero'])} requieren atención",
+                "⌘",
+                "yellow",
+            ),
         ]
     )
-    render_html(f"<div class='mx2-kpi-grid'>{kpis}</div>")
 
-    # MAIN ROW
-    left, right = st.columns([1.58, 1.0], gap="medium")
+    render_html(
+        f"""
+        <div class="homepro-kpis">
+            {kpis}
+        </div>
+        """
+    )
+
+    # --------------------------------------------------------
+    # FILA PRINCIPAL
+    # --------------------------------------------------------
+
+    left, middle, right = st.columns(
+        [1.55, 1.08, 1.12],
+        gap="medium",
+    )
 
     with left:
         with st.container(border=True):
             render_html(
                 """
-                <div class="mx2-card-head">
-                    <div class="mx2-card-title">▣ &nbsp; Resumen de inventario</div>
-                    <div class="mx2-link">Ver detalle →</div>
+                <div class="homepro-card-title">Ventas Netas</div>
+                <div class="homepro-card-sub">
+                    Evolución diaria del período seleccionado
                 </div>
                 """
             )
 
-            inv_left, inv_right = st.columns([1.62, .98], gap="small")
-
-            with inv_left:
-                # Inventory side + warehouse bars (without donut placeholder)
-                if warehouse.empty:
-                    wh_html = "<div class='mx2-empty'>Sin detalle por bodega.</div>"
-                else:
-                    max_stock = max(float(warehouse["Stock"].max()), 1.0)
-                    rows = []
-                    wh_view = warehouse.copy()
-                    if selected_wh != "Todas las bodegas":
-                        wh_view = wh_view[wh_view["Bodega"].astype(str).eq(selected_wh)]
-                    for row in wh_view.head(5).itertuples(index=False):
-                        val = max(float(row.Stock), 0.0)
-                        width = min(val / max_stock * 100, 100)
-                        rows.append(
-                            f"""
-                            <div class="mx2-wh-row">
-                                <span>{escape(str(row.Bodega)[:22])}</span>
-                                <div class="mx2-bar"><i style="width:{width:.1f}%"></i></div>
-                                <strong>{_fmt_int(val)}</strong>
-                            </div>
-                            """
-                        )
-                    wh_html = "".join(rows)
-
-                render_html(
-                    f"""
-                    <div style="display:grid;grid-template-columns:.7fr 1.3fr;border:1px solid #edf0f3;border-radius:11px;overflow:hidden;min-height:255px;">
-                        <div class="mx2-inv-side">
-                            <div class="mx2-inv-metric">
-                                <div class="mx2-inv-label">Stock total</div>
-                                <div class="mx2-inv-number">{_fmt_int(stock_units)}</div>
-                                <div class="mx2-inv-helper">unidades</div>
-                            </div>
-                            <div class="mx2-inv-metric">
-                                <div class="mx2-inv-label">SKUs activos</div>
-                                <div class="mx2-inv-number">{_fmt_int(sku_active)}</div>
-                                <div class="mx2-inv-helper">con stock</div>
-                            </div>
-                        </div>
-                        <div class="mx2-warehouse" style="border-right:0;">
-                            <div class="mx2-small-title">Stock por bodega</div>
-                            {wh_html}
-                        </div>
-                    </div>
-                    """
-                )
-
-            with inv_right:
-                render_html("<div class='mx2-small-title'>Estado del inventario (SKUs)</div>")
-                status_df = pd.DataFrame(
-                    {
-                        "Estado": ["Saludable", "Bajo", "Riesgo", "Crítico"],
-                        "SKU": [
-                            counts["healthy"],
-                            counts["low"],
-                            counts["risk"],
-                            counts["zero"],
-                        ],
-                    }
-                )
-                status_df = status_df[status_df["SKU"] > 0].copy()
-
-                if status_df.empty:
-                    render_html("<div class='mx2-empty'>Sin estados disponibles.</div>")
-                else:
-                    donut = (
-                        alt.Chart(status_df)
-                        .mark_arc(innerRadius=57, outerRadius=84, cornerRadius=2)
-                        .encode(
-                            theta=alt.Theta("SKU:Q"),
-                            color=alt.Color(
-                                "Estado:N",
-                                scale=alt.Scale(
-                                    domain=["Saludable", "Bajo", "Riesgo", "Crítico"],
-                                    range=["#79bd45", "#f4b900", "#f28c28", "#e83c3c"],
-                                ),
-                                legend=None,
-                            ),
-                            tooltip=[
-                                alt.Tooltip("Estado:N", title="Estado"),
-                                alt.Tooltip("SKU:Q", title="SKU", format=",.0f"),
-                            ],
-                        )
-                        .properties(height=132)
-                    )
-                    st.altair_chart(donut, use_container_width=True)
-
-                    total_status = max(int(status_df["SKU"].sum()), 1)
-                    legend = ""
-                    colors = {
-                        "Saludable": "#79bd45",
-                        "Bajo": "#f4b900",
-                        "Riesgo": "#f28c28",
-                        "Crítico": "#e83c3c",
-                    }
-                    for row in status_df.itertuples(index=False):
-                        pct = row.SKU / total_status * 100
-                        legend += (
-                            f"<div class='mx2-status-item'>"
-                            f"<i style='background:{colors[row.Estado]}'></i>"
-                            f"<span>{escape(row.Estado)}</span>"
-                            f"<strong>{pct:.0f}%</strong>"
-                            f"</div>"
-                        )
-                    render_html(f"<div class='mx2-status-legend'>{legend}</div>")
-
-    with right:
-        with st.container(border=True):
-            render_html(
-                """
-                <div class="mx2-card-head">
-                    <div class="mx2-card-title">
-                        Ventas netas
-                        <span class="mx2-card-sub">Evolución del período seleccionado</span>
-                    </div>
-                    <div class="mx2-link">Ver detalle →</div>
-                </div>
-                """
-            )
-
-            daily = _daily_sales(current_sales)
-            if daily.empty:
-                render_html("<div class='mx2-empty'>No hay ventas para el período.</div>")
+            if current_sales.empty:
+                st.info("No hay ventas disponibles para el período seleccionado.")
             else:
-                chart = (
+                daily = (
+                    current_sales.assign(
+                        Día=current_sales["FechaDashboard"].dt.floor("D")
+                    )
+                    .groupby("Día", as_index=False)["VentaDashboard"]
+                    .sum()
+                    .rename(columns={"VentaDashboard": "Venta"})
+                    .sort_values("Día")
+                )
+
+                line = (
                     alt.Chart(daily)
                     .mark_area(
-                        line={"color": "#f2b300", "strokeWidth": 2.2},
-                        color={
-                            "x1": 1,
-                            "y1": 1,
-                            "x2": 1,
-                            "y2": 0,
-                            "gradient": "linear",
-                            "stops": [
-                                {"offset": 0, "color": "#ffffff"},
-                                {"offset": 1, "color": "#fff4c9"},
-                            ],
+                        line={
+                            "color": "#f3b400",
+                            "strokeWidth": 2.3,
                         },
-                        opacity=0.62,
+                        color="#ffd94f",
+                        opacity=0.19,
                     )
                     .encode(
                         x=alt.X(
@@ -1582,20 +1483,19 @@ def render(ctx):
                             title=None,
                             axis=alt.Axis(
                                 format="%d %b",
-                                labelColor="#7b8490",
+                                labelColor="#7c8792",
                                 domain=False,
-                                tickColor="#edf0f3",
-                                labelAngle=0,
+                                tickColor="#e8ecef",
                             ),
                         ),
                         y=alt.Y(
                             "Venta:Q",
                             title=None,
                             axis=alt.Axis(
-                                labelColor="#7b8490",
-                                domain=False,
-                                gridColor="#edf0f3",
                                 format="~s",
+                                labelColor="#7c8792",
+                                domain=False,
+                                gridColor="#edf0f2",
                             ),
                         ),
                         tooltip=[
@@ -1603,158 +1503,521 @@ def render(ctx):
                             alt.Tooltip("Venta:Q", title="Venta", format=",.0f"),
                         ],
                     )
-                    .properties(height=190)
+                    .properties(height=270)
                 )
-                st.altair_chart(chart, use_container_width=True)
 
-            avg_daily = current_revenue / days
-            best_value, best_label = _best_day(daily)
-            days_with_sales = int((daily["Venta"] != 0).sum()) if not daily.empty else 0
-            docs = _safe_doc_count(current_sales)
-            ticket = current_revenue / docs if docs > 0 else 0.0
+                st.altair_chart(
+                    line,
+                    width="stretch",
+                )
+
+    with middle:
+        with st.container(border=True):
+            render_html(
+                """
+                <div class="homepro-card-title">Ventas por Canal</div>
+                <div class="homepro-card-sub">
+                    Participación sobre la venta neta
+                </div>
+                """
+            )
+
+            channel_col = _channel_column(sales_df)
+
+            if (
+                current_sales.empty
+                or not channel_col
+                or channel_col not in current_sales.columns
+            ):
+                st.info("No se encontró una columna de canal o marketplace.")
+            else:
+                channel = current_sales.copy()
+
+                channel["CanalDashboard"] = (
+                    channel[channel_col]
+                    .fillna("Sin canal")
+                    .astype(str)
+                    .str.strip()
+                    .replace("", "Sin canal")
+                )
+
+                channel = (
+                    channel.groupby(
+                        "CanalDashboard",
+                        as_index=False,
+                    )["VentaDashboard"]
+                    .sum()
+                    .rename(
+                        columns={
+                            "CanalDashboard": "Canal",
+                            "VentaDashboard": "Venta",
+                        }
+                    )
+                    .sort_values("Venta", ascending=False)
+                    .head(7)
+                )
+
+                donut = (
+                    alt.Chart(channel)
+                    .mark_arc(
+                        innerRadius=68,
+                        outerRadius=100,
+                        cornerRadius=4,
+                    )
+                    .encode(
+                        theta=alt.Theta("Venta:Q"),
+                        color=alt.Color(
+                            "Canal:N",
+                            scale=alt.Scale(
+                                range=[
+                                    "#ffc400",
+                                    "#1d232a",
+                                    "#7fbf4d",
+                                    "#ef624f",
+                                    "#9aa3ac",
+                                    "#4d82bc",
+                                    "#d7a847",
+                                ]
+                            ),
+                            legend=alt.Legend(
+                                orient="bottom",
+                                columns=2,
+                                labelColor="#6d7781",
+                                title=None,
+                            ),
+                        ),
+                        tooltip=[
+                            alt.Tooltip("Canal:N", title="Canal"),
+                            alt.Tooltip("Venta:Q", title="Venta", format=",.0f"),
+                        ],
+                    )
+                    .properties(height=270)
+                )
+
+                st.altair_chart(
+                    donut,
+                    width="stretch",
+                )
+
+    with right:
+        with st.container(border=True):
+            render_html(
+                """
+                <div class="homepro-card-title">Alertas y Oportunidades</div>
+                <div class="homepro-card-sub">
+                    Prioridades operacionales actuales
+                </div>
+                """
+            )
+
+            alerts_html = f"""
+            <div class="homepro-alerts">
+                <div class="homepro-alert">
+                    <div class="homepro-alert-icon red">!</div>
+                    <div>
+                        <strong>{_fmt_int(stock['zero'])} productos sin stock</strong>
+                        <small>Revisar disponibilidad y demanda.</small>
+                    </div>
+                    <div class="homepro-alert-value">Crítico</div>
+                </div>
+
+                <div class="homepro-alert">
+                    <div class="homepro-alert-icon yellow">△</div>
+                    <div>
+                        <strong>{_fmt_int(stock['low'])} productos con stock bajo</strong>
+                        <small>Productos con necesidad de reposición.</small>
+                    </div>
+                    <div class="homepro-alert-value">Atención</div>
+                </div>
+
+                <div class="homepro-alert">
+                    <div class="homepro-alert-icon blue">↻</div>
+                    <div>
+                        <strong>{_fmt_int(stock['risk'])} productos en riesgo</strong>
+                        <small>Revisar cobertura y disponibilidad.</small>
+                    </div>
+                    <div class="homepro-alert-value">Revisar</div>
+                </div>
+
+                <div class="homepro-alert">
+                    <div class="homepro-alert-icon green">✓</div>
+                    <div>
+                        <strong>{healthy_pct:.0f}% del inventario saludable</strong>
+                        <small>{_fmt_int(stock['healthy'])} SKU disponibles.</small>
+                    </div>
+                    <div class="homepro-alert-value">OK</div>
+                </div>
+            </div>
+            """
+
+            render_html(alerts_html)
+
+    # --------------------------------------------------------
+    # SEGUNDA FILA
+    # --------------------------------------------------------
+
+    left2, middle2, right2 = st.columns(
+        [1.55, 1.08, 1.12],
+        gap="medium",
+    )
+
+    with left2:
+        with st.container(border=True):
+            render_html(
+                """
+                <div class="homepro-card-title">Top 5 Productos por Ventas</div>
+                <div class="homepro-card-sub">
+                    Productos con mayor venta neta del período
+                </div>
+                """
+            )
+
+            top = _top_products(
+                raw,
+                current_sales,
+                limit=5,
+            )
+
+            if top.empty:
+                st.info("No hay ventas por SKU disponibles.")
+            else:
+                rows = ""
+
+                for i, row in top.iterrows():
+                    rows += f"""
+                    <div class="homepro-product-row">
+                        <div class="homepro-rank">{i + 1}</div>
+                        <div class="homepro-product-main">
+                            <strong>{escape(str(row['Producto'])[:42])}</strong>
+                            <span>SKU {escape(str(row['SKUDashboard']))}</span>
+                        </div>
+                        <div class="homepro-num">{_fmt_int(row['Unidades'])}</div>
+                        <div class="homepro-money">{_money_compact(row['Venta'])}</div>
+                    </div>
+                    """
+
+                render_html(
+                    f"""
+                    <div class="homepro-product-list">
+                        {rows}
+                    </div>
+                    """
+                )
+
+    with middle2:
+        with st.container(border=True):
+            render_html(
+                """
+                <div class="homepro-card-title">Estado del Inventario</div>
+                <div class="homepro-card-sub">
+                    Salud y disponibilidad actual de los SKU
+                </div>
+                """
+            )
+
+            healthy_units = stock["healthy"]
+            low_units = stock["low"]
+            risk_units = stock["risk"]
+            zero_units = stock["zero"]
 
             render_html(
                 f"""
-                <div class="mx2-sales-foot">
-                    <div class="mx2-sales-mini">
-                        <span>Promedio diario</span>
-                        <strong>{_money(avg_daily)}</strong>
+                <div class="homepro-inventory-hero">
+                    <div
+                        class="homepro-health-ring"
+                        style="--p:{healthy_pct:.1f}%"
+                    >
+                        <div>
+                            <strong>{healthy_pct:.0f}%</strong>
+                            <span>Saludable</span>
+                        </div>
                     </div>
-                    <div class="mx2-sales-mini">
-                        <span>Mejor día</span>
-                        <strong>{_money(best_value)}</strong>
-                        <span style="margin:3px 0 0">{escape(best_label)}</span>
+
+                    <div class="homepro-health-copy">
+                        <strong>
+                            {_fmt_int(healthy_units)} SKU con disponibilidad normal
+                        </strong>
+                        <p>
+                            El indicador resume la condición actual del inventario.
+                            Los productos con stock bajo, riesgo o quiebre quedan
+                            destacados para revisión.
+                        </p>
                     </div>
-                    <div class="mx2-sales-mini">
-                        <span>Días con ventas</span>
-                        <strong>{days_with_sales} / {days}</strong>
+                </div>
+
+                <div class="homepro-status-list">
+                    <div class="homepro-status-row">
+                        <i class="green"></i>
+                        <span>Saludable</span>
+                        <strong>{_fmt_int(healthy_units)} SKU</strong>
                     </div>
-                    <div class="mx2-sales-mini">
-                        <span>Ticket promedio</span>
-                        <strong>{_money(ticket)}</strong>
+
+                    <div class="homepro-status-row">
+                        <i class="yellow"></i>
+                        <span>Stock bajo</span>
+                        <strong>{_fmt_int(low_units)} SKU</strong>
+                    </div>
+
+                    <div class="homepro-status-row">
+                        <i class="orange"></i>
+                        <span>Riesgo operacional</span>
+                        <strong>{_fmt_int(risk_units)} SKU</strong>
+                    </div>
+
+                    <div class="homepro-status-row">
+                        <i class="red"></i>
+                        <span>Sin stock</span>
+                        <strong>{_fmt_int(zero_units)} SKU</strong>
                     </div>
                 </div>
                 """
             )
 
-    # 30-DAY OPERATIONAL DATA
-    sales_30 = _prepare_sales(sales_df, end - timedelta(days=29), end)
-    operational = _operational_table(cons, sales_30)
-    critical_count = (
-        int(
-            operational["Prioridad"]
-            .astype(str)
-            .str.contains("Crítico", regex=False)
-            .sum()
-        )
-        if not operational.empty
-        else 0
-    )
+    with right2:
+        with st.container(border=True):
+            render_html(
+                """
+                <div class="homepro-card-title">Distribución por Bodega</div>
+                <div class="homepro-card-sub">
+                    Unidades disponibles por ubicación
+                </div>
+                """
+            )
 
-    no_sales_count = (
-        int(
-            operational["Prioridad"]
-            .astype(str)
-            .str.contains("Sin venta", regex=False)
-            .sum()
-        )
-        if not operational.empty
-        else 0
-    )
+            warehouses = _warehouse_summary(raw)
 
-    # BOTTOM ROW — una sola grilla HTML para que las 3 tarjetas
-    # queden perfectamente alineadas y con la misma altura.
-    top = _top_products(raw, current_sales, limit=5)
-    top_html = _top_products_html(top, current_revenue)
-    repo_html = _repo_html(operational)
+            if warehouses.empty:
+                st.info("No hay distribución por bodega disponible.")
+            else:
+                warehouses = warehouses.head(8).copy()
+                total_wh = float(warehouses["Stock"].clip(lower=0).sum())
+                max_wh = max(float(warehouses["Stock"].max()), 1.0)
 
-    alerts_html = f"""
-    <div class="mx2-alert-list">
-        <div class="mx2-alert-row">
-            <div class="mx2-alert-ico red">×</div>
-            <div class="mx2-alert-n">{_fmt_int(counts["zero"])}</div>
-            <div class="mx2-alert-text">
-                <strong>SKUs sin stock</strong>
-                <span>Requieren reposición urgente</span>
-            </div>
-            <div class="mx2-arrow">→</div>
-        </div>
-        <div class="mx2-alert-row">
-            <div class="mx2-alert-ico yellow">!</div>
-            <div class="mx2-alert-n">{_fmt_int(counts["low"])}</div>
-            <div class="mx2-alert-text">
-                <strong>SKUs con stock bajo</strong>
-                <span>Disponibilidad ≤ 5 unidades</span>
-            </div>
-            <div class="mx2-arrow">→</div>
-        </div>
-        <div class="mx2-alert-row">
-            <div class="mx2-alert-ico yellow">↻</div>
-            <div class="mx2-alert-n">{_fmt_int(critical_count)}</div>
-            <div class="mx2-alert-text">
-                <strong>SKUs con cobertura crítica</strong>
-                <span>Demanda de últimos 30 días</span>
-            </div>
-            <div class="mx2-arrow">→</div>
-        </div>
-        <div class="mx2-alert-row">
-            <div class="mx2-alert-ico blue">▣</div>
-            <div class="mx2-alert-n">{_fmt_int(no_sales_count)}</div>
-            <div class="mx2-alert-text">
-                <strong>Sin venta reciente</strong>
-                <span>Revisar rotación del inventario</span>
-            </div>
-            <div class="mx2-arrow">→</div>
-        </div>
-    </div>
-    """
+                wh_rows = ""
+
+                for _, row in warehouses.iterrows():
+                    units = max(float(row["Stock"]), 0.0)
+                    width = min((units / max_wh) * 100, 100)
+                    share = (units / total_wh * 100) if total_wh > 0 else 0
+
+                    wh_rows += f"""
+                    <div class="homepro-wh-row">
+                        <div class="homepro-wh-name">
+                            {escape(str(row['Bodega']))}
+                        </div>
+
+                        <div class="homepro-wh-track">
+                            <div
+                                class="homepro-wh-bar"
+                                style="width:{width:.1f}%"
+                            ></div>
+                        </div>
+
+                        <div class="homepro-wh-value">
+                            {_fmt_int(units)}
+                        </div>
+                    </div>
+                    """
+
+                top_wh = str(warehouses.iloc[0]["Bodega"])
+                top_share = (
+                    float(warehouses.iloc[0]["Stock"]) / total_wh * 100
+                    if total_wh > 0
+                    else 0
+                )
+
+                render_html(
+                    f"""
+                    <div class="homepro-wh-list">
+                        {wh_rows}
+                    </div>
+
+                    <div class="homepro-wh-total">
+                        <span>
+                            Mayor concentración:
+                            <strong>{escape(top_wh)}</strong>
+                            · {top_share:.0f}%
+                        </span>
+                        <strong>{_fmt_int(total_wh)} UND</strong>
+                    </div>
+                    """
+                )
+
+    # --------------------------------------------------------
+    # ALERTA + TABLA + ACCESOS
+    # --------------------------------------------------------
+
+    attention_count = stock["low"] + stock["zero"] + stock["risk"]
 
     render_html(
         f"""
-        <div class="mx2-bottom-grid">
-            <div class="mx2-bottom-card">
-                <div class="mx2-card-head">
-                    <div class="mx2-card-title">Top 5 productos por ventas</div>
-                </div>
-                {top_html}
-            </div>
-
-            <div class="mx2-bottom-card">
-                <div class="mx2-card-head">
-                    <div class="mx2-card-title">Alertas de inventario</div>
-                    <div class="mx2-link">Ver todas →</div>
-                </div>
-                {alerts_html}
-            </div>
-
-            <div class="mx2-bottom-card">
-                <div class="mx2-card-head">
-                    <div class="mx2-card-title">Reposiciones pendientes</div>
-                    <div class="mx2-link">Ver todas →</div>
-                </div>
-                {repo_html}
+        <div class="homepro-attention">
+            <div>
+                <strong>⚠ {_fmt_int(attention_count)} productos requieren atención</strong>
+                <span>
+                    Revisa el detalle de productos con stock bajo,
+                    sin stock o riesgo operacional.
+                </span>
             </div>
         </div>
         """
     )
 
-    stock_source = (
-        stock_meta.get("loaded_at")
-        or stock_meta.get("generated_at")
-        or stock_meta.get("filename")
-        or "Fuente activa"
+    table_col, quick_col = st.columns(
+        [2.55, 1.0],
+        gap="medium",
     )
-    sales_source = (
-        sales_meta.get("loaded_at")
-        or sales_meta.get("filename")
-        or "Fuente activa"
-    )
+
+    with table_col:
+        with st.container(border=True):
+            render_html(
+                """
+                <div class="homepro-card-title">Productos que requieren atención</div>
+                <div class="homepro-card-sub">
+                    Prioridad según disponibilidad actual
+                </div>
+                """
+            )
+
+            critical = _critical_products(
+                cons,
+                limit=7,
+            )
+
+            if critical.empty:
+                st.success("No hay productos críticos para mostrar.")
+            else:
+                rows = ""
+
+                for _, row in critical.iterrows():
+                    state = str(row["Estado"])
+                    state_low = state.lower()
+
+                    if (
+                        "sin stock" in state_low
+                        or "negativo" in state_low
+                        or "agotado" in state_low
+                    ):
+                        badge_class = "red"
+                        badge_text = "SIN STOCK"
+                    elif "riesgo" in state_low:
+                        badge_class = "orange"
+                        badge_text = "RIESGO"
+                    else:
+                        badge_class = "yellow"
+                        badge_text = "BAJO"
+
+                    rows += f"""
+                    <tr>
+                        <td>{escape(str(row['SKU']))}</td>
+                        <td>{escape(str(row['Producto'])[:55])}</td>
+                        <td style="text-align:right">{_fmt_int(row['Stock Actual'])}</td>
+                        <td>
+                            <span class="homepro-badge {badge_class}">
+                                {badge_text}
+                            </span>
+                        </td>
+                    </tr>
+                    """
+
+                render_html(
+                    f"""
+                    <table class="homepro-table">
+                        <thead>
+                            <tr>
+                                <th>SKU</th>
+                                <th>Producto</th>
+                                <th style="text-align:right">Stock actual</th>
+                                <th>Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {rows}
+                        </tbody>
+                    </table>
+                    """
+                )
+
+    with quick_col:
+        with st.container(border=True):
+            render_html(
+                """
+                <div class="homepro-quick-title">Accesos Rápidos</div>
+                """
+            )
+
+            q1, q2 = st.columns(2, gap="small")
+
+            with q1:
+                _nav_button(
+                    "📦 Stock General",
+                    "Stock General",
+                    "homepro_stock",
+                )
+
+            with q2:
+                _nav_button(
+                    "🛒 Marketplace",
+                    "Marketplace",
+                    "homepro_market",
+                )
+
+            q3, q4 = st.columns(2, gap="small")
+
+            with q3:
+                _nav_button(
+                    "📊 Resumen",
+                    "Resumen Ejecutivo",
+                    "homepro_resumen",
+                )
+
+            with q4:
+                _nav_button(
+                    "📄 Plantillas",
+                    "Plantillas",
+                    "homepro_templates",
+                )
+
+            render_html(
+                f"""
+                <div style="
+                    margin-top:10px;
+                    padding:12px;
+                    border-radius:9px;
+                    background:#f8fafb;
+                    border:1px solid #edf0f2;
+                ">
+                    <div style="
+                        font-size:9px;
+                        color:#919aa3;
+                        text-transform:uppercase;
+                        letter-spacing:.4px;
+                    ">
+                        Resumen de inventario
+                    </div>
+                    <div style="
+                        font-size:19px;
+                        font-weight:800;
+                        color:#151b21;
+                        margin-top:4px;
+                    ">
+                        {_fmt_int(stock['units'])} UND
+                    </div>
+                    <div style="
+                        font-size:9.5px;
+                        color:#7e8791;
+                        margin-top:4px;
+                    ">
+                        {_fmt_int(stock['sku'])} SKU activos
+                    </div>
+                </div>
+                """
+            )
+
     render_html(
-        f"""
-        <div class="mx2-foot">
-            Stock: {escape(str(stock_source))} &nbsp; · &nbsp;
-            Ventas: {escape(str(sales_source))}
-            <br>© 2026 Maritex. Todos los derechos reservados.
+        """
+        <div class="homepro-foot">
+            MARITEX · Control de Inventario
         </div>
         """
     )

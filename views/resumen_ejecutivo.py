@@ -1,6 +1,9 @@
+import html
+from datetime import date
+
+import altair as alt
 import pandas as pd
 import streamlit as st
-import altair as alt
 
 from analytics.sales_metrics import calculate_commercial_totals, filter_sales
 from ui.components import render_html
@@ -11,10 +14,44 @@ from utils.numbers import format_clp
 VAT_RATE = 0.19
 VALID_GROUPS = ["Factura", "Boleta", "Nota de crédito"]
 
+# Catálogo comercial aprobado para esta vista.
+# 52 y 53 quedan fuera expresamente.
+SELLER_CATALOG = {
+    "03": ("GC1-DANIEL ALVARADO", "Vendedores"),
+    "04": ("ROXANA VALENCIA", "Vendedores"),
+    "05": ("GRACIELA SANTANDER", "Vendedores"),
+    "06": ("CLAUDIA LOPEZ", "Vendedores"),
+    "07": ("LORENA OPAZO", "Vendedores"),
+    "08": ("MARIO BRITO", "Vendedores"),
+    "09": ("XIMENA CROVETTO", "Vendedores"),
+    "11": ("CAROLINA CROCKETT", "Vendedores"),
+    "12": ("JOSE GONZALEZ", "Vendedores"),
+    "16": ("MATIAS CHOMALI", "Vendedores"),
+    "30": ("VENDEDOR ECOMMERS B2C", "Ecommerce / Marketplace"),
+    "31": ("VENDEDOR ECOMMERS NOLK", "Ecommerce / Marketplace"),
+    "32": ("VENDEDOR ECOMMERS", "Ecommerce / Marketplace"),
+    "34": ("MKP MERCADO LIBRE", "Ecommerce / Marketplace"),
+    "35": ("MKP - PARIS", "Ecommerce / Marketplace"),
+    "43": ("SEBASTIAN ROCCO", "Vendedores"),
+    "44": ("MACARENA DE LA ORDEN", "Vendedores"),
+    "45": ("MARIELY ROSALES", "Vendedores"),
+    "46": ("MELANY VARGAS", "Vendedores"),
+    "47": ("MARIA BERNARD", "Vendedores"),
+    "48": ("ELURO QUIÑONEZ", "Vendedores"),
+    "49": ("FRANCISCO PEREZ", "Vendedores"),
+    "50": ("GINO MATIUS", "Vendedores"),
+    "51": ("NELSON SAN MARTIN", "Vendedores"),
+    "54": ("JOHANA OBREQUE", "Vendedores"),
+    "60": ("JOSE LUIS ROLLANO", "Vendedores"),
+    "70": ("ANDRES ESPINOZA", "Vendedores"),
+}
+
 
 def _norm_text(value):
     return (
-        str(value).strip().lower()
+        str(value or "")
+        .strip()
+        .lower()
         .replace("á", "a")
         .replace("é", "e")
         .replace("í", "i")
@@ -25,761 +62,1385 @@ def _norm_text(value):
     )
 
 
-def _find_column(columns, candidates):
-    """
-    Busca columnas por coincidencia exacta normalizada.
-    Evita coincidencias parciales que pueden confundir, por ejemplo,
-    Código cliente con Razón social.
-    """
-    normalized = {_norm_text(c): c for c in columns}
+def _seller_key(value):
+    raw = str(value or "").strip()
+    norm = _norm_text(raw)
 
-    for candidate in candidates:
-        key = _norm_text(candidate)
-        if key in normalized:
-            return normalized[key]
+    # Primero intenta leer código al inicio o valor numérico.
+    raw_code = raw.split(".")[0] if raw.replace(".", "", 1).isdigit() else raw
+    raw_code = raw_code.zfill(2) if raw_code.isdigit() and len(raw_code) <= 2 else raw_code
+
+    if raw_code in SELLER_CATALOG:
+        return raw_code
+
+    for code, (name, _) in SELLER_CATALOG.items():
+        if raw == code or raw.startswith(code + " ") or raw.startswith(code + "-"):
+            return code
+        nname = _norm_text(name)
+        if norm == nname or (nname and nname in norm):
+            return code
 
     return None
 
 
-def _period_days(a, b):
-    return max((pd.Timestamp(b) - pd.Timestamp(a)).days + 1, 0)
+def _prepare_sellers(df):
+    out = df.copy()
+    if "Vendedor" not in out.columns:
+        out["_VendedorCodigo"] = None
+        out["_VendedorNombre"] = "Sin vendedor"
+        out["_VendedorGrupo"] = "Otros"
+        return out
+
+    out["_VendedorCodigo"] = out["Vendedor"].map(_seller_key)
+    out["_VendedorNombre"] = out["_VendedorCodigo"].map(
+        lambda c: SELLER_CATALOG[c][0] if c in SELLER_CATALOG else None
+    )
+    out["_VendedorGrupo"] = out["_VendedorCodigo"].map(
+        lambda c: SELLER_CATALOG[c][1] if c in SELLER_CATALOG else None
+    )
+    return out
 
 
-def _business_days(a, b):
-    return len(pd.bdate_range(a, b)) if b >= a else 0
+def _find_column(columns, candidates):
+    normalized = {_norm_text(c): c for c in columns}
+    for candidate in candidates:
+        key = _norm_text(candidate)
+        if key in normalized:
+            return normalized[key]
+    return None
 
 
-def _signed_sales_amount(df, no_vat):
-    amount = pd.to_numeric(
-        df["VentaMonto_num"],
-        errors="coerce",
-    ).fillna(0).abs()
+def _signed_amount(df, no_vat=False):
+    if df.empty:
+        return pd.Series(dtype="float64")
 
+    amount = pd.to_numeric(df["VentaMonto_num"], errors="coerce").fillna(0).abs()
     if no_vat:
         amount = amount / (1 + VAT_RATE)
 
     sign = df["Grupo comercial"].map(
-        {
-            "Factura": 1,
-            "Boleta": 1,
-            "Nota de crédito": -1,
-        }
+        {"Factura": 1, "Boleta": 1, "Nota de crédito": -1}
     ).fillna(0)
-
     return amount * sign
 
 
-def _group_amount(df, group, no_vat):
-    part = df[df["Grupo comercial"].eq(group)].copy()
+def _group_amount(df, group, no_vat=False):
+    part = df[df["Grupo comercial"].eq(group)]
     if part.empty:
         return 0.0
-
-    amount = pd.to_numeric(
-        part["VentaMonto_num"],
-        errors="coerce",
-    ).fillna(0).abs()
-
+    amount = pd.to_numeric(part["VentaMonto_num"], errors="coerce").fillna(0).abs()
     if no_vat:
         amount = amount / (1 + VAT_RATE)
-
     return float(amount.sum())
 
 
-def _format_pct(value):
-    return f"{value:.1f}%".replace(".", ",")
+def _pct_change(current, previous):
+    current = float(current or 0)
+    previous = float(previous or 0)
+    if previous == 0:
+        return 100.0 if current > 0 else 0.0
+    return ((current - previous) / abs(previous)) * 100
 
 
-def _prepare_doc_table(df, no_vat, client_col=None, legal_col=None):
+def _fmt_pct(value, signed=True):
+    if pd.isna(value):
+        value = 0
+    text = f"{value:+.1f}%" if signed else f"{value:.1f}%"
+    return text.replace(".", ",")
+
+
+def _safe_period(value, fallback_start, fallback_end):
+    if isinstance(value, (tuple, list)):
+        if len(value) >= 2:
+            return value[0], value[1]
+        if len(value) == 1:
+            return value[0], value[0]
+        return fallback_start, fallback_end
+    if isinstance(value, (date, pd.Timestamp)):
+        return value, value
+    return fallback_start, fallback_end
+
+
+def _previous_period(start_date, end_date):
+    start_ts = pd.Timestamp(start_date).normalize()
+    end_ts = pd.Timestamp(end_date).normalize()
+    days = max((end_ts - start_ts).days + 1, 1)
+    prev_end = start_ts - pd.Timedelta(days=1)
+    prev_start = prev_end - pd.Timedelta(days=days - 1)
+    return prev_start.date(), prev_end.date()
+
+
+def _date_filter(df, start_date, end_date):
     if df.empty:
-        return pd.DataFrame()
-
-    cols = []
-    for c in ["Fecha_dt", "TipoDocto", "Numero", legal_col, client_col, "Vendedor", "Bodega", "VentaMonto_num"]:
-        if c and c in df.columns and c not in cols:
-            cols.append(c)
-
-    out = df[cols].copy()
-
-    rename = {}
-    if "Fecha_dt" in out.columns:
-        out["Fecha"] = out["Fecha_dt"].dt.strftime("%d/%m/%Y")
-        out = out.drop(columns=["Fecha_dt"])
-    if "TipoDocto" in out.columns:
-        rename["TipoDocto"] = "Tipo"
-    if "Numero" in out.columns:
-        rename["Numero"] = "Número"
-    if legal_col and legal_col in out.columns:
-        rename[legal_col] = "Código legal"
-    if client_col and client_col in out.columns:
-        rename[client_col] = "Razón social"
-
-    if "VentaMonto_num" in out.columns:
-        out["Total"] = pd.to_numeric(out["VentaMonto_num"], errors="coerce").fillna(0).abs()
-        if no_vat:
-            out["Total"] = out["Total"] / (1 + VAT_RATE)
-        out = out.drop(columns=["VentaMonto_num"])
-
-    out = out.rename(columns=rename)
-
-    preferred = ["Fecha", "Tipo", "Número", "Código legal", "Razón social", "Vendedor", "Bodega", "Total"]
-    existing = [c for c in preferred if c in out.columns]
-    return out[existing]
+        return df.copy()
+    dates = df["Fecha_dt"].dt.date
+    return df[(dates >= start_date) & (dates <= end_date)].copy()
 
 
-def render(ctx):
-    st.markdown("""
-    <style>
-    .block-container{
-        max-width:1500px;
-        padding-top:1.35rem;
-        padding-bottom:2.5rem;
-    }
-
-    .exec-head{
-        display:flex;
-        justify-content:space-between;
-        align-items:flex-start;
-        gap:24px;
-        margin-bottom:16px;
-    }
-    .exec-title{
-        font-size:33px;
-        line-height:1.05;
-        font-weight:850;
-        color:#0f172a;
-        letter-spacing:-.035em;
-    }
-    .exec-subtitle{
-        color:#4f6078;
-        font-size:14px;
-        margin-top:8px;
-    }
-    .exec-pill{
-        background:#fff;
-        border:1px solid #dbe4ee;
-        border-radius:12px;
-        padding:11px 14px;
-        color:#546277;
-        font-size:12px;
-        box-shadow:0 3px 12px rgba(15,23,42,.035);
-    }
-
-    .section-card{
-        background:#fff;
-        border:1px solid #dce4ed;
-        border-radius:15px;
-        padding:16px;
-        box-shadow:0 3px 15px rgba(15,23,42,.035);
-        margin-bottom:16px;
-    }
-
-    .kpi-grid{
-        display:grid;
-        grid-template-columns:repeat(5,minmax(0,1fr));
-        gap:12px;
-        margin:14px 0;
-    }
-    .kpi-card{
-        background:#fff;
-        border:1px solid #dce4ed;
-        border-radius:15px;
-        padding:18px;
-        min-height:145px;
-        box-shadow:0 3px 14px rgba(15,23,42,.04);
-    }
-    .kpi-label{
-        color:#4f6078;
-        font-size:11px;
-        font-weight:800;
-        text-transform:uppercase;
-        letter-spacing:.03em;
-    }
-    .kpi-sub{
-        color:#6d7b90;
-        font-size:10px;
-        margin-top:3px;
-    }
-    .kpi-value{
-        color:#101828;
-        font-size:25px;
-        font-weight:850;
-        letter-spacing:-.02em;
-        margin-top:16px;
-    }
-    .kpi-note{
-        color:#6f7c90;
-        font-size:11px;
-        margin-top:10px;
-    }
-    .kpi-red .kpi-value{color:#dc3545;}
-    .kpi-blue .kpi-value{color:#155eef;}
-
-    .daily-strip{
-        display:grid;
-        grid-template-columns:repeat(3,minmax(0,1fr));
-        gap:0;
-        border:1px solid #dce4ed;
-        background:#fff;
-        border-radius:15px;
-        margin:14px 0 16px;
-        overflow:hidden;
-    }
-    .daily-item{
-        padding:18px 22px;
-        min-height:108px;
-        border-right:1px solid #e4eaf0;
-    }
-    .daily-item:last-child{border-right:none;}
-    .daily-item .label{
-        font-size:11px;
-        color:#4e5f77;
-        font-weight:800;
-        text-transform:uppercase;
-    }
-    .daily-item strong{
-        display:block;
-        font-size:22px;
-        color:#101828;
-        margin-top:11px;
-    }
-    .daily-item small{
-        display:block;
-        color:#728097;
-        font-size:11px;
-        margin-top:5px;
-    }
-
-    .composition-wrap{
-        background:#fff;
-        border:1px solid #dce4ed;
-        border-radius:15px;
-        padding:16px;
-        margin:16px 0;
-        box-shadow:0 3px 15px rgba(15,23,42,.035);
-    }
-    .section-title{
-        color:#101828;
-        font-size:13px;
-        font-weight:850;
-        text-transform:uppercase;
-        letter-spacing:.02em;
-        margin-bottom:13px;
-    }
-    .comp-row{
-        display:grid;
-        grid-template-columns:1fr auto 1fr auto 1fr auto 1fr;
-        gap:12px;
-        align-items:center;
-    }
-    .comp-card{
-        background:#fbfcfe;
-        border:1px solid #dfe6ee;
-        border-radius:11px;
-        padding:17px;
-        text-align:center;
-        min-height:94px;
-    }
-    .comp-card.blue{border-color:#9bb8ff;}
-    .comp-card span{
-        display:block;
-        font-size:11px;
-        font-weight:850;
-        text-transform:uppercase;
-        color:#334155;
-    }
-    .comp-card strong{
-        display:block;
-        font-size:20px;
-        color:#111827;
-        margin-top:8px;
-    }
-    .comp-card.red strong{color:#dc3545;}
-    .comp-card.blue strong{color:#155eef;}
-    .comp-card small{
-        display:block;
-        margin-top:6px;
-        color:#718096;
-        font-size:11px;
-    }
-    .comp-op{
-        font-weight:900;
-        font-size:25px;
-        color:#23395d;
-    }
-
-    div[data-testid="stDataFrame"]{
-        border:1px solid #dce4ed;
-        border-radius:12px;
-        overflow:hidden;
-        background:#fff;
-    }
-    div[data-testid="stExpander"]{
-        border:1px solid #dce4ed;
-        border-radius:12px;
-        background:#fff;
-        box-shadow:none;
-    }
-
-    @media(max-width:1100px){
-        .kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
-        .daily-strip{grid-template-columns:1fr;}
-        .daily-item{border-right:none;border-bottom:1px solid #e4eaf0;}
-        .comp-row{grid-template-columns:1fr;}
-        .comp-op{text-align:center;}
-    }
-    </style>
-    """, unsafe_allow_html=True)
-
-    df = ctx.get("sales_df")
-
-    render_html("""
-    <div class="exec-head">
-      <div>
-        <div class="exec-title">Resumen Ejecutivo</div>
-        <div class="exec-subtitle">Análisis de ventas · Facturas + Boletas − Notas de crédito</div>
-      </div>
-      <div class="exec-pill">Datos cargados desde ERP Ventas</div>
-    </div>
-    """)
-
-    if df is None or df.empty:
-        st.info("Carga ERP Ventas desde Plantillas.")
-        return
-
-    base = df[df["Grupo comercial"].isin(VALID_GROUPS)].copy()
-    if base.empty:
-        st.warning("No hay Facturas, Boletas o Notas de crédito reconocidas en el archivo ERP.")
-        return
-
-    # Columnas de cliente del ERP.
-    # Prioridad estricta: Razón social = nombre del cliente.
-    legal_col = _find_column(
-        base.columns,
-        [
-            "CodigoLegal",
-            "Código legal",
-            "Codigo legal",
-            "Cod legal",
-            "Código Legal",
-            "RUT cliente",
-            "Rut cliente",
-            "RUT",
-            "Rut",
-        ],
-    )
-
-    client_col = _find_column(
-        base.columns,
-        [
-            "RazonSocial",
-            "Razón social",
-            "Razon social",
-            "Razón Social",
-            "Razon Social",
-            "Cliente razón social",
-            "Cliente razon social",
-            "Nombre cliente",
-            "Nombre Cliente",
-        ],
-    )
-
-    # Nunca permitir que Código legal y Razón social apunten
-    # accidentalmente a la misma columna.
-    if legal_col is not None and client_col is not None and legal_col == client_col:
-        legal_col = None
-
-    months = available_months(base, "Fecha_dt")
-    labels = [month_label_es(m) for m in months]
-    mm = dict(zip(labels, months))
-
-    sellers = sorted(base["Vendedor"].fillna("Sin vendedor").astype(str).str.strip().unique().tolist())
-    whs = sorted(base["Bodega"].fillna("Sin bodega").astype(str).str.strip().unique().tolist()) if "Bodega" in base.columns else []
-    types = sorted(base["TipoDocto"].dropna().astype(str).unique().tolist()) if "TipoDocto" in base.columns else []
-
-    with st.container(border=True):
-        c1, c2, c3, c4, c5 = st.columns([1.0, 1.3, 1.0, .9, 1.15], gap="small")
-
-        with c1:
-            lab = st.selectbox("Mes", labels, index=0, key="exec_month_v700")
-            month = mm[lab]
-            mstart, mend = month_bounds(month)
-
-        mr = base[(base["Fecha_dt"].dt.date >= mstart) & (base["Fecha_dt"].dt.date <= mend)]
-        realmax = mr["Fecha_dt"].max().date() if not mr.empty else mstart
-        dend = min(mend, realmax)
-
-        with c2:
-            days = st.date_input(
-                "Rango de fechas",
-                value=(mstart, dend),
-                min_value=mstart,
-                max_value=mend,
-                key=f"exec_days_v700_{month}",
-            )
-
-        with c3:
-            fs = st.multiselect("Vendedor", sellers, placeholder="Todos", key="exec_seller_v700")
-
-        with c4:
-            fw = st.multiselect("Bodega", whs, placeholder="Todas", key="exec_wh_v700")
-
-        with c5:
-            ft = st.multiselect(
-                "Tipo de documento",
-                types,
-                placeholder="Facturas + Boletas + NC",
-                key="exec_type_v700",
-            )
-
-        c6, c7 = st.columns([1.0, 1.0], gap="small")
-        with c6:
-            base_mode = st.selectbox(
-                "Base de análisis",
-                ["Venta final con IVA", "Venta final sin IVA"],
-                key="exec_base_v700",
-            )
-        with c7:
-            goal = st.number_input(
-                "Meta de venta",
-                min_value=0,
-                value=100_000_000,
-                step=100_000,
-                key="exec_goal_v700",
-            )
-
-    sdate, edate = mstart, dend
-    if isinstance(days, (tuple, list)) and len(days) == 2:
-        sdate, edate = days
-
-    filtered = filter_sales(base, sellers=fs, warehouses=fw, document_types=ft)
-    actual_view = filtered[
-        (filtered["Fecha_dt"].dt.date >= sdate)
-        & (filtered["Fecha_dt"].dt.date <= edate)
-    ].copy()
-
-    actual_end = actual_view["Fecha_dt"].max().date() if not actual_view.empty else sdate
-    no_vat = base_mode == "Venta final sin IVA"
-    short = "Sin IVA" if no_vat else "Con IVA"
-
-    totals = calculate_commercial_totals(actual_view, VAT_RATE)
-    actual = float(totals["venta_neta_sin_iva"] if no_vat else totals["venta_neta_con_iva"])
+def _metrics(df, no_vat, client_col):
+    totals = calculate_commercial_totals(df, VAT_RATE)
+    net = float(totals["venta_neta_sin_iva"] if no_vat else totals["venta_neta_con_iva"])
     gross = float(totals["ventas_brutas_sin_iva"] if no_vat else totals["ventas_brutas_con_iva"])
     credits = float(totals["notas_credito_sin_iva"] if no_vat else totals["notas_credito_con_iva"])
 
-    invoice_sales = _group_amount(actual_view, "Factura", no_vat)
-    receipt_sales = _group_amount(actual_view, "Boleta", no_vat)
-    credit_sales = _group_amount(actual_view, "Nota de crédito", no_vat)
+    sale_docs = df[df["Grupo comercial"].isin(["Factura", "Boleta"])]
+    docs = int(sale_docs["Numero"].nunique()) if "Numero" in sale_docs.columns else int(len(sale_docs))
 
-    sales_only = actual_view[actual_view["Grupo comercial"].isin(["Factura", "Boleta"])]
-    docs = sales_only["Numero"].nunique() if "Numero" in sales_only.columns else len(sales_only)
-    ticket = gross / docs if docs else 0
+    if client_col and client_col in sale_docs.columns:
+        clients = int(
+            sale_docs[client_col]
+            .fillna("")
+            .astype(str)
+            .str.strip()
+            .replace("", pd.NA)
+            .dropna()
+            .nunique()
+        )
+    else:
+        clients = 0
 
-    daily = actual_view.copy()
-    daily["_VentaFirmada"] = _signed_sales_amount(daily, no_vat)
-    daily["Fecha"] = daily["Fecha_dt"].dt.normalize()
-    daily_sales = (
-        daily.groupby("Fecha", as_index=False)
-        .agg(Venta=("_VentaFirmada", "sum"))
-        .sort_values("Fecha")
+    ticket = gross / docs if docs else 0.0
+
+    return {
+        "net": net,
+        "gross": gross,
+        "credits": credits,
+        "docs": docs,
+        "clients": clients,
+        "ticket": ticket,
+    }
+
+
+def _kpi_card(icon, label, value, variation, icon_class="green", invert=False):
+    good = variation <= 0 if invert else variation >= 0
+    trend_class = "trend-up" if good else "trend-down"
+    arrow = "▲" if variation >= 0 else "▼"
+    return f"""
+    <div class="re-kpi">
+      <div class="re-kpi-top">
+        <div class="re-icon {icon_class}">{icon}</div>
+        <div class="re-kpi-copy">
+          <div class="re-kpi-label">{html.escape(label)}</div>
+          <div class="re-kpi-value">{html.escape(str(value))}</div>
+        </div>
+      </div>
+      <div class="re-kpi-foot">
+        <span>vs período anterior</span>
+        <strong class="{trend_class}">{arrow} {_fmt_pct(abs(variation), signed=False)}</strong>
+      </div>
+    </div>
+    """
+
+
+def _client_table(df, no_vat, client_col, legal_col):
+    if df.empty or not client_col:
+        return pd.DataFrame(columns=["Cliente", "Venta neta"])
+
+    work = df.copy()
+    work["_VentaNeta"] = _signed_amount(work, no_vat)
+
+    group_cols = [c for c in [legal_col, client_col] if c and c in work.columns]
+    if not group_cols:
+        return pd.DataFrame(columns=["Cliente", "Venta neta"])
+
+    out = (
+        work.groupby(group_cols, dropna=False)["_VentaNeta"]
+        .sum()
+        .reset_index()
+        .sort_values("_VentaNeta", ascending=False)
     )
 
-    active_days = int((daily_sales["Venta"] != 0).sum()) if not daily_sales.empty else 0
-    avg_day = float(daily_sales["Venta"].sum()) / active_days if active_days else 0
-    best_day_value = float(daily_sales["Venta"].max()) if not daily_sales.empty else 0
-    best_day_date = daily_sales.loc[daily_sales["Venta"].idxmax(), "Fecha"] if not daily_sales.empty else None
-    last_day_value = float(daily_sales.iloc[-1]["Venta"]) if not daily_sales.empty else 0
-    last_day_date = daily_sales.iloc[-1]["Fecha"] if not daily_sales.empty else None
+    if client_col in out.columns:
+        out["Cliente"] = out[client_col].fillna("Sin razón social").astype(str)
+    elif legal_col in out.columns:
+        out["Cliente"] = out[legal_col].fillna("Sin cliente").astype(str)
 
-    remaining_days = max((pd.Timestamp(mend) - pd.Timestamp(actual_end)).days, 0)
+    out["Venta neta"] = out["_VentaNeta"]
+    return out[["Cliente", "Venta neta"]]
 
-    prev_end = pd.Timestamp(sdate) - pd.Timedelta(days=1)
-    plen = _period_days(sdate, actual_end)
-    prev_start = prev_end - pd.Timedelta(days=max(plen - 1, 0))
-    prev = filtered[
-        (filtered["Fecha_dt"] >= prev_start.normalize())
-        & (filtered["Fecha_dt"] <= prev_end.normalize() + pd.Timedelta(days=1) - pd.Timedelta(seconds=1))
+
+
+def _document_detail(df, no_vat, client_col, legal_col):
+    """Una fila por documento de venta, lista para consulta/búsqueda."""
+    if df.empty:
+        return pd.DataFrame(columns=["Fecha", "Documento", "Tipo", "Código cliente", "Cliente", "Venta neta"])
+
+    work = df[df["Grupo comercial"].isin(["Factura", "Boleta"])].copy()
+    if work.empty:
+        return pd.DataFrame(columns=["Fecha", "Documento", "Tipo", "Código cliente", "Cliente", "Venta neta"])
+
+    work["_VentaNeta"] = _signed_amount(work, no_vat)
+
+    group_cols = [c for c in ["Fecha_dt", "Numero", "TipoDocto", "Grupo comercial"] if c in work.columns]
+    agg = {"_VentaNeta": "sum"}
+    if legal_col and legal_col in work.columns:
+        agg[legal_col] = "first"
+    if client_col and client_col in work.columns:
+        agg[client_col] = "first"
+
+    out = work.groupby(group_cols, dropna=False).agg(agg).reset_index()
+    out = out.sort_values("Fecha_dt", ascending=False)
+
+    result = pd.DataFrame()
+    result["Fecha"] = pd.to_datetime(out["Fecha_dt"], errors="coerce").dt.strftime("%d-%m-%Y")
+    result["Documento"] = out["Numero"].fillna("").astype(str) if "Numero" in out.columns else ""
+    result["Tipo"] = (
+        out["TipoDocto"].fillna("").astype(str)
+        if "TipoDocto" in out.columns
+        else out["Grupo comercial"].fillna("").astype(str)
+    )
+    result["Código cliente"] = (
+        out[legal_col].fillna("").astype(str)
+        if legal_col and legal_col in out.columns
+        else ""
+    )
+    result["Cliente"] = (
+        out[client_col].fillna("").astype(str)
+        if client_col and client_col in out.columns
+        else ""
+    )
+    result["Venta neta"] = out["_VentaNeta"].round(0).astype(float)
+    return result
+
+
+def _client_detail(df, no_vat, client_col, legal_col):
+    """Resumen por cliente con cantidad de documentos y venta neta."""
+    if df.empty:
+        return pd.DataFrame(columns=["Código cliente", "Cliente", "Documentos", "Venta neta"])
+
+    work = df[df["Grupo comercial"].isin(["Factura", "Boleta", "Nota de crédito"])].copy()
+    if work.empty:
+        return pd.DataFrame(columns=["Código cliente", "Cliente", "Documentos", "Venta neta"])
+
+    work["_VentaNeta"] = _signed_amount(work, no_vat)
+
+    group_cols = [c for c in [legal_col, client_col] if c and c in work.columns]
+    if not group_cols:
+        return pd.DataFrame(columns=["Código cliente", "Cliente", "Documentos", "Venta neta"])
+
+    agg = {"_VentaNeta": "sum"}
+    if "Numero" in work.columns:
+        agg["Numero"] = pd.Series.nunique
+
+    out = work.groupby(group_cols, dropna=False).agg(agg).reset_index()
+    out = out.sort_values("_VentaNeta", ascending=False)
+
+    result = pd.DataFrame()
+    result["Código cliente"] = (
+        out[legal_col].fillna("").astype(str)
+        if legal_col and legal_col in out.columns
+        else ""
+    )
+    result["Cliente"] = (
+        out[client_col].fillna("Sin razón social").astype(str)
+        if client_col and client_col in out.columns
+        else "Sin cliente"
+    )
+    result["Documentos"] = out["Numero"].fillna(0).astype(int) if "Numero" in out.columns else 0
+    result["Venta neta"] = out["_VentaNeta"].round(0).astype(float)
+    return result
+
+
+def _credit_detail(df, no_vat, client_col, legal_col):
+    """Una fila por nota de crédito para consulta/búsqueda."""
+    if df.empty:
+        return pd.DataFrame(columns=["Fecha", "Documento", "Código cliente", "Cliente", "Monto NC"])
+
+    work = df[df["Grupo comercial"].eq("Nota de crédito")].copy()
+    if work.empty:
+        return pd.DataFrame(columns=["Fecha", "Documento", "Código cliente", "Cliente", "Monto NC"])
+
+    work["_MontoNC"] = pd.to_numeric(work["VentaMonto_num"], errors="coerce").fillna(0).abs()
+    if no_vat:
+        work["_MontoNC"] = work["_MontoNC"] / (1 + VAT_RATE)
+
+    group_cols = [c for c in ["Fecha_dt", "Numero", "TipoDocto"] if c in work.columns]
+    agg = {"_MontoNC": "sum"}
+    if legal_col and legal_col in work.columns:
+        agg[legal_col] = "first"
+    if client_col and client_col in work.columns:
+        agg[client_col] = "first"
+
+    out = work.groupby(group_cols, dropna=False).agg(agg).reset_index()
+    out = out.sort_values("Fecha_dt", ascending=False)
+
+    result = pd.DataFrame()
+    result["Fecha"] = pd.to_datetime(out["Fecha_dt"], errors="coerce").dt.strftime("%d-%m-%Y")
+    result["Documento"] = out["Numero"].fillna("").astype(str) if "Numero" in out.columns else ""
+    result["Código cliente"] = (
+        out[legal_col].fillna("").astype(str)
+        if legal_col and legal_col in out.columns
+        else ""
+    )
+    result["Cliente"] = (
+        out[client_col].fillna("").astype(str)
+        if client_col and client_col in out.columns
+        else ""
+    )
+    result["Monto NC"] = out["_MontoNC"].round(0).astype(float)
+    return result
+
+
+def _search_table(df, query):
+    """Búsqueda libre en todas las columnas visibles."""
+    if df.empty or not str(query or "").strip():
+        return df
+
+    q = str(query).strip().lower()
+    mask = pd.Series(False, index=df.index)
+    for col in df.columns:
+        mask = mask | df[col].fillna("").astype(str).str.lower().str.contains(q, regex=False)
+    return df[mask].copy()
+
+
+def _latest_sales(df, no_vat, client_col):
+    if df.empty:
+        return pd.DataFrame(columns=["Fecha", "Documento", "Tipo", "Cliente", "Monto Bruto", "Notas de Crédito", "Venta Neta"])
+
+    work = df.copy()
+    work["_MontoAbs"] = pd.to_numeric(work["VentaMonto_num"], errors="coerce").fillna(0).abs()
+    if no_vat:
+        work["_MontoAbs"] = work["_MontoAbs"] / (1 + VAT_RATE)
+
+    work["_VentaNeta"] = _signed_amount(work, no_vat)
+    work["_Bruto"] = work["_MontoAbs"].where(work["Grupo comercial"].isin(["Factura", "Boleta"]), 0)
+    work["_NC"] = work["_MontoAbs"].where(work["Grupo comercial"].eq("Nota de crédito"), 0)
+
+    # Una fila por documento para evitar duplicación visual por líneas de detalle.
+    group_cols = [c for c in ["Fecha_dt", "Numero", "TipoDocto", "Grupo comercial"] if c in work.columns]
+    agg = {"_Bruto": "sum", "_NC": "sum", "_VentaNeta": "sum"}
+    if client_col and client_col in work.columns:
+        agg[client_col] = "first"
+
+    out = work.groupby(group_cols, dropna=False).agg(agg).reset_index()
+    out = out.sort_values("Fecha_dt", ascending=False).head(8)
+
+    result = pd.DataFrame()
+    result["Fecha"] = out["Fecha_dt"].dt.strftime("%d/%m/%Y")
+    result["Documento"] = out["Numero"].astype(str) if "Numero" in out.columns else ""
+    result["Tipo"] = out["Grupo comercial"].astype(str)
+    result["Cliente"] = out[client_col].fillna("").astype(str) if client_col and client_col in out.columns else ""
+    result["Monto Bruto"] = out["_Bruto"]
+    result["Notas de Crédito"] = out["_NC"]
+    result["Venta Neta"] = out["_VentaNeta"]
+    return result
+
+
+def render(ctx):
+    st.markdown(
+        """
+        <style>
+        .block-container{
+            max-width:1600px;
+            padding-top:1.25rem;
+            padding-bottom:2rem;
+        }
+
+        /* Cabecera */
+        .re-head{
+            display:flex;
+            justify-content:space-between;
+            align-items:flex-start;
+            gap:18px;
+            margin-bottom:8px;
+        }
+        .re-title{
+            font-size:31px;
+            font-weight:900;
+            letter-spacing:-.035em;
+            color:#101218;
+            line-height:1.05;
+        }
+        .re-sub{
+            margin-top:7px;
+            color:#374151;
+            font-size:13px;
+            font-weight:600;
+        }
+
+        /* Barra informativa */
+        .re-info{
+            background:#fff;
+            border:1px solid #e6e9ef;
+            border-radius:10px;
+            padding:10px 14px;
+            color:#4b5563;
+            font-size:11px;
+            margin:10px 0 12px;
+            box-shadow:0 2px 10px rgba(17,24,39,.025);
+        }
+
+        /* Ajustes de controles */
+        div[data-testid="stSelectbox"] label,
+        div[data-testid="stDateInput"] label,
+        div[data-testid="stNumberInput"] label,
+        div[data-testid="stMultiSelect"] label{
+            color:#262b34 !important;
+            font-size:11px !important;
+            font-weight:700 !important;
+        }
+        div[data-baseweb="select"] > div,
+        div[data-testid="stDateInput"] input,
+        div[data-testid="stNumberInput"] input{
+            min-height:45px;
+            border-radius:9px !important;
+        }
+        div[data-testid="stDownloadButton"] button,
+        div[data-testid="stButton"] button{
+            min-height:45px;
+            border-radius:9px;
+            border:1px solid #d7dce4;
+            background:#fff;
+            color:#111827;
+            font-weight:700;
+        }
+
+        /* KPI */
+        .re-kpi-grid{
+            display:grid;
+            grid-template-columns:repeat(5,minmax(0,1fr));
+            gap:12px;
+            margin:12px 0;
+        }
+        .re-kpi{
+            background:#fff;
+            border:1px solid #e3e7ed;
+            border-radius:12px;
+            padding:17px 17px 13px;
+            min-height:120px;
+            box-shadow:0 3px 14px rgba(17,24,39,.035);
+        }
+        .re-kpi-top{
+            display:flex;
+            gap:13px;
+            align-items:center;
+        }
+        .re-icon{
+            width:44px;
+            height:44px;
+            min-width:44px;
+            border-radius:50%;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            font-size:21px;
+            font-weight:900;
+        }
+        .re-icon.green{background:#edf8ef;color:#14912c;}
+        .re-icon.blue{background:#eef4ff;color:#2266dc;}
+        .re-icon.purple{background:#f3efff;color:#7440d8;}
+        .re-icon.yellow{background:#fff8e6;color:#efad00;}
+        .re-icon.red{background:#fff0f0;color:#de2f2f;}
+        .re-kpi-copy{min-width:0;}
+        .re-kpi-label{
+            color:#344054;
+            font-size:10px;
+            font-weight:800;
+            text-transform:uppercase;
+            letter-spacing:.02em;
+        }
+        .re-kpi-value{
+            color:#101218;
+            font-size:23px;
+            line-height:1.15;
+            font-weight:900;
+            margin-top:7px;
+            white-space:nowrap;
+        }
+        .re-kpi-foot{
+            display:flex;
+            justify-content:flex-end;
+            gap:8px;
+            align-items:center;
+            margin-top:12px;
+            font-size:9.5px;
+            color:#667085;
+        }
+        .trend-up{color:#159447;}
+        .trend-down{color:#d92d20;}
+
+        /* Botones de consulta bajo KPIs */
+        .st-key-re_open_docs button,
+        .st-key-re_open_clients button,
+        .st-key-re_open_nc button{
+            min-height:34px !important;
+            height:34px !important;
+            border-radius:8px !important;
+            font-size:11px !important;
+            font-weight:750 !important;
+            box-shadow:none !important;
+            margin-top:-5px !important;
+        }
+        .st-key-re_open_docs button{
+            background:#f4f7ff !important;
+            border-color:#dbe5ff !important;
+            color:#225fc8 !important;
+        }
+        .st-key-re_open_clients button{
+            background:#f7f4ff !important;
+            border-color:#e5dcff !important;
+            color:#6840bd !important;
+        }
+        .st-key-re_open_nc button{
+            background:#fff5f5 !important;
+            border-color:#ffdada !important;
+            color:#c92a2a !important;
+        }
+        .re-detail-summary{
+            display:flex;
+            gap:10px;
+            flex-wrap:wrap;
+            margin:4px 0 10px;
+        }
+        .re-detail-pill{
+            background:#f7f8fa;
+            border:1px solid #e5e8ee;
+            border-radius:999px;
+            padding:5px 10px;
+            color:#475467;
+            font-size:10px;
+            font-weight:700;
+        }
+
+        /* Tarjetas de sección */
+        .re-card-title{
+            color:#151820;
+            font-size:13px;
+            font-weight:850;
+            margin-bottom:6px;
+        }
+        .re-card-sub{
+            color:#667085;
+            font-size:10px;
+            margin-bottom:8px;
+        }
+        div[data-testid="stVerticalBlockBorderWrapper"]{
+            border-color:#e3e7ed !important;
+            border-radius:12px !important;
+            box-shadow:0 3px 14px rgba(17,24,39,.025);
+            background:#fff;
+        }
+
+        /* Tabla top clientes en HTML */
+        .re-client-head, .re-client-row{
+            display:grid;
+            grid-template-columns:34px 1fr auto;
+            gap:8px;
+            align-items:center;
+        }
+        .re-client-head{
+            color:#667085;
+            font-size:9.5px;
+            padding:7px 4px;
+            border-bottom:1px solid #e9edf2;
+        }
+        .re-client-row{
+            padding:10px 4px;
+            border-bottom:1px solid #edf0f4;
+            font-size:10.5px;
+            color:#20242c;
+        }
+        .re-client-row:last-child{border-bottom:none;}
+        .re-client-rank{color:#475467;}
+        .re-client-name{
+            overflow:hidden;
+            text-overflow:ellipsis;
+            white-space:nowrap;
+        }
+        .re-client-value{font-weight:800;}
+
+        /* Ranking */
+        .re-rank-head, .re-rank-row{
+            display:grid;
+            grid-template-columns:32px 1.5fr .8fr .65fr;
+            gap:8px;
+            align-items:center;
+        }
+        .re-rank-head{
+            padding:7px 8px;
+            color:#667085;
+            font-size:9.5px;
+            border-bottom:1px solid #e9edf2;
+        }
+        .re-rank-row{
+            padding:10px 8px;
+            border-bottom:1px solid #edf0f4;
+            font-size:10.5px;
+        }
+        .re-rank-row.current{
+            background:#fff8dc;
+            border-radius:6px;
+        }
+        .re-rank-name{font-weight:700;}
+        .re-rank-value{text-align:right;}
+        .re-rank-var{text-align:right;font-weight:800;}
+        .re-rank-var.up{color:#159447;}
+        .re-rank-var.down{color:#d92d20;}
+
+        /* Meta */
+        .re-goal{
+            display:grid;
+            grid-template-columns:1.15fr 1fr .8fr;
+            gap:24px;
+            align-items:center;
+            background:#fff;
+            border:1px solid #e3e7ed;
+            border-radius:12px;
+            padding:15px 18px;
+            margin-top:12px;
+            box-shadow:0 3px 14px rgba(17,24,39,.025);
+        }
+        .re-goal-title{
+            font-size:11px;
+            color:#3b4250;
+        }
+        .re-goal-title strong{
+            color:#111827;
+            font-weight:850;
+        }
+        .re-goal-track{
+            height:9px;
+            background:#edf0f4;
+            border-radius:999px;
+            overflow:hidden;
+        }
+        .re-goal-fill{
+            height:100%;
+            background:#f7b500;
+            border-radius:999px;
+        }
+        .re-goal-pct{
+            font-size:11px;
+            font-weight:850;
+            margin-top:6px;
+        }
+        .re-projection{
+            text-align:right;
+            color:#475467;
+            font-size:11px;
+        }
+        .re-projection strong{color:#14823b;}
+
+        div[data-testid="stDataFrame"]{
+            border:1px solid #e7eaf0;
+            border-radius:9px;
+            overflow:hidden;
+        }
+
+        @media(max-width:1200px){
+            .re-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
+            .re-goal{grid-template-columns:1fr;}
+            .re-projection{text-align:left;}
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    df = ctx.get("sales_df")
+
+    render_html(
+        """
+        <div class="re-head">
+          <div>
+            <div class="re-title">RESUMEN EJECUTIVO</div>
+            <div class="re-sub">Desempeño de ventas</div>
+          </div>
+        </div>
+        """
+    )
+
+    if df is None or df.empty:
+        st.info("Carga ERP Ventas desde Plantillas para visualizar el desempeño comercial.")
+        return
+
+    required = {"Grupo comercial", "Fecha_dt", "VentaMonto_num"}
+    missing = [c for c in required if c not in df.columns]
+    if missing:
+        st.error(f"Faltan columnas requeridas en ERP Ventas: {', '.join(missing)}")
+        return
+
+    base = df[df["Grupo comercial"].isin(VALID_GROUPS)].copy()
+    base = _prepare_sellers(base)
+    base = base[base["_VendedorCodigo"].notna()].copy()
+
+    if base.empty:
+        st.warning("No hay ventas asociadas a los vendedores/canales configurados.")
+        return
+
+    legal_col = _find_column(
+        base.columns,
+        ["CodigoLegal", "Código legal", "Codigo legal", "RUT cliente", "Rut cliente", "RUT", "Rut"],
+    )
+    client_col = _find_column(
+        base.columns,
+        ["RazonSocial", "Razón social", "Razon social", "Nombre cliente", "Nombre Cliente"],
+    )
+    if legal_col and client_col and legal_col == client_col:
+        legal_col = None
+
+    # Mes por defecto: el más reciente disponible.
+    months = available_months(base, "Fecha_dt")
+    if not months:
+        st.warning("No hay fechas válidas en ERP Ventas.")
+        return
+
+    month_labels = [month_label_es(m) for m in months]
+    month_map = dict(zip(month_labels, months))
+
+    present_codes = set(base["_VendedorCodigo"].dropna().astype(str))
+    seller_options = [
+        (group, code, name)
+        for code, (name, group) in SELLER_CATALOG.items()
+        if code in present_codes
     ]
-    prev_tot = calculate_commercial_totals(prev, VAT_RATE)
-    previous = float(prev_tot["venta_neta_sin_iva"] if no_vat else prev_tot["venta_neta_con_iva"])
-    variation = ((actual - previous) / previous * 100) if previous else (100 if actual > 0 else 0)
 
-    nc_ratio = credit_sales / (invoice_sales + receipt_sales) * 100 if (invoice_sales + receipt_sales) > 0 else 0
+    # ------------------------- filtros superiores -------------------------
+    f1, f2, f3, f4 = st.columns([1.35, 1.35, 1.0, .72], gap="small")
 
-    render_html(f"""
-    <div class="kpi-grid">
-      <div class="kpi-card kpi-blue">
-        <div class="kpi-label">Venta neta</div>
-        <div class="kpi-sub">{short}</div>
-        <div class="kpi-value">{format_clp(actual)}</div>
-        <div class="kpi-note">Facturas + Boletas − NC · {variation:+.1f}% vs período anterior</div>
-      </div>
-      <div class="kpi-card">
-        <div class="kpi-label">Venta bruta</div>
-        <div class="kpi-sub">{short}</div>
-        <div class="kpi-value">{format_clp(gross)}</div>
-        <div class="kpi-note">Antes de notas de crédito</div>
-      </div>
-      <div class="kpi-card kpi-red">
-        <div class="kpi-label">Notas de crédito</div>
-        <div class="kpi-sub">{short}</div>
-        <div class="kpi-value">-{format_clp(credit_sales)}</div>
-        <div class="kpi-note">{_format_pct(nc_ratio)} sobre Facturas + Boletas</div>
-      </div>
-      <div class="kpi-card">
-        <div class="kpi-label">Ticket promedio</div>
-        <div class="kpi-sub">{short}</div>
-        <div class="kpi-value">{format_clp(ticket)}</div>
-        <div class="kpi-note">{docs:,} documentos de venta</div>
-      </div>
-      <div class="kpi-card">
-        <div class="kpi-label">Días restantes</div>
-        <div class="kpi-sub">del mes</div>
-        <div class="kpi-value">{remaining_days}</div>
-        <div class="kpi-note">calendario</div>
-      </div>
-    </div>
-    """)
+    with f1:
+        seller_group = st.selectbox(
+            "Tipo",
+            ["Todos", "Vendedores", "Ecommerce / Marketplace"],
+            key="re_group_v900",
+        )
+        scoped = [
+            (g, c, n) for g, c, n in seller_options
+            if seller_group == "Todos" or g == seller_group
+        ]
+        seller_labels = [f"{c} · {n}" for _, c, n in scoped]
+        selected_label = st.selectbox(
+            "Vendedor",
+            ["Todos"] + seller_labels,
+            key="re_seller_v900",
+        )
 
-    render_html(f"""
-    <div class="daily-strip">
-      <div class="daily-item">
-        <div class="label">Venta promedio por día</div>
-        <strong>{format_clp(avg_day)}</strong>
-        <small>{active_days} días con movimiento</small>
-      </div>
-      <div class="daily-item">
-        <div class="label">Mejor día</div>
-        <strong>{format_clp(best_day_value)}</strong>
-        <small>{pd.Timestamp(best_day_date).strftime("%d/%m/%Y") if best_day_date is not None else "Sin datos"}</small>
-      </div>
-      <div class="daily-item">
-        <div class="label">Último día con venta</div>
-        <strong>{format_clp(last_day_value)}</strong>
-        <small>{pd.Timestamp(last_day_date).strftime("%d/%m/%Y") if last_day_date is not None else "Sin datos"}</small>
-      </div>
-    </div>
-    """)
+    with f2:
+        month_label = st.selectbox(
+            "Mes base",
+            month_labels,
+            index=0,
+            key="re_month_v900",
+        )
+        selected_month = month_map[month_label]
+        month_start, month_end = month_bounds(selected_month)
 
-    invoice_pct = invoice_sales / gross * 100 if gross else 0
-    receipt_pct = receipt_sales / gross * 100 if gross else 0
-    credit_pct = credit_sales / gross * 100 if gross else 0
+        month_rows = base[
+            (base["Fecha_dt"].dt.date >= month_start)
+            & (base["Fecha_dt"].dt.date <= month_end)
+        ]
+        max_real = month_rows["Fecha_dt"].max().date() if not month_rows.empty else month_end
+        default_end = min(month_end, max_real)
 
-    render_html(f"""
-    <div class="composition-wrap">
-      <div class="section-title">Composición de la venta · {short}</div>
-      <div class="comp-row">
-        <div class="comp-card">
-          <span>Facturas</span>
-          <strong>{format_clp(invoice_sales)}</strong>
-          <small>{_format_pct(invoice_pct)}</small>
-        </div>
-        <div class="comp-op">+</div>
-        <div class="comp-card">
-          <span>Boletas</span>
-          <strong>{format_clp(receipt_sales)}</strong>
-          <small>{_format_pct(receipt_pct)}</small>
-        </div>
-        <div class="comp-op">−</div>
-        <div class="comp-card red">
-          <span>Notas de crédito</span>
-          <strong>-{format_clp(credit_sales)}</strong>
-          <small>-{_format_pct(credit_pct)}</small>
-        </div>
-        <div class="comp-op">=</div>
-        <div class="comp-card blue">
-          <span>Venta neta</span>
-          <strong>{format_clp(actual)}</strong>
-          <small>100,0%</small>
-        </div>
-      </div>
-    </div>
-    """)
+        # El período debe representar el mes calendario completo seleccionado,
+        # aunque el ERP no tenga movimientos en los primeros o últimos días.
+        # Ej.: agosto siempre debe permitir 01/08 al 31/08 aunque la primera
+        # venta disponible sea del 03/08.
+        period_value = st.date_input(
+            "Período",
+            value=(month_start, month_end),
+            min_value=month_start,
+            max_value=month_end,
+            key="re_period_v960",
+        )
 
-    # Expandibles: facturas, boletas, notas de crédito
-    exp1, exp2, exp3 = st.columns(3, gap="small")
+    with f3:
+        compare_previous = st.toggle(
+            "Comparar período anterior",
+            value=True,
+            key="re_compare_v900",
+        )
+        no_vat = st.selectbox(
+            "Base",
+            ["Con IVA", "Sin IVA"],
+            key="re_base_v900",
+        ) == "Sin IVA"
 
-    with exp1:
-        inv_df = actual_view[actual_view["Grupo comercial"].eq("Factura")].copy()
-        with st.expander(f"FACTURAS · {len(inv_df):,} registros"):
-            st.dataframe(
-                _prepare_doc_table(inv_df, no_vat, client_col, legal_col),
-                hide_index=True,
-                use_container_width=True,
-                height=300,
-                column_config={"Total": st.column_config.NumberColumn("Total", format="$%d")},
+    start_date, end_date = _safe_period(period_value, month_start, default_end)
+
+    selected_code = None
+    if selected_label != "Todos":
+        selected_code = selected_label.split(" · ", 1)[0]
+
+    work = base.copy()
+    if seller_group != "Todos":
+        work = work[work["_VendedorGrupo"].eq(seller_group)].copy()
+    if selected_code:
+        work = work[work["_VendedorCodigo"].eq(selected_code)].copy()
+
+    current = _date_filter(work, start_date, end_date)
+    prev_start, prev_end = _previous_period(start_date, end_date)
+    previous = _date_filter(work, prev_start, prev_end)
+
+    # Exportación respeta todos los filtros.
+    with f4:
+        st.markdown("<div style='height:17px'></div>", unsafe_allow_html=True)
+        export_df = current.copy()
+        csv = export_df.to_csv(index=False).encode("utf-8-sig")
+        st.download_button(
+            "⇩ Exportar",
+            data=csv,
+            file_name=f"resumen_ventas_{start_date}_{end_date}.csv",
+            mime="text/csv",
+            width="stretch",
+        )
+
+    render_html(
+        "<div class='re-info'>ⓘ Los valores de venta neta consideran: "
+        "<strong>Facturas + Boletas − Notas de crédito.</strong></div>"
+    )
+
+    cur = _metrics(current, no_vat, client_col)
+    prv = _metrics(previous, no_vat, client_col)
+
+    var_net = _pct_change(cur["net"], prv["net"]) if compare_previous else 0
+    var_docs = _pct_change(cur["docs"], prv["docs"]) if compare_previous else 0
+    var_clients = _pct_change(cur["clients"], prv["clients"]) if compare_previous else 0
+    var_ticket = _pct_change(cur["ticket"], prv["ticket"]) if compare_previous else 0
+    var_nc = _pct_change(cur["credits"], prv["credits"]) if compare_previous else 0
+
+    kpis = "".join(
+        [
+            _kpi_card("$", "Venta neta", format_clp(cur["net"]), var_net, "green"),
+            _kpi_card("▤", "Documentos", f'{cur["docs"]:,}'.replace(",", "."), var_docs, "blue"),
+            _kpi_card("♙", "Clientes atendidos", f'{cur["clients"]:,}'.replace(",", "."), var_clients, "purple"),
+            _kpi_card("▱", "Ticket promedio", format_clp(cur["ticket"]), var_ticket, "yellow"),
+            _kpi_card("↶", "Notas de crédito", format_clp(cur["credits"]), var_nc, "red", invert=True),
+        ]
+    )
+    render_html(f"<div class='re-kpi-grid'>{kpis}</div>")
+
+    # Acciones consultables de los KPI.
+    if "re_detail_panel" not in st.session_state:
+        st.session_state["re_detail_panel"] = None
+
+    a1, a2, a3, a4, a5 = st.columns(5, gap="small")
+    with a2:
+        if st.button("⌕ Consultar documentos", width="stretch", key="re_open_docs"):
+            st.session_state["re_detail_panel"] = (
+                None if st.session_state["re_detail_panel"] == "docs" else "docs"
+            )
+    with a3:
+        if st.button("⌕ Consultar clientes", width="stretch", key="re_open_clients"):
+            st.session_state["re_detail_panel"] = (
+                None if st.session_state["re_detail_panel"] == "clients" else "clients"
+            )
+    with a5:
+        if st.button("⌕ Consultar NC", width="stretch", key="re_open_nc"):
+            st.session_state["re_detail_panel"] = (
+                None if st.session_state["re_detail_panel"] == "nc" else "nc"
             )
 
-    with exp2:
-        bol_df = actual_view[actual_view["Grupo comercial"].eq("Boleta")].copy()
-        with st.expander(f"BOLETAS · {len(bol_df):,} registros"):
-            st.dataframe(
-                _prepare_doc_table(bol_df, no_vat, client_col, legal_col),
-                hide_index=True,
-                use_container_width=True,
-                height=300,
-                column_config={"Total": st.column_config.NumberColumn("Total", format="$%d")},
-            )
+    detail_panel = st.session_state.get("re_detail_panel")
 
-    with exp3:
-        nc_df = actual_view[actual_view["Grupo comercial"].eq("Nota de crédito")].copy()
-        with st.expander(f"NOTAS DE CRÉDITO · {len(nc_df):,} registros"):
-            st.dataframe(
-                _prepare_doc_table(nc_df, no_vat, client_col, legal_col),
-                hide_index=True,
-                use_container_width=True,
-                height=300,
-                column_config={"Total": st.column_config.NumberColumn("Total", format="$%d")},
-            )
+    if detail_panel:
+        with st.container(border=True):
+            head_left, head_right = st.columns([5.3, .7])
+            with head_right:
+                if st.button("✕", help="Cerrar detalle", width="stretch", key="re_close_detail"):
+                    st.session_state["re_detail_panel"] = None
+                    st.rerun()
 
-    left, right = st.columns([1.0, 1.05], gap="small")
+            if detail_panel == "docs":
+                all_detail = _document_detail(current, no_vat, client_col, legal_col)
 
+                with head_left:
+                    render_html(
+                        "<div class='re-card-title'>Detalle de documentos</div>"
+                        "<div class='re-card-sub'>Facturas y boletas del período y vendedor seleccionados</div>"
+                    )
+
+                s1, s2 = st.columns([3.7, 1.3], gap="small")
+                with s1:
+                    q = st.text_input(
+                        "Buscar",
+                        placeholder="Número, cliente, código o tipo de documento...",
+                        key="re_search_docs",
+                        label_visibility="collapsed",
+                    )
+                with s2:
+                    doc_type = st.selectbox(
+                        "Tipo",
+                        ["Todos", "Factura", "Boleta"],
+                        key="re_doc_type_detail",
+                        label_visibility="collapsed",
+                    )
+
+                detail = all_detail
+                if doc_type != "Todos" and not detail.empty:
+                    detail = detail[
+                        detail["Tipo"].astype(str).str.contains(doc_type, case=False, na=False)
+                    ]
+                detail = _search_table(detail, q)
+
+                total_detail = float(pd.to_numeric(detail.get("Venta neta", pd.Series(dtype=float)), errors="coerce").fillna(0).sum())
+                render_html(
+                    "<div class='re-detail-summary'>"
+                    f"<span class='re-detail-pill'>{len(detail):,} documentos</span>"
+                    f"<span class='re-detail-pill'>Venta listada: {html.escape(format_clp(total_detail))}</span>"
+                    "</div>".replace(",", ".")
+                )
+
+                st.dataframe(
+                    detail,
+                    hide_index=True,
+                    width="stretch",
+                    column_config={
+                        "Venta neta": st.column_config.NumberColumn("Venta neta", format="$ %.0f"),
+                    },
+                )
+                st.download_button(
+                    "⬇ Exportar documentos",
+                    data=detail.to_csv(index=False).encode("utf-8-sig"),
+                    file_name=f"documentos_{start_date}_{end_date}.csv",
+                    mime="text/csv",
+                    key="re_export_docs",
+                )
+
+            elif detail_panel == "clients":
+                all_detail = _client_detail(current, no_vat, client_col, legal_col)
+
+                with head_left:
+                    render_html(
+                        "<div class='re-card-title'>Clientes atendidos</div>"
+                        "<div class='re-card-sub'>Consulta comercial de clientes con movimientos en el período</div>"
+                    )
+
+                q = st.text_input(
+                    "Buscar",
+                    placeholder="Razón social o CódigoLegal...",
+                    key="re_search_clients",
+                    label_visibility="collapsed",
+                )
+                detail = _search_table(all_detail, q)
+
+                total_detail = float(pd.to_numeric(detail.get("Venta neta", pd.Series(dtype=float)), errors="coerce").fillna(0).sum())
+                render_html(
+                    "<div class='re-detail-summary'>"
+                    f"<span class='re-detail-pill'>{len(detail):,} clientes</span>"
+                    f"<span class='re-detail-pill'>Venta neta: {html.escape(format_clp(total_detail))}</span>"
+                    "</div>".replace(",", ".")
+                )
+
+                st.dataframe(
+                    detail,
+                    hide_index=True,
+                    width="stretch",
+                    column_config={
+                        "Documentos": st.column_config.NumberColumn("Documentos", format="%d"),
+                        "Venta neta": st.column_config.NumberColumn("Venta neta", format="$ %.0f"),
+                    },
+                )
+                st.download_button(
+                    "⬇ Exportar clientes",
+                    data=detail.to_csv(index=False).encode("utf-8-sig"),
+                    file_name=f"clientes_{start_date}_{end_date}.csv",
+                    mime="text/csv",
+                    key="re_export_clients",
+                )
+
+            elif detail_panel == "nc":
+                all_detail = _credit_detail(current, no_vat, client_col, legal_col)
+
+                with head_left:
+                    render_html(
+                        "<div class='re-card-title'>Notas de crédito</div>"
+                        "<div class='re-card-sub'>Detalle de devoluciones y ajustes del período seleccionado</div>"
+                    )
+
+                q = st.text_input(
+                    "Buscar",
+                    placeholder="Número de NC, razón social o CódigoLegal...",
+                    key="re_search_nc",
+                    label_visibility="collapsed",
+                )
+                detail = _search_table(all_detail, q)
+
+                total_detail = float(pd.to_numeric(detail.get("Monto NC", pd.Series(dtype=float)), errors="coerce").fillna(0).sum())
+                render_html(
+                    "<div class='re-detail-summary'>"
+                    f"<span class='re-detail-pill'>{len(detail):,} notas de crédito</span>"
+                    f"<span class='re-detail-pill'>Monto listado: {html.escape(format_clp(total_detail))}</span>"
+                    "</div>".replace(",", ".")
+                )
+
+                st.dataframe(
+                    detail,
+                    hide_index=True,
+                    width="stretch",
+                    column_config={
+                        "Monto NC": st.column_config.NumberColumn("Monto NC", format="$ %.0f"),
+                    },
+                )
+                st.download_button(
+                    "⬇ Exportar notas de crédito",
+                    data=detail.to_csv(index=False).encode("utf-8-sig"),
+                    file_name=f"notas_credito_{start_date}_{end_date}.csv",
+                    mime="text/csv",
+                    key="re_export_nc",
+                )
+
+    # ------------------------- bloque central -------------------------
+    left, middle, right = st.columns([1.45, .92, 1.0], gap="small")
+
+    # Evolución
     with left:
-        render_html('<div class="section-title" style="margin-top:18px">Clientes · Top por venta neta</div>')
-
-        if legal_col or client_col:
-            clients = actual_view.copy()
-            clients["_VentaFirmada"] = _signed_sales_amount(clients, no_vat)
-
-            group_cols = [c for c in [legal_col, client_col] if c is not None]
-
-            agg_map = {"Venta neta": ("_VentaFirmada", "sum")}
-            if "Numero" in clients.columns:
-                agg_map["Docs."] = ("Numero", "nunique")
-
-            client_group = (
-                clients.groupby(group_cols, dropna=False)
-                .agg(**agg_map)
-                .reset_index()
-                .sort_values("Venta neta", ascending=False)
+        with st.container(border=True):
+            render_html(
+                "<div class='re-card-title'>Evolución de Ventas Netas (CLP)</div>"
+                "<div class='re-card-sub'>Este período vs período anterior</div>"
             )
 
-            rename = {}
-            if legal_col:
-                rename[legal_col] = "Código legal"
-            if client_col:
-                rename[client_col] = "Razón social"
-            client_group = client_group.rename(columns=rename)
+            current_daily = current.copy()
+            current_daily["_VentaNeta"] = _signed_amount(current_daily, no_vat)
+            current_daily["Día"] = current_daily["Fecha_dt"].dt.normalize()
+            current_daily = (
+                current_daily.groupby("Día", as_index=False)["_VentaNeta"]
+                .sum()
+                .rename(columns={"_VentaNeta": "Venta"})
+            )
+            current_daily["Serie"] = "Este período"
+            current_daily["Índice"] = range(1, len(current_daily) + 1)
 
-            total_clients = float(client_group["Venta neta"].sum()) if not client_group.empty else 0
-            client_group["% Part."] = (
-                client_group["Venta neta"] / total_clients * 100
-                if total_clients
-                else 0
+            prev_daily = previous.copy()
+            prev_daily["_VentaNeta"] = _signed_amount(prev_daily, no_vat)
+            prev_daily["Día"] = prev_daily["Fecha_dt"].dt.normalize()
+            prev_daily = (
+                prev_daily.groupby("Día", as_index=False)["_VentaNeta"]
+                .sum()
+                .rename(columns={"_VentaNeta": "Venta"})
+            )
+            prev_daily["Serie"] = "Período anterior"
+            prev_daily["Índice"] = range(1, len(prev_daily) + 1)
+
+            if current_daily.empty and prev_daily.empty:
+                st.info("Sin movimientos para graficar.")
+            else:
+                chart_data = current_daily
+                if compare_previous and not prev_daily.empty:
+                    chart_data = pd.concat([current_daily, prev_daily], ignore_index=True)
+
+                base_chart = (
+                    alt.Chart(chart_data)
+                    .encode(
+                        x=alt.X("Índice:Q", title=None, axis=alt.Axis(labels=False, ticks=False)),
+                        y=alt.Y(
+                            "Venta:Q",
+                            title=None,
+                            axis=alt.Axis(format="~s", grid=True, gridColor="#edf0f4"),
+                        ),
+                        color=alt.Color(
+                            "Serie:N",
+                            title=None,
+                            scale=alt.Scale(
+                                domain=["Este período", "Período anterior"],
+                                range=["#f5b400", "#b8c0cc"],
+                            ),
+                            legend=alt.Legend(orient="top"),
+                        ),
+                        tooltip=[
+                            alt.Tooltip("Día:T", title="Fecha"),
+                            alt.Tooltip("Venta:Q", title="Venta neta", format=",.0f"),
+                            alt.Tooltip("Serie:N", title="Serie"),
+                        ],
+                    )
+                )
+
+                line = base_chart.mark_line(strokeWidth=2.3)
+                points = (
+                    alt.Chart(current_daily)
+                    .mark_circle(size=48, color="#f5b400")
+                    .encode(
+                        x=alt.X("Índice:Q", title=None, axis=alt.Axis(labels=False, ticks=False)),
+                        y=alt.Y("Venta:Q", title=None),
+                        tooltip=[
+                            alt.Tooltip("Día:T", title="Fecha"),
+                            alt.Tooltip("Venta:Q", title="Venta neta", format=",.0f"),
+                        ],
+                    )
+                )
+                st.altair_chart((line + points).properties(height=245), width="stretch")
+
+    # Composición
+    with middle:
+        with st.container(border=True):
+            render_html("<div class='re-card-title'>Ventas Netas por Tipo de Documento</div>")
+
+            inv = _group_amount(current, "Factura", no_vat)
+            bol = _group_amount(current, "Boleta", no_vat)
+            nc = _group_amount(current, "Nota de crédito", no_vat)
+
+            donut_df = pd.DataFrame(
+                {
+                    "Tipo": ["Facturas", "Boletas", "Notas de Crédito"],
+                    "Monto": [inv, bol, nc],
+                }
+            )
+            donut_df = donut_df[donut_df["Monto"] > 0]
+
+            if donut_df.empty:
+                st.info("Sin documentos en el período.")
+            else:
+                donut = (
+                    alt.Chart(donut_df)
+                    .mark_arc(innerRadius=58, outerRadius=90)
+                    .encode(
+                        theta=alt.Theta("Monto:Q"),
+                        color=alt.Color(
+                            "Tipo:N",
+                            scale=alt.Scale(
+                                domain=["Facturas", "Boletas", "Notas de Crédito"],
+                                range=["#f5b400", "#2e6bdc", "#df3026"],
+                            ),
+                            legend=None,
+                        ),
+                        tooltip=[
+                            alt.Tooltip("Tipo:N", title="Tipo"),
+                            alt.Tooltip("Monto:Q", title="Monto", format=",.0f"),
+                        ],
+                    )
+                    .properties(height=190)
+                )
+                st.altair_chart(donut, width="stretch")
+
+            total_positive = inv + bol
+            inv_pct = inv / total_positive * 100 if total_positive else 0
+            bol_pct = bol / total_positive * 100 if total_positive else 0
+            nc_pct = nc / total_positive * 100 if total_positive else 0
+
+            render_html(
+                f"""
+                <div style="font-size:10px;line-height:1.9;color:#303744">
+                  <div>🟡 <strong>Facturas</strong> &nbsp; {format_clp(inv)}
+                    <span style="float:right">{_fmt_pct(inv_pct, False)}</span></div>
+                  <div>🔵 <strong>Boletas</strong> &nbsp; {format_clp(bol)}
+                    <span style="float:right">{_fmt_pct(bol_pct, False)}</span></div>
+                  <div>🔴 <strong>Notas de Crédito</strong> &nbsp; -{format_clp(nc)}
+                    <span style="float:right">-{_fmt_pct(nc_pct, False)}</span></div>
+                  <div style="margin-top:10px;padding:8px 9px;background:#fff9e9;border-radius:7px;">
+                    Venta neta = Facturas + Boletas - Notas de crédito
+                  </div>
+                </div>
+                """
             )
 
-            search = st.text_input(
-                "Buscar cliente",
-                placeholder="Código legal o razón social...",
-                key="exec_client_search_v700",
-                label_visibility="collapsed",
-            )
-
-            view = client_group.copy()
-            if search:
-                term = search.strip().lower()
-                mask = pd.Series(False, index=view.index)
-                for col in ["Código legal", "Razón social"]:
-                    if col in view.columns:
-                        mask |= view[col].fillna("").astype(str).str.lower().str.contains(term, regex=False)
-                view = view[mask]
-
-            st.dataframe(
-                view.head(10),
-                hide_index=True,
-                use_container_width=True,
-                height=385,
-                column_config={
-                    "Venta neta": st.column_config.NumberColumn("Venta neta", format="$%d"),
-                    "% Part.": st.column_config.NumberColumn("% Part.", format="%.1f%%"),
-                },
-            )
-        else:
-            st.warning(
-                "No se detectó la columna Razón social del ERP. "
-                f"Columnas disponibles: {', '.join(map(str, actual_view.columns.tolist()))}"
-            )
-
+    # Top clientes
     with right:
-        render_html(f'<div class="section-title" style="margin-top:18px">Performance de venta por día · {short}</div>')
+        with st.container(border=True):
+            render_html("<div class='re-card-title'>Top 5 Clientes por Venta Neta</div>")
+            clients = _client_table(current, no_vat, client_col, legal_col).head(5)
 
-        if daily_sales.empty:
-            st.info("No hay ventas diarias para el período.")
+            if clients.empty:
+                st.info("Sin clientes identificados.")
+            else:
+                rows = []
+                for idx, row in enumerate(clients.itertuples(index=False), start=1):
+                    rows.append(
+                        f"""
+                        <div class="re-client-row">
+                          <div class="re-client-rank">{idx}</div>
+                          <div class="re-client-name">{html.escape(str(row[0]))}</div>
+                          <div class="re-client-value">{format_clp(float(row[1]))}</div>
+                        </div>
+                        """
+                    )
+                render_html(
+                    """
+                    <div class="re-client-head">
+                      <div></div><div>Cliente</div><div>Venta Neta (CLP)</div>
+                    </div>
+                    """
+                    + "".join(rows)
+                )
+
+    # ------------------------- bloque inferior -------------------------
+    lower_left, lower_right = st.columns([1.55, 1.0], gap="small")
+
+    with lower_left:
+        with st.container(border=True):
+            render_html("<div class='re-card-title'>Últimas Ventas</div>")
+            latest = _latest_sales(current, no_vat, client_col)
+            if latest.empty:
+                st.info("Sin ventas para mostrar.")
+            else:
+                st.dataframe(
+                    latest,
+                    hide_index=True,
+                    width="stretch",
+                    height=270,
+                    column_config={
+                        "Monto Bruto": st.column_config.NumberColumn("Monto Bruto", format="$%d"),
+                        "Notas de Crédito": st.column_config.NumberColumn("Notas de Crédito", format="$%d"),
+                        "Venta Neta": st.column_config.NumberColumn("Venta Neta", format="$%d"),
+                    },
+                )
+
+    with lower_right:
+        with st.container(border=True):
+            render_html(
+                f"<div class='re-card-title'>Ranking de Vendedores por Venta Neta</div>"
+                f"<div class='re-card-sub'>Período: {pd.Timestamp(start_date).strftime('%d/%m/%Y')} - {pd.Timestamp(end_date).strftime('%d/%m/%Y')}</div>"
+            )
+
+            # Ranking usa todos los vendedores/canales del grupo seleccionado,
+            # aunque arriba haya un vendedor específico elegido.
+            rank_scope = base.copy()
+            if seller_group != "Todos":
+                rank_scope = rank_scope[rank_scope["_VendedorGrupo"].eq(seller_group)].copy()
+
+            rank_cur = _date_filter(rank_scope, start_date, end_date)
+            rank_prev = _date_filter(rank_scope, prev_start, prev_end)
+
+            def build_rank(frame):
+                if frame.empty:
+                    return pd.DataFrame(columns=["_VendedorCodigo", "_VendedorNombre", "Venta"])
+                tmp = frame.copy()
+                tmp["_Venta"] = _signed_amount(tmp, no_vat)
+                return (
+                    tmp.groupby(["_VendedorCodigo", "_VendedorNombre"], dropna=False)["_Venta"]
+                    .sum()
+                    .reset_index()
+                    .rename(columns={"_Venta": "Venta"})
+                )
+
+            rc = build_rank(rank_cur)
+            rp = build_rank(rank_prev).rename(columns={"Venta": "VentaPrev"})
+            ranking = rc.merge(rp[["_VendedorCodigo", "VentaPrev"]], on="_VendedorCodigo", how="left")
+            ranking["VentaPrev"] = ranking["VentaPrev"].fillna(0)
+            ranking["Variacion"] = ranking.apply(
+                lambda r: _pct_change(r["Venta"], r["VentaPrev"]), axis=1
+            )
+            ranking = ranking.sort_values("Venta", ascending=False).head(7).reset_index(drop=True)
+
+            if ranking.empty:
+                st.info("Sin vendedores para rankear.")
+            else:
+                render_html(
+                    """
+                    <div class="re-rank-head">
+                      <div></div><div>Vendedor</div><div style="text-align:right">Venta Neta</div><div style="text-align:right">vs anterior</div>
+                    </div>
+                    """
+                )
+                rank_rows = []
+                for i, row in ranking.iterrows():
+                    is_current = selected_code and row["_VendedorCodigo"] == selected_code
+                    cls = "re-rank-row current" if is_current else "re-rank-row"
+                    var_cls = "up" if row["Variacion"] >= 0 else "down"
+                    arrow = "▲" if row["Variacion"] >= 0 else "▼"
+                    rank_rows.append(
+                        f"""
+                        <div class="{cls}">
+                          <div>{i + 1}</div>
+                          <div class="re-rank-name">{html.escape(str(row['_VendedorNombre']))}</div>
+                          <div class="re-rank-value">{format_clp(float(row['Venta']))}</div>
+                          <div class="re-rank-var {var_cls}">{arrow} {_fmt_pct(abs(row['Variacion']), False)}</div>
+                        </div>
+                        """
+                    )
+                render_html("".join(rank_rows))
+
+    # ------------------------- seguimiento de meta comercial -------------------------
+    st.markdown("### Seguimiento de meta comercial")
+
+    # La meta se ingresa manualmente. No se inventan metas oficiales.
+    seller_label_for_goal = selected_label if selected_label != "Todos" else "Equipo seleccionado"
+    goal_key = f"re_goal_v960_{str(selected_code or seller_group).replace(' ', '_').replace('/', '_')}"
+
+    goal_col, status_col = st.columns([1.05, 2.95], gap="large")
+
+    with goal_col:
+        monthly_goal = st.number_input(
+            "Meta mensual (CLP)",
+            min_value=0,
+            value=int(st.session_state.get(goal_key, 0) or 0),
+            step=500000,
+            key=goal_key,
+            help="Ingresa la meta oficial del vendedor o canal. Se mantiene durante la sesión.",
+        )
+
+        st.caption(
+            f"Meta aplicada a: **{seller_label_for_goal}**. "
+            "Si no existe una meta oficial cargada, déjala en $0."
+        )
+
+    # Cálculo de avance y proyección
+    net_sales_now = float(cur.get("net", 0) or 0)
+
+    # Para proyectar usamos días calendario transcurridos dentro del mes seleccionado,
+    # hasta la última fecha con movimiento disponible dentro del período.
+    if not current.empty and "Fecha_dt" in current.columns:
+        valid_dates = pd.to_datetime(current["Fecha_dt"], errors="coerce").dropna()
+        last_sales_date = valid_dates.max().date() if not valid_dates.empty else start_date
+    else:
+        last_sales_date = start_date
+
+    effective_date = min(max(last_sales_date, start_date), end_date)
+    elapsed_days = max((effective_date - month_start).days + 1, 1)
+    total_month_days = max((month_end - month_start).days + 1, 1)
+
+    projected_close = (net_sales_now / elapsed_days) * total_month_days if elapsed_days else 0
+    remaining = max(float(monthly_goal) - net_sales_now, 0) if monthly_goal > 0 else 0
+    achievement = (net_sales_now / float(monthly_goal) * 100) if monthly_goal > 0 else 0
+    projected_achievement = (
+        projected_close / float(monthly_goal) * 100
+        if monthly_goal > 0 else 0
+    )
+
+    days_left = max((month_end - effective_date).days, 0)
+    daily_needed = (remaining / days_left) if monthly_goal > 0 and days_left > 0 else 0
+
+    with status_col:
+        if monthly_goal > 0:
+            progress_value = min(max(achievement / 100, 0), 1)
+            st.progress(
+                progress_value,
+                text=f"{achievement:.1f}% de cumplimiento · {format_clp(net_sales_now)} de {format_clp(monthly_goal)}",
+            )
+
+            m1, m2, m3, m4 = st.columns(4, gap="small")
+            m1.metric(
+                "Falta para la meta",
+                format_clp(remaining),
+                help="Monto pendiente para alcanzar la meta mensual.",
+            )
+            m2.metric(
+                "Días restantes",
+                f"{days_left}",
+                help="Días calendario restantes desde la última fecha con movimiento del período.",
+            )
+            m3.metric(
+                "Venta diaria necesaria",
+                format_clp(daily_needed) if days_left > 0 else format_clp(remaining),
+                help="Promedio diario requerido para alcanzar la meta al cierre de mes.",
+            )
+            m4.metric(
+                "Proyección de cierre",
+                format_clp(projected_close),
+                delta=f"{projected_achievement:.1f}% de la meta",
+                help="Proyección lineal según el ritmo de venta acumulado.",
+            )
+
+            if achievement >= 100:
+                st.success(
+                    f"Meta alcanzada. El avance actual es {achievement:.1f}% "
+                    f"y supera la meta en {format_clp(net_sales_now - monthly_goal)}."
+                )
+            elif projected_close >= monthly_goal:
+                st.info(
+                    f"Al ritmo actual, la proyección de cierre es {format_clp(projected_close)} "
+                    f"({projected_achievement:.1f}% de la meta)."
+                )
+            else:
+                projected_gap = max(monthly_goal - projected_close, 0)
+                st.warning(
+                    f"Al ritmo actual, la proyección quedaría {format_clp(projected_gap)} "
+                    f"bajo la meta. Se requieren aproximadamente {format_clp(daily_needed)} "
+                    f"por día durante los {days_left} días restantes."
+                )
         else:
-            avg_daily_value = float(daily_sales["Venta"].mean())
-            running_avg = daily_sales["Venta"].expanding().mean()
-            chart_df = daily_sales.copy()
-            chart_df["Promedio diario"] = avg_daily_value
-            chart_df["Promedio acumulado"] = running_avg
-
-            bars = alt.Chart(chart_df).mark_bar(
-                cornerRadiusTopLeft=3,
-                cornerRadiusTopRight=3,
-                color="#2563eb",
-            ).encode(
-                x=alt.X("Fecha:T", title="Fecha", axis=alt.Axis(format="%d/%m", labelAngle=0)),
-                y=alt.Y("Venta:Q", title="Venta neta (CLP)"),
-                tooltip=[
-                    alt.Tooltip("Fecha:T", title="Fecha", format="%d/%m/%Y"),
-                    alt.Tooltip("Venta:Q", title="Venta neta", format=","),
-                ],
+            st.info(
+                "Ingresa una **meta mensual oficial** para activar el % de cumplimiento, "
+                "monto faltante, venta diaria necesaria y proyección de cierre."
             )
 
-            avg_line = alt.Chart(chart_df).mark_rule(
-                color="#16a34a",
-                strokeDash=[6, 4],
-            ).encode(
-                y="Promedio diario:Q"
-            )
-
-            run_line = alt.Chart(chart_df).mark_line(
-                color="#ef4444",
-                strokeDash=[5, 4],
-                strokeWidth=1.5,
-            ).encode(
-                x="Fecha:T",
-                y="Promedio acumulado:Q",
-            )
-
-            st.altair_chart(
-                (bars + avg_line + run_line).properties(height=385),
-                use_container_width=True,
-            )
-
-    # Documentos de venta / NC al final, como referencia
-    col_a, col_b = st.columns(2, gap="small")
-
-    with col_a:
-        render_html('<div class="section-title" style="margin-top:18px">Documentos de venta · Facturas + Boletas</div>')
-        docs_df = actual_view[actual_view["Grupo comercial"].isin(["Factura", "Boleta"])].copy()
-        st.dataframe(
-            _prepare_doc_table(docs_df, no_vat, client_col, legal_col).head(10),
-            hide_index=True,
-            use_container_width=True,
-            height=300,
-            column_config={"Total": st.column_config.NumberColumn("Total", format="$%d")},
-        )
-
-    with col_b:
-        render_html('<div class="section-title" style="margin-top:18px">Notas de crédito</div>')
-        nc_df = actual_view[actual_view["Grupo comercial"].eq("Nota de crédito")].copy()
-        st.dataframe(
-            _prepare_doc_table(nc_df, no_vat, client_col, legal_col).head(10),
-            hide_index=True,
-            use_container_width=True,
-            height=300,
-            column_config={"Total": st.column_config.NumberColumn("Total", format="$%d")},
-        )
-
-    render_html("""
-    <div style="
-        margin-top:16px;
-        border:1px solid #d6e3ff;
-        background:#f7faff;
-        border-radius:12px;
-        padding:13px 15px;
-        color:#52617a;
-        font-size:12px;">
-      Las ventas se calculan como <strong>Facturas + Boletas − Notas de crédito</strong>.
-      Los montos consideran la base de análisis seleccionada.
-    </div>
-    """)

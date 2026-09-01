@@ -50,6 +50,280 @@ apply_styles(
 
 
 # ============================================================
+# SIDEBAR CORPORATIVO — OPCIÓN C V2
+# ============================================================
+
+st.markdown(
+    """
+    <style>
+    /* =====================================================
+       FONDO REAL DEL SIDEBAR
+       ===================================================== */
+    [data-testid="stSidebar"],
+    [data-testid="stSidebar"] > div,
+    [data-testid="stSidebarContent"],
+    [data-testid="stSidebarUserContent"] {
+        background:
+            radial-gradient(circle at 18% 0%, rgba(255, 196, 0, .08) 0%, rgba(255, 196, 0, 0) 30%),
+            linear-gradient(180deg, #0a0a0a 0%, #090909 55%, #050505 100%) !important;
+    }
+
+    [data-testid="stSidebar"] {
+        width: 280px !important;
+        min-width: 280px !important;
+        border-right: 1px solid rgba(255,196,0,.16) !important;
+        box-shadow: 10px 0 28px rgba(0, 0, 0, .16) !important;
+    }
+
+    [data-testid="stSidebarContent"] {
+        padding: 0 !important;
+    }
+
+    [data-testid="stSidebarUserContent"] {
+        padding: 14px 16px 18px 16px !important;
+        max-width: 280px !important;
+    }
+
+    /* Evita espacios gigantes entre widgets */
+    [data-testid="stSidebarUserContent"] [data-testid="stVerticalBlock"] {
+        gap: .18rem !important;
+    }
+
+    /* =====================================================
+       MARCA
+       ===================================================== */
+    .sidebar-brand-c {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 12px;
+        width: 100%;
+        min-height: 68px;
+        padding: 7px 8px 16px 8px;
+        margin: 0 0 7px 0;
+        border-bottom: 1px solid rgba(255,255,255,.10);
+        box-sizing: border-box;
+    }
+
+    .sidebar-brand-c .brand-mark {
+        width: 33px;
+        height: 33px;
+        position: relative;
+        flex: 0 0 33px;
+    }
+
+    .sidebar-brand-c .brand-mark:before,
+    .sidebar-brand-c .brand-mark:after {
+        content: "";
+        position: absolute;
+        left: 13px;
+        top: 1px;
+        width: 7px;
+        height: 31px;
+        border-radius: 2px;
+        background: #111111;
+        transform-origin: center;
+    }
+
+    .sidebar-brand-c .brand-mark:before { transform: rotate(42deg); }
+    .sidebar-brand-c .brand-mark:after  { transform: rotate(-42deg); }
+
+    .sidebar-brand-c .brand-copy {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        min-width: 0;
+    }
+
+    .sidebar-brand-c .brand-name {
+        color: #ffffff !important;
+        font-size: 19px;
+        font-weight: 850;
+        letter-spacing: .45px;
+        line-height: 1.05;
+    }
+
+    .sidebar-brand-c .brand-subtitle {
+        color: #91a8bb !important;
+        font-size: 8.5px;
+        font-weight: 700;
+        letter-spacing: 1.25px;
+        text-transform: uppercase;
+        margin-top: 5px;
+        line-height: 1;
+    }
+
+    /* =====================================================
+       SECCIONES
+       ===================================================== */
+    .sidebar-section-modern {
+        display: flex !important;
+        align-items: center !important;
+        width: 100% !important;
+        gap: 9px !important;
+        padding: 15px 7px 6px 7px !important;
+        margin: 0 !important;
+        box-sizing: border-box !important;
+        color: #ffc400 !important;
+        font-size: 9px !important;
+        font-weight: 850 !important;
+        letter-spacing: 1.25px !important;
+        text-transform: uppercase !important;
+        line-height: 1 !important;
+    }
+
+    .sidebar-section-modern .sidebar-section-dot {
+        display: none !important;
+    }
+
+    .sidebar-section-modern i {
+        display: block !important;
+        flex: 1 !important;
+        height: 1px !important;
+        background: linear-gradient(90deg, rgba(255,196,0,.48), rgba(255,196,0,0)) !important;
+        margin-left: 4px !important;
+    }
+
+    /* =====================================================
+       NAVEGACIÓN
+       ===================================================== */
+    [data-testid="stSidebar"] div.stButton {
+        margin: 0 !important;
+        width: 100% !important;
+    }
+
+    [data-testid="stSidebar"] div.stButton > button {
+        position: relative !important;
+        width: 100% !important;
+        min-height: 42px !important;
+        height: 42px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: flex-start !important;
+        gap: 11px !important;
+        padding: 0 12px !important;
+        margin: 0 !important;
+        border-radius: 8px !important;
+        border: 1px solid transparent !important;
+        box-shadow: none !important;
+        font-size: 13px !important;
+        font-weight: 650 !important;
+        line-height: 1 !important;
+        transition: all .14s ease !important;
+    }
+
+    /* Inactivos */
+    [data-testid="stSidebar"] div.stButton > button[kind="secondary"] {
+        background: transparent !important;
+        color: #d7e2eb !important;
+    }
+
+    [data-testid="stSidebar"] div.stButton > button[kind="secondary"] p,
+    [data-testid="stSidebar"] div.stButton > button[kind="secondary"] span {
+        color: #d7e2eb !important;
+    }
+
+    [data-testid="stSidebar"] div.stButton > button[kind="secondary"]:hover {
+        background: rgba(255,196,0,.08) !important;
+        border-color: rgba(255,196,0,.16) !important;
+        color: #ffffff !important;
+        transform: translateX(2px);
+    }
+
+    /* Activo */
+    [data-testid="stSidebar"] div.stButton > button[kind="primary"] {
+        overflow: hidden !important;
+        background: linear-gradient(90deg, #ffd21a 0%, #ffc400 100%) !important;
+        color: #111111 !important;
+        border-color: rgba(255, 196, 0, .42) !important;
+        font-weight: 850 !important;
+    }
+
+    [data-testid="stSidebar"] div.stButton > button[kind="primary"]:before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 4px;
+        bottom: 4px;
+        width: 4px;
+        border-radius: 0 4px 4px 0;
+        background: #111111;
+    }
+
+    [data-testid="stSidebar"] div.stButton > button[kind="primary"] p,
+    [data-testid="stSidebar"] div.stButton > button[kind="primary"] span {
+        color: #111111 !important;
+    }
+
+    [data-testid="stSidebar"] div.stButton > button[kind="primary"] span[data-testid="stIconMaterial"] {
+        color: #111111 !important;
+    }
+
+    [data-testid="stSidebar"] div.stButton > button[kind="secondary"] span[data-testid="stIconMaterial"] {
+        color: #c8d7e2 !important;
+    }
+
+    /* Alineación fija del icono y texto */
+    [data-testid="stSidebar"] div.stButton > button [data-testid="stIconMaterial"] {
+        flex: 0 0 22px !important;
+        width: 22px !important;
+        min-width: 22px !important;
+        text-align: center !important;
+        font-size: 20px !important;
+        margin: 0 !important;
+    }
+
+    [data-testid="stSidebar"] div.stButton > button p {
+        margin: 0 !important;
+        white-space: nowrap !important;
+        text-align: left !important;
+    }
+
+    /* =====================================================
+       FOOTER
+       ===================================================== */
+    .sidebar-footer-c {
+        margin: 18px 7px 0 7px;
+        padding: 13px 0 0 0;
+        border-top: 1px solid rgba(255,255,255,.09);
+        color: #70869a !important;
+        font-size: 8.5px;
+        line-height: 1.55;
+        letter-spacing: .25px;
+    }
+
+    .sidebar-footer-c strong {
+        color: #ffc400 !important;
+        font-weight: 750;
+    }
+
+    /* =====================================================
+       SCROLL
+       ===================================================== */
+    [data-testid="stSidebar"] ::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    [data-testid="stSidebar"] ::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    [data-testid="stSidebar"] ::-webkit-scrollbar-thumb {
+        background: rgba(255,255,255,.14);
+        border-radius: 999px;
+    }
+
+    /* Botón colapsar */
+    [data-testid="stSidebar"] button {
+        box-shadow: none !important;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+
+# ============================================================
 # PÁGINAS
 # ============================================================
 
@@ -445,11 +719,12 @@ with st.sidebar:
 
     render_html(
         """
-        <div class="sidebar-brand-modern">
-            <div class="sidebar-logo-mark" aria-hidden="true">
-                <span></span><span></span>
+        <div class="sidebar-brand-c">
+            <div class="brand-mark" aria-hidden="true"></div>
+            <div class="brand-copy">
+                <div class="brand-name">MARITEX</div>
+                <div class="brand-subtitle">Control Comercial</div>
             </div>
-            <div class="sidebar-brand-name">MARITEX</div>
         </div>
         """
     )
@@ -531,6 +806,16 @@ with st.sidebar:
         "Plantillas",
         "nav_plantillas",
         ":material/description:",
+    )
+
+
+    render_html(
+        """
+        <div class="sidebar-footer-c">
+            <strong>MARITEX</strong><br>
+            Inventario · Ventas · Marketplace
+        </div>
+        """
     )
 
 
