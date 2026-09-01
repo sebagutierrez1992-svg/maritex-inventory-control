@@ -1,18 +1,63 @@
+import os
 from pathlib import Path
 
-APP_VERSION = "V61.7.2 - Marketplace Templates Auto Detect"
+
+APP_VERSION = "V61.7.3 - Render Ready"
 APP_TITLE = "Maritex Inventory Control"
 
+
+# ============================================================
+# RUTAS PRINCIPALES
+# ============================================================
+
 BASE_DIR = Path(__file__).resolve().parents[1]
-DATA_DIR = BASE_DIR / "data"
+
+
+def _resolve_data_dir() -> Path:
+    """
+    Determina dónde guardar los archivos persistentes de la aplicación.
+
+    Local:
+        Usa <proyecto>/data
+
+    Render:
+        Si existe la variable de entorno MARITEX_DATA_DIR,
+        utiliza esa ubicación.
+
+    Ejemplo en Render:
+        MARITEX_DATA_DIR=/opt/render/project/src/data
+    """
+    configured_dir = os.getenv("MARITEX_DATA_DIR", "").strip()
+
+    if configured_dir:
+        return Path(configured_dir).expanduser().resolve()
+
+    return BASE_DIR / "data"
+
+
+DATA_DIR = _resolve_data_dir()
+
+# Las plantillas y assets forman parte del repositorio.
 TEMPLATES_DIR = BASE_DIR / "templates"
 ASSETS_DIR = BASE_DIR / "assets"
 
+
+# Crear directorios si todavía no existen.
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 TEMPLATES_DIR.mkdir(parents=True, exist_ok=True)
 ASSETS_DIR.mkdir(parents=True, exist_ok=True)
 
+
+# ============================================================
+# CONFIGURACIÓN GENERAL
+# ============================================================
+
 DEFAULT_VAT_RATE = 0.19
+
+
+# ============================================================
+# ARCHIVOS ERP
+# ============================================================
 
 ERP_STOCK_FILE = DATA_DIR / "erp_stock_source.bin"
 ERP_STOCK_META = DATA_DIR / "erp_stock_source.json"
@@ -31,6 +76,7 @@ def _find_template(
 ) -> Path:
     """
     Busca primero el nombre oficial esperado.
+
     Si no existe, intenta detectar automáticamente una planilla
     compatible dentro de /templates.
 
@@ -56,9 +102,7 @@ def _find_template(
         )
 
     # Eliminar duplicados manteniendo orden.
-    unique_candidates = list(
-        dict.fromkeys(candidates)
-    )
+    unique_candidates = list(dict.fromkeys(candidates))
 
     if unique_candidates:
         return unique_candidates[0]
@@ -87,11 +131,16 @@ MELI_TEMPLATE = _find_template(
     ),
 )
 
+
 MARKETPLACE_TEMPLATES = {
     "Paris Marketplace": PARIS_TEMPLATE,
     "Mercado Libre": MELI_TEMPLATE,
 }
 
+
+# ============================================================
+# PÁGINAS
+# ============================================================
 
 PAGES = {
     "stock_general": "Stock General",

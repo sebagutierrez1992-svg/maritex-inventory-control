@@ -20,6 +20,36 @@ def _safe_filename(filename: str) -> str:
     return Path(str(filename or "archivo")).name
 
 
+def _atomic_write_bytes(path: Path, raw: bytes) -> None:
+    """
+    Escritura segura:
+    primero escribe un temporal y luego reemplaza el archivo final.
+    """
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    temp_path = path.with_suffix(path.suffix + ".tmp")
+    temp_path.write_bytes(raw)
+    temp_path.replace(path)
+
+
+def _atomic_write_text(
+    path: Path,
+    text: str,
+    *,
+    encoding: str = "utf-8",
+) -> None:
+    """
+    Escritura segura para archivos de texto/JSON.
+    """
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    temp_path = path.with_suffix(path.suffix + ".tmp")
+    temp_path.write_text(text, encoding=encoding)
+    temp_path.replace(path)
+
+
 # ============================================================
 # GUARDAR FUENTE
 # ============================================================
@@ -46,11 +76,13 @@ def save_source(
     data_path.parent.mkdir(parents=True, exist_ok=True)
     meta_path.parent.mkdir(parents=True, exist_ok=True)
 
-    data_path.write_bytes(raw)
+    _atomic_write_bytes(data_path, raw)
 
     meta = {
         "filename": _safe_filename(filename),
-        "loaded_at": datetime.now().isoformat(timespec="seconds"),
+        "loaded_at": datetime.now().astimezone().isoformat(
+            timespec="seconds"
+        ),
         "sha256": _sha256(raw),
         "size": len(raw),
     }
@@ -58,7 +90,8 @@ def save_source(
     if metadata:
         meta.update(metadata)
 
-    meta_path.write_text(
+    _atomic_write_text(
+        meta_path,
         json.dumps(
             meta,
             ensure_ascii=False,
@@ -70,6 +103,7 @@ def save_source(
 
     if history_dir is not None:
         target_dir = Path(history_dir)
+
         if source_key:
             target_dir = target_dir / source_key
 
@@ -150,13 +184,16 @@ def list_history(
 
         try:
             stat = path.stat()
+
             rows.append(
                 {
                     "name": path.name,
                     "filename": path.name,
                     "path": path,
                     "full_path": str(path),
-                    "modified_at": datetime.fromtimestamp(stat.st_mtime),
+                    "modified_at": datetime.fromtimestamp(
+                        stat.st_mtime
+                    ).astimezone(),
                     "size": stat.st_size,
                 }
             )
@@ -189,16 +226,24 @@ def save_history(
     history_dir = Path(history_dir)
     history_dir.mkdir(parents=True, exist_ok=True)
 
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+    timestamp = datetime.now().astimezone().strftime(
+        "%Y%m%d_%H%M%S_%f"
+    )
+
     original_name = _safe_filename(filename)
 
     if prefix:
-        history_name = f"{prefix}_{timestamp}_{original_name}"
+        history_name = (
+            f"{prefix}_{timestamp}_{original_name}"
+        )
     else:
-        history_name = f"{timestamp}_{original_name}"
+        history_name = (
+            f"{timestamp}_{original_name}"
+        )
 
     target = history_dir / history_name
-    target.write_bytes(raw)
+
+    _atomic_write_bytes(target, raw)
 
     return target
 
@@ -216,7 +261,8 @@ def save_named_file(
 ) -> Path:
     """
     Guarda un archivo conservando su nombre dentro de una carpeta.
-    Se usa para los PDF mensuales de movimientos Flexline.
+
+    Se usa para archivos mensuales de movimientos Flexline.
     """
 
     directory = Path(directory)
@@ -226,9 +272,12 @@ def save_named_file(
     target = directory / safe_name
 
     if target.exists() and not overwrite:
-        raise FileExistsError(f"Ya existe {safe_name}")
+        raise FileExistsError(
+            f"Ya existe {safe_name}"
+        )
 
-    target.write_bytes(raw)
+    _atomic_write_bytes(target, raw)
+
     return target
 
 
@@ -244,9 +293,11 @@ def list_named_files(
         return []
 
     normalized_suffixes = None
+
     if suffixes:
         normalized_suffixes = tuple(
-            str(s).lower() for s in suffixes
+            str(s).lower()
+            for s in suffixes
         )
 
     rows = []
@@ -255,18 +306,25 @@ def list_named_files(
         if not path.is_file():
             continue
 
-        if normalized_suffixes and path.suffix.lower() not in normalized_suffixes:
+        if (
+            normalized_suffixes
+            and path.suffix.lower()
+            not in normalized_suffixes
+        ):
             continue
 
         try:
             stat = path.stat()
+
             rows.append(
                 {
                     "name": path.name,
                     "filename": path.name,
                     "path": path,
                     "full_path": str(path),
-                    "modified_at": datetime.fromtimestamp(stat.st_mtime),
+                    "modified_at": datetime.fromtimestamp(
+                        stat.st_mtime
+                    ).astimezone(),
                     "size": stat.st_size,
                 }
             )
@@ -293,4 +351,5 @@ def delete_named_file(
         return False
 
     target.unlink()
+
     return True

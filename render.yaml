@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: maritex-inventory-control
+    runtime: python
+    plan: 0.5c-512mb
+
+    buildCommand: pip install -r requirements.txt
+
+    startCommand: streamlit run app.py --server.address 0.0.0.0 --server.port $PORT
+
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.7
+
+      - key: MARITEX_DATA_DIR
+        value: /opt/render/project/src/data
+
+    disk:
+      name: maritex-data
+      mountPath: /opt/render/project/src/data
+      sizeGB: 1
