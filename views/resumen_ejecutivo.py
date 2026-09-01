@@ -17,7 +17,7 @@ VALID_GROUPS = ["Factura", "Boleta", "Nota de crédito"]
 # Catálogo comercial aprobado para esta vista.
 # 52 y 53 quedan fuera expresamente.
 SELLER_CATALOG = {
-    "03": ("GC1-DANIEL ALVARADO", "Vendedores"),
+    "03": ("DANIEL ALVARADO", "Vendedores"),
     "04": ("ROXANA VALENCIA", "Vendedores"),
     "05": ("GRACIELA SANTANDER", "Vendedores"),
     "06": ("CLAUDIA LOPEZ", "Vendedores"),
