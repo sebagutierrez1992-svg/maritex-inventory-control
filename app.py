@@ -24,6 +24,7 @@ from ui.components import render_html
 from ui.styles import apply_styles
 
 from views import (
+    crm,
     integracion_erp,
     marketplaces,
     metricas_stock,
@@ -383,6 +384,7 @@ PAGE_MAP = {
     "Stock General": stock_general.render,
     "Marketplace": marketplaces.render,
     "Integración ERP": lambda ctx: integracion_erp.render(),
+    "CRM": crm.render,
     "Métricas Stock": metricas_stock.render,
     "Métricas Vendedores": metricas_vendedores.render,
     "Resumen Ejecutivo": resumen_ejecutivo.render,
@@ -399,6 +401,7 @@ STOCK_PAGES = {
 
 SALES_PAGES = {
     "Inicio",
+    "CRM",
     "Métricas Vendedores",
     "Resumen Ejecutivo",
 }
@@ -786,6 +789,13 @@ with st.sidebar:
         "Inicio",
         "nav_inicio",
         ":material/home:",
+    )
+
+    sidebar_button(
+        "CRM",
+        "CRM",
+        "nav_crm",
+        ":material/contact_page:",
     )
 
     render_html(

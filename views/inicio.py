@@ -618,634 +618,469 @@ def _nav_button(label: str, target: str, key: str):
 # CSS
 # ============================================================
 
+
+def _client_column(df: pd.DataFrame | None) -> str | None:
+    return _find_exact(
+        df,
+        [
+            "Cliente",
+            "RazonSocial",
+            "Razón Social",
+            "Nombre Cliente",
+            "NombreCliente",
+            "Cliente Nombre",
+        ],
+    ) or _find_contains(df, ["cliente", "razon social", "razón social"])
+
+
+def _rut_column(df: pd.DataFrame | None) -> str | None:
+    return _find_exact(
+        df,
+        ["Rut", "RUT", "RutCliente", "RUT Cliente", "ClienteRut"],
+    ) or _find_contains(df, ["rut"])
+
+
+def _seller_column(df: pd.DataFrame | None) -> str | None:
+    return _find_exact(
+        df,
+        [
+            "Vendedor",
+            "Nombre Vendedor",
+            "NombreVendedor",
+            "Ejecutivo",
+            "Ejecutivo Comercial",
+        ],
+    ) or _find_contains(df, ["vendedor", "ejecutivo"])
+
+
+def _category_column(df: pd.DataFrame | None) -> str | None:
+    return _find_exact(
+        df,
+        [
+            "Categoria",
+            "Categoría",
+            "Categoria Producto",
+            "Categoría Producto",
+            "Familia",
+            "Linea",
+            "Línea",
+        ],
+    ) or _find_contains(df, ["categoria", "categoría", "familia", "linea", "línea"])
+
+
+def _prepare_sales_all(sales_df: pd.DataFrame | None) -> pd.DataFrame:
+    if sales_df is None or sales_df.empty:
+        return pd.DataFrame()
+
+    date_col = _find_exact(
+        sales_df,
+        ["Fecha_dt", "Fecha", "Fecha Emision", "FechaEmision"],
+    )
+    if not date_col:
+        return pd.DataFrame()
+
+    dates = pd.to_datetime(sales_df[date_col], errors="coerce", dayfirst=True)
+    valid = dates.dropna()
+    if valid.empty:
+        return pd.DataFrame()
+
+    return _prepare_sales(sales_df, valid.min().date(), valid.max().date())
+
+
+def _sales_documents(sales: pd.DataFrame) -> int:
+    if sales is None or sales.empty:
+        return 0
+    doc_col = _document_column(sales)
+    if doc_col and doc_col in sales.columns:
+        return int(sales[doc_col].nunique())
+    return int(len(sales))
+
+
+def _active_clients(sales: pd.DataFrame) -> int:
+    if sales is None or sales.empty:
+        return 0
+
+    rut_col = _rut_column(sales)
+    if rut_col and rut_col in sales.columns:
+        return int(
+            sales[rut_col]
+            .fillna("")
+            .astype(str)
+            .str.strip()
+            .replace("", pd.NA)
+            .dropna()
+            .nunique()
+        )
+
+    client_col = _client_column(sales)
+    if client_col and client_col in sales.columns:
+        return int(
+            sales[client_col]
+            .fillna("")
+            .astype(str)
+            .str.strip()
+            .replace("", pd.NA)
+            .dropna()
+            .nunique()
+        )
+
+    return 0
+
+
+def _seller_summary(sales: pd.DataFrame, limit: int = 10) -> pd.DataFrame:
+    seller_col = _seller_column(sales)
+    if sales is None or sales.empty or not seller_col or seller_col not in sales.columns:
+        return pd.DataFrame(columns=["Vendedor", "Venta"])
+
+    work = sales[[seller_col, "VentaDashboard"]].copy()
+    work[seller_col] = (
+        work[seller_col].fillna("Sin vendedor").astype(str).str.strip().replace("", "Sin vendedor")
+    )
+    return (
+        work.groupby(seller_col, as_index=False)["VentaDashboard"]
+        .sum()
+        .rename(columns={seller_col: "Vendedor", "VentaDashboard": "Venta"})
+        .sort_values("Venta", ascending=False)
+        .head(limit)
+        .reset_index(drop=True)
+    )
+
+
+def _mix_summary(sales: pd.DataFrame, limit: int = 6) -> tuple[pd.DataFrame, str]:
+    col = _category_column(sales)
+    label = "Categoría"
+
+    if not col:
+        col = _channel_column(sales)
+        label = "Canal"
+
+    if sales is None or sales.empty or not col or col not in sales.columns:
+        return pd.DataFrame(columns=[label, "Venta"]), label
+
+    work = sales[[col, "VentaDashboard"]].copy()
+    work[col] = (
+        work[col].fillna(f"Sin {label.lower()}").astype(str).str.strip().replace("", f"Sin {label.lower()}")
+    )
+    out = (
+        work.groupby(col, as_index=False)["VentaDashboard"]
+        .sum()
+        .rename(columns={col: label, "VentaDashboard": "Venta"})
+        .sort_values("Venta", ascending=False)
+        .head(limit)
+        .reset_index(drop=True)
+    )
+    return out, label
+
+
+def _latest_orders(sales: pd.DataFrame, limit: int = 5) -> pd.DataFrame:
+    if sales is None or sales.empty or "FechaDashboard" not in sales.columns:
+        return pd.DataFrame()
+
+    doc_col = _document_column(sales)
+    client_col = _client_column(sales)
+    seller_col = _seller_column(sales)
+
+    cols = ["FechaDashboard", "VentaDashboard"]
+    for c in [doc_col, client_col, seller_col]:
+        if c and c in sales.columns and c not in cols:
+            cols.append(c)
+
+    work = sales[cols].copy()
+    work = work.dropna(subset=["FechaDashboard"])
+
+    if doc_col and doc_col in work.columns:
+        agg = {
+            "FechaDashboard": "max",
+            "VentaDashboard": "sum",
+        }
+        if client_col and client_col in work.columns:
+            agg[client_col] = "first"
+        if seller_col and seller_col in work.columns:
+            agg[seller_col] = "first"
+
+        work = work.groupby(doc_col, as_index=False).agg(agg)
+    else:
+        work = work.sort_values("FechaDashboard", ascending=False).head(limit)
+
+    work = work.sort_values("FechaDashboard", ascending=False).head(limit).reset_index(drop=True)
+
+    out = pd.DataFrame()
+    out["Documento"] = (
+        work[doc_col].astype(str)
+        if doc_col and doc_col in work.columns
+        else [f"Venta {i+1}" for i in range(len(work))]
+    )
+    out["Fecha"] = work["FechaDashboard"].dt.strftime("%d-%m-%Y")
+    out["Cliente"] = (
+        work[client_col].fillna("Sin cliente").astype(str)
+        if client_col and client_col in work.columns
+        else "Sin cliente"
+    )
+    out["Vendedor"] = (
+        work[seller_col].fillna("Sin vendedor").astype(str)
+        if seller_col and seller_col in work.columns
+        else "Sin vendedor"
+    )
+    out["Total"] = pd.to_numeric(work["VentaDashboard"], errors="coerce").fillna(0.0)
+    return out
+
+
 def _inject_css():
     st.markdown(
         """
-        <style>
-        .block-container {
-            max-width: 1600px;
-            padding-top: 1.05rem;
-            padding-bottom: 2.2rem;
-        }
-
-        div[data-testid="stVerticalBlock"] {
-            gap: .72rem;
-        }
-
-        .homepro-head {
-            display:flex;
-            align-items:flex-start;
-            justify-content:space-between;
-            gap:24px;
-            margin-bottom:8px;
-        }
-
-        .homepro-greeting {
-            font-size:29px;
-            font-weight:800;
-            color:#121820;
-            letter-spacing:-.8px;
-            line-height:1.1;
-        }
-
-        .homepro-sub {
-            margin-top:7px;
-            font-size:13px;
-            color:#7d8792;
-        }
-
-        .homepro-update {
-            display:flex;
-            gap:9px;
-            align-items:center;
-            color:#747d87;
-            font-size:12px;
-            white-space:nowrap;
-            padding-top:5px;
-        }
-
-        .homepro-update-dot {
-            width:8px;
-            height:8px;
-            border-radius:999px;
-            background:#22c55e;
-            box-shadow:0 0 0 4px rgba(34,197,94,.10);
-        }
-
-        .homepro-kpis {
-            display:grid;
-            grid-template-columns:repeat(5,minmax(0,1fr));
-            gap:12px;
-            margin:6px 0 4px 0;
-        }
-
-        .homepro-kpi {
-            background:#fff;
-            border:1px solid #e9edf1;
-            border-radius:12px;
-            padding:17px 17px 14px 17px;
-            min-height:112px;
-            box-shadow:0 3px 12px rgba(20,30,45,.035);
-        }
-
-        .homepro-kpi-top {
-            display:flex;
-            align-items:center;
-            justify-content:space-between;
-            gap:8px;
-        }
-
-        .homepro-kpi-label {
-            font-size:12px;
-            color:#303943;
-            font-weight:650;
-        }
-
-        .homepro-kpi-icon {
-            width:29px;
-            height:29px;
-            display:flex;
-            align-items:center;
-            justify-content:center;
-            border-radius:999px;
-            font-size:14px;
-            font-weight:800;
-        }
-
-        .homepro-kpi-icon.yellow {
-            background:#fff6d6;
-            color:#e3a600;
-        }
-
-        .homepro-kpi-icon.green {
-            background:#eaf8ec;
-            color:#22a447;
-        }
-
-        .homepro-kpi-icon.red {
-            background:#fff0ee;
-            color:#dd584c;
-        }
-
-        .homepro-kpi-icon.blue {
-            background:#eef5ff;
-            color:#3f7fd6;
-        }
-
-        .homepro-kpi-value {
-            margin-top:12px;
-            color:#10161d;
-            font-size:22px;
-            font-weight:800;
-            line-height:1;
-            letter-spacing:-.45px;
-        }
-
-        .homepro-kpi-helper {
-            margin-top:12px;
-            font-size:10.5px;
-            font-weight:600;
-            color:#89929c;
-        }
-
-        .homepro-kpi-helper.green,
-        .homepro-kpi-helper.positive {
-            color:#15a34a;
-        }
-
-        .homepro-kpi-helper.red,
-        .homepro-kpi-helper.negative {
-            color:#dc5148;
-        }
-
-        .homepro-card-title {
-            font-size:13px;
-            font-weight:800;
-            color:#1a2027;
-            margin-bottom:2px;
-        }
-
-        .homepro-card-sub {
-            color:#8b949e;
-            font-size:10.5px;
-            margin-bottom:4px;
-        }
-
-        div[data-testid="stVerticalBlockBorderWrapper"] {
-            border-color:#e9edf1 !important;
-            border-radius:12px !important;
-            background:white !important;
-            box-shadow:0 3px 12px rgba(20,30,45,.025);
-        }
-
-        .homepro-alerts {
-            display:flex;
-            flex-direction:column;
-            gap:0;
-            margin-top:1px;
-        }
-
-        .homepro-alert {
-            display:grid;
-            grid-template-columns:30px 1fr auto;
-            align-items:center;
-            gap:10px;
-            padding:13px 0;
-            border-bottom:1px solid #edf0f2;
-        }
-
-        .homepro-alert:last-child {
-            border-bottom:0;
-        }
-
-        .homepro-alert-icon {
-            width:28px;
-            height:28px;
-            border-radius:8px;
-            display:flex;
-            align-items:center;
-            justify-content:center;
-            font-size:13px;
-            font-weight:900;
-        }
-
-        .homepro-alert-icon.red {
-            background:#fff0ed;
-            color:#ec5447;
-        }
-
-        .homepro-alert-icon.yellow {
-            background:#fff7dd;
-            color:#e7a900;
-        }
-
-        .homepro-alert-icon.blue {
-            background:#eef5ff;
-            color:#4283d4;
-        }
-
-        .homepro-alert-icon.green {
-            background:#edf9ef;
-            color:#35a756;
-        }
-
-        .homepro-alert strong {
-            display:block;
-            font-size:12px;
-            color:#20272e;
-            margin-bottom:2px;
-        }
-
-        .homepro-alert small {
-            font-size:9.5px;
-            color:#9099a3;
-        }
-
-        .homepro-alert-value {
-            font-size:11px;
-            color:#4b5560;
-            font-weight:700;
-        }
-
-        .homepro-status-summary {
-            display:grid;
-            grid-template-columns:repeat(3,1fr);
-            gap:8px;
-            margin-top:3px;
-        }
-
-        .homepro-status-summary > div {
-            border:1px solid #edf0f2;
-            border-radius:9px;
-            padding:8px;
-        }
-
-        .homepro-status-summary span {
-            display:block;
-            color:#8c949e;
-            font-size:9px;
-        }
-
-        .homepro-status-summary strong {
-            display:block;
-            color:#161c22;
-            font-size:13px;
-            margin-top:2px;
-        }
-
-        .homepro-product-list {
-            margin-top:4px;
-        }
-
-        .homepro-product-row {
-            display:grid;
-            grid-template-columns:28px minmax(0,1fr) 85px 110px;
-            gap:10px;
-            align-items:center;
-            min-height:42px;
-            border-bottom:1px solid #edf0f2;
-            font-size:10.5px;
-        }
-
-        .homepro-product-row:last-child {
-            border-bottom:0;
-        }
-
-        .homepro-rank {
-            color:#9ba3ac;
-            font-weight:700;
-        }
-
-        .homepro-product-main strong {
-            display:block;
-            color:#252d35;
-            font-size:10.5px;
-            white-space:nowrap;
-            overflow:hidden;
-            text-overflow:ellipsis;
-        }
-
-        .homepro-product-main span {
-            color:#9aa2ab;
-            font-size:9px;
-        }
-
-        .homepro-num {
-            text-align:right;
-            font-weight:700;
-            color:#303840;
-        }
-
-        .homepro-money {
-            text-align:right;
-            font-weight:700;
-            color:#121820;
-        }
-
-        .homepro-attention {
-            background:linear-gradient(90deg,#fff8df 0%,#fffdf6 70%,#fff 100%);
-            border:1px solid #f4e8ba;
-            border-radius:11px;
-            padding:13px 15px;
-            display:flex;
-            justify-content:space-between;
-            align-items:center;
-            gap:15px;
-        }
-
-        .homepro-attention strong {
-            display:block;
-            font-size:12px;
-            color:#242b32;
-        }
-
-        .homepro-attention span {
-            display:block;
-            margin-top:2px;
-            font-size:9.5px;
-            color:#8e876d;
-        }
-
-        .homepro-table {
-            width:100%;
-            border-collapse:collapse;
-            font-size:10px;
-        }
-
-        .homepro-table th {
-            text-align:left;
-            color:#68727d;
-            padding:9px 10px;
-            border-bottom:1px solid #e8ecef;
-            font-size:9px;
-            text-transform:uppercase;
-            letter-spacing:.25px;
-        }
-
-        .homepro-table td {
-            padding:10px;
-            border-bottom:1px solid #edf0f2;
-            color:#2b333b;
-        }
-
-        .homepro-table tr:last-child td {
-            border-bottom:0;
-        }
-
-        .homepro-badge {
-            display:inline-flex;
-            align-items:center;
-            justify-content:center;
-            min-width:54px;
-            border-radius:999px;
-            padding:4px 8px;
-            font-size:8px;
-            font-weight:800;
-        }
-
-        .homepro-badge.red {
-            background:#ffe3dd;
-            color:#c94d42;
-        }
-
-        .homepro-badge.yellow {
-            background:#fff0bf;
-            color:#a66c00;
-        }
-
-        .homepro-badge.orange {
-            background:#ffead8;
-            color:#b75f16;
-        }
-
-        .homepro-quick-title {
-            font-size:12px;
-            font-weight:800;
-            color:#222a31;
-            margin-bottom:8px;
-        }
-
-        .homepro-foot {
-            text-align:center;
-            color:#a0a8b0;
-            font-size:9px;
-            padding:14px 0 0 0;
-        }
-
-        .stButton > button {
-            border-radius:9px !important;
-            min-height:40px !important;
-            font-size:11px !important;
-            font-weight:700 !important;
-        }
-
-
-        .homepro-inventory-hero {
-            display:flex;
-            align-items:center;
-            gap:16px;
-            margin-top:10px;
-            margin-bottom:14px;
-        }
-
-        .homepro-health-ring {
-            --p: 0%;
-            width:96px;
-            height:96px;
-            flex:0 0 96px;
-            border-radius:50%;
-            background:
-                radial-gradient(circle at center, #fff 58%, transparent 59%),
-                conic-gradient(#8fc267 var(--p), #eef1f3 0);
-            display:flex;
-            align-items:center;
-            justify-content:center;
-            position:relative;
-        }
-
-        .homepro-health-ring > div {
-            text-align:center;
-            line-height:1;
-        }
-
-        .homepro-health-ring strong {
-            display:block;
-            font-size:24px;
-            font-weight:850;
-            color:#141a20;
-            letter-spacing:-.5px;
-        }
-
-        .homepro-health-ring span {
-            display:block;
-            margin-top:5px;
-            font-size:9px;
-            color:#8b949d;
-        }
-
-        .homepro-health-copy {
-            min-width:0;
-            flex:1;
-        }
-
-        .homepro-health-copy strong {
-            display:block;
-            color:#1e252c;
-            font-size:12px;
-            margin-bottom:5px;
-        }
-
-        .homepro-health-copy p {
-            margin:0;
-            color:#8a939c;
-            font-size:9.5px;
-            line-height:1.45;
-        }
-
-        .homepro-status-list {
-            display:flex;
-            flex-direction:column;
-            gap:9px;
-        }
-
-        .homepro-status-row {
-            display:grid;
-            grid-template-columns:10px minmax(0,1fr) auto;
-            align-items:center;
-            gap:9px;
-            font-size:10px;
-        }
-
-        .homepro-status-row i {
-            width:8px;
-            height:8px;
-            border-radius:999px;
-        }
-
-        .homepro-status-row i.green { background:#8fc267; }
-        .homepro-status-row i.yellow { background:#ffc400; }
-        .homepro-status-row i.orange { background:#f4a44b; }
-        .homepro-status-row i.red { background:#ef6656; }
-
-        .homepro-status-row span {
-            color:#69737d;
-        }
-
-        .homepro-status-row strong {
-            color:#20272e;
-            font-size:10.5px;
-        }
-
-        .homepro-wh-list {
-            display:flex;
-            flex-direction:column;
-            gap:13px;
-            margin-top:13px;
-        }
-
-        .homepro-wh-row {
-            display:grid;
-            grid-template-columns:88px minmax(0,1fr) 62px;
-            align-items:center;
-            gap:10px;
-        }
-
-        .homepro-wh-name {
-            color:#59636d;
-            font-size:10px;
-            white-space:nowrap;
-            overflow:hidden;
-            text-overflow:ellipsis;
-        }
-
-        .homepro-wh-track {
-            position:relative;
-            height:12px;
-            border-radius:999px;
-            background:#f1f3f5;
-            overflow:hidden;
-        }
-
-        .homepro-wh-bar {
-            height:100%;
-            min-width:3px;
-            border-radius:999px;
-            background:linear-gradient(90deg,#ffc400,#ffd553);
-        }
-
-        .homepro-wh-value {
-            text-align:right;
-            color:#303840;
-            font-size:10px;
-            font-weight:750;
-        }
-
-        .homepro-wh-total {
-            display:flex;
-            align-items:center;
-            justify-content:space-between;
-            gap:12px;
-            margin-top:15px;
-            padding-top:11px;
-            border-top:1px solid #edf0f2;
-            color:#9099a3;
-            font-size:9.5px;
-        }
-
-        .homepro-wh-total strong {
-            color:#20272e;
-            font-size:11px;
-        }
-
-        @media (max-width: 1100px) {
-            .homepro-kpis {
-                grid-template-columns:repeat(2,minmax(0,1fr));
-            }
-        }
-
-        @media (max-width: 700px) {
-            .homepro-head {
-                flex-direction:column;
-            }
-            .homepro-kpis {
-                grid-template-columns:1fr;
-            }
-            .homepro-product-row {
-                grid-template-columns:24px minmax(0,1fr) 62px;
-            }
-            .homepro-product-row .homepro-money {
-                display:none;
-            }
-        }
-
-        /* MARITEX DARK CORPORATIVO · INICIO */
-        .homepro-greeting,.homepro-card-title,.homepro-quick-title{color:#F7F8FA!important}
-        .homepro-sub,.homepro-update,.homepro-card-sub,.homepro-foot{color:#9FB0C0!important}
-        .homepro-kpi{background:#151F28!important;border:1px solid #34414D!important;box-shadow:none!important}
-        .homepro-kpi-label{color:#AFC0CF!important}
-        .homepro-kpi-value{color:#F7F8FA!important}
-        .homepro-kpi-helper{color:#8FA2B3!important}
-        div[data-testid="stVerticalBlockBorderWrapper"]{border-color:#34414D!important;background:#111B24!important;box-shadow:none!important}
-        .homepro-alert{border-bottom-color:#34414D!important}
-        .homepro-alert strong{color:#F7F8FA!important}
-        .homepro-alert small{color:#9FB0C0!important}
-        .homepro-alert-value{color:#AFC0CF!important}
-        .homepro-status-summary>div{border-color:#34414D!important;background:#151F28!important}
-        .homepro-status-summary span{color:#9FB0C0!important}
-        .homepro-status-summary strong{color:#F7F8FA!important}
-        .homepro-product-row{border-bottom-color:#34414D!important}
-        .homepro-rank,.homepro-product-main span{color:#8FA2B3!important}
-        .homepro-product-main strong,.homepro-num,.homepro-money{color:#F7F8FA!important}
-        .homepro-attention{background:linear-gradient(90deg,rgba(255,196,0,.15),rgba(255,196,0,.07) 70%,rgba(255,196,0,.025))!important;border:1px solid rgba(255,196,0,.38)!important}
-        .homepro-attention strong{color:#FFC400!important}
-        .homepro-attention span{color:#C7D1DA!important}
-        .homepro-table th{color:#9FB0C0!important;border-bottom-color:#44515D!important}
-        .homepro-table td{color:#F0F3F6!important;border-bottom-color:#2E3B47!important}
-        .homepro-health-ring{background:radial-gradient(circle at center,#151F28 58%,transparent 59%),conic-gradient(#8FC267 var(--p),#34414D 0)!important}
-        .homepro-health-ring strong{color:#F7F8FA!important}
-        .homepro-health-ring span,.homepro-health-copy p{color:#9FB0C0!important}
-        .homepro-health-copy strong{color:#F7F8FA!important}
-        .homepro-status-row span{color:#AFC0CF!important}
-        .homepro-status-row strong{color:#F7F8FA!important}
-        .homepro-wh-name{color:#AFC0CF!important}
-        .homepro-wh-track{background:#E9EDF2!important}
-        .homepro-wh-value{color:#F7F8FA!important}
-        .homepro-wh-total{border-top-color:#44515D!important;color:#9FB0C0!important}
-        .homepro-wh-total strong{color:#F7F8FA!important}
-        .homepro-inventory-mini{margin-top:10px;padding:12px;border-radius:9px;background:#151F28;border:1px solid #34414D}
-        .homepro-inventory-mini-label{font-size:9px;color:#9FB0C0;text-transform:uppercase;letter-spacing:.4px}
-        .homepro-inventory-mini-value{font-size:19px;font-weight:800;color:#F7F8FA;margin-top:4px}
-        .homepro-inventory-mini-sub{font-size:9.5px;color:#9FB0C0;margin-top:4px}
-
-        </style>
+<style>
+/* ============================================================
+   MARITEX DASHBOARD · DARK CRM
+   ============================================================ */
+
+.block-container{
+    max-width:1680px;
+    padding-top:.85rem;
+    padding-bottom:2rem;
+}
+
+div[data-testid="stVerticalBlock"]{gap:.65rem}
+
+.home-head{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:20px;
+    margin-bottom:2px;
+}
+.home-title{
+    color:#F7F9FB;
+    font-size:29px;
+    line-height:1;
+    font-weight:850;
+    letter-spacing:-.7px;
+}
+.home-sub{
+    color:#9EACB8;
+    font-size:12px;
+    margin-top:7px;
+}
+.home-live{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    color:#D8E0E6;
+    background:#121C25;
+    border:1px solid #33434F;
+    border-radius:10px;
+    padding:9px 13px;
+    font-size:10.5px;
+}
+.home-live i{
+    display:block;
+    width:8px;height:8px;border-radius:999px;
+    background:#24CC6A;
+    box-shadow:0 0 0 4px rgba(36,204,106,.10);
+}
+
+/* KPI */
+.home-kpis{
+    display:grid;
+    grid-template-columns:repeat(5,minmax(0,1fr));
+    gap:11px;
+    margin:5px 0 2px;
+}
+.home-kpi{
+    background:linear-gradient(145deg,#18242E,#111A22);
+    border:1px solid #33434F;
+    border-radius:11px;
+    padding:14px 15px 13px;
+    min-height:111px;
+    position:relative;
+    overflow:hidden;
+}
+.home-kpi::after{
+    content:"";
+    position:absolute;
+    left:14px;right:14px;bottom:8px;height:2px;
+    border-radius:999px;
+    opacity:.45;
+}
+.home-kpi.yellow::after{background:linear-gradient(90deg,#FFC400,transparent)}
+.home-kpi.green::after{background:linear-gradient(90deg,#34C867,transparent)}
+.home-kpi.purple::after{background:linear-gradient(90deg,#8B5CF6,transparent)}
+.home-kpi.orange::after{background:linear-gradient(90deg,#F97316,transparent)}
+.home-kpi.blue::after{background:linear-gradient(90deg,#3B82F6,transparent)}
+
+.home-kpi-top{display:flex;align-items:center;gap:11px}
+.home-kpi-icon{
+    width:38px;height:38px;border-radius:999px;
+    display:flex;align-items:center;justify-content:center;
+    font-size:17px;font-weight:850;flex:0 0 38px;
+}
+.home-kpi-icon.yellow{color:#FFC400;background:rgba(255,196,0,.11);border:1px solid rgba(255,196,0,.28)}
+.home-kpi-icon.green{color:#44D478;background:rgba(34,197,94,.11);border:1px solid rgba(34,197,94,.26)}
+.home-kpi-icon.purple{color:#9E7BFF;background:rgba(139,92,246,.12);border:1px solid rgba(139,92,246,.25)}
+.home-kpi-icon.orange{color:#FB7C2C;background:rgba(249,115,22,.12);border:1px solid rgba(249,115,22,.26)}
+.home-kpi-icon.blue{color:#62A2FF;background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.25)}
+
+.home-kpi-label{color:#BBC6CF;font-size:9.5px;text-transform:uppercase;font-weight:750}
+.home-kpi-value{color:#FFF;font-size:21px;font-weight:850;line-height:1;margin-top:6px;letter-spacing:-.35px}
+.home-kpi-help{color:#8D9AA5;font-size:8.9px;margin-top:8px;font-weight:650}
+.home-kpi-help.positive{color:#49D17B}
+.home-kpi-help.negative{color:#FF776E}
+.home-kpi-help.yellow{color:#F3CB36}
+
+/* card wrappers */
+div[data-testid="stVerticalBlockBorderWrapper"]{
+    border:1px solid #33434F !important;
+    background:linear-gradient(145deg,#18242E,#111A22) !important;
+    border-radius:11px !important;
+    box-shadow:none !important;
+}
+.home-card-title{color:#F4F7F9;font-size:11.5px;font-weight:850;margin-bottom:1px}
+.home-card-sub{color:#8997A3;font-size:8.8px;margin-bottom:5px}
+.home-card-foot{color:#70808D;font-size:8.3px;margin-top:6px}
+
+/* operational strip */
+.ops-grid{
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    gap:0;
+    margin-top:8px;
+}
+.ops-item{
+    min-width:0;
+    padding:4px 12px 8px;
+    border-right:1px solid #2E3D49;
+}
+.ops-item:first-child{padding-left:0}
+.ops-item:last-child{border-right:0}
+.ops-icon{
+    width:28px;height:28px;border-radius:999px;
+    display:flex;align-items:center;justify-content:center;
+    margin-bottom:7px;font-weight:900
+}
+.ops-icon.blue{background:#17375E;color:#6BA9FF}
+.ops-icon.teal{background:#123E3C;color:#56D7C6}
+.ops-icon.pink{background:#54203D;color:#FF7AB6}
+.ops-icon.yellow{background:#4A3A08;color:#FFC400}
+.ops-icon.purple{background:#2F2058;color:#A581FF}
+.ops-label{color:#8C99A4;font-size:7.7px;text-transform:uppercase}
+.ops-value{color:#F7F9FB;font-size:16px;font-weight:850;margin-top:5px}
+.ops-help{color:#82909C;font-size:7.8px;margin-top:4px}
+
+/* alerts */
+.alert-list{display:flex;flex-direction:column}
+.alert-row{
+    display:grid;
+    grid-template-columns:29px minmax(0,1fr) auto;
+    gap:9px;align-items:center;
+    padding:9px 0;border-bottom:1px solid #2E3D49;
+}
+.alert-row:last-child{border-bottom:0}
+.alert-icon{
+    width:28px;height:28px;border-radius:999px;
+    display:flex;align-items:center;justify-content:center;
+    font-size:11px;font-weight:900
+}
+.alert-icon.red{background:#572323;color:#FF7872}
+.alert-icon.orange{background:#4B2B12;color:#FF9D4A}
+.alert-icon.yellow{background:#4A3A08;color:#FFC400}
+.alert-icon.blue{background:#17375E;color:#68A7FF}
+.alert-icon.green{background:#123E26;color:#64DC8E}
+.alert-row strong{display:block;color:#EDF2F5;font-size:9.7px}
+.alert-row small{display:block;color:#84929E;font-size:8px;margin-top:2px}
+.alert-value{
+    min-width:36px;text-align:center;
+    padding:3px 7px;border-radius:5px;
+    color:#F7F9FB;font-size:8.5px;font-weight:850;background:#24323D
+}
+
+/* product rows */
+.prod-list{display:flex;flex-direction:column;margin-top:2px}
+.prod-row{
+    display:grid;
+    grid-template-columns:20px minmax(0,1fr) 92px 65px;
+    align-items:center;gap:8px;
+    padding:8px 0;border-bottom:1px solid #2D3C47;
+}
+.prod-row:last-child{border-bottom:0}
+.prod-rank{color:#75838E;font-size:8.8px;font-weight:750}
+.prod-main strong{display:block;color:#EAF0F4;font-size:9.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.prod-main span{display:block;color:#74838F;font-size:7.8px;margin-top:1px}
+.prod-money{text-align:right;color:#F1F5F8;font-size:9px;font-weight:780}
+.prod-bar{height:7px;background:#24323D;border-radius:999px;overflow:hidden}
+.prod-bar i{display:block;height:100%;background:linear-gradient(90deg,#FFC400,#FFD95D);border-radius:999px}
+
+/* tables */
+.dash-table{width:100%;border-collapse:collapse;font-size:8.4px}
+.dash-table th{
+    color:#8D9AA5;font-size:7.7px;font-weight:700;text-align:left;
+    border-bottom:1px solid #33434F;padding:6px 5px
+}
+.dash-table td{
+    color:#D9E1E7;border-bottom:1px solid #2B3944;padding:7px 5px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:165px
+}
+.dash-table tr:last-child td{border-bottom:0}
+.dash-table .money{color:#F5F7F9;font-weight:780;text-align:right}
+
+/* inventory */
+.inv-donut{
+    --p:0%;
+    width:96px;height:96px;border-radius:50%;
+    background:
+      radial-gradient(circle at center,#151F28 56%,transparent 57%),
+      conic-gradient(#FFC400 var(--p),#2A3945 0);
+    display:flex;align-items:center;justify-content:center;
+}
+.inv-donut div{text-align:center}
+.inv-donut strong{display:block;color:#FFF;font-size:18px}
+.inv-donut span{display:block;color:#81909C;font-size:7.8px;margin-top:4px}
+.inv-layout{display:flex;align-items:center;gap:14px;margin-top:8px}
+.inv-list{flex:1;display:flex;flex-direction:column;gap:8px}
+.inv-line{display:grid;grid-template-columns:8px minmax(0,1fr) auto;align-items:center;gap:7px;font-size:8.7px}
+.inv-line i{width:7px;height:7px;border-radius:999px}
+.inv-line i.green{background:#71CC72}
+.inv-line i.yellow{background:#FFC400}
+.inv-line i.orange{background:#F49A43}
+.inv-line i.red{background:#EF6656}
+.inv-line span{color:#9AA7B2}
+.inv-line strong{color:#EDF2F5;font-size:8.8px}
+
+/* buttons/date input */
+.stButton>button{
+    border-radius:8px !important;
+    min-height:35px !important;
+    font-size:9.5px !important;
+    font-weight:750 !important;
+}
+[data-testid="stDateInput"] label{color:#A8B4BE !important;font-size:9px !important}
+[data-testid="stDateInput"] input{
+    background:#141F28 !important;color:#F4F7F9 !important;border-color:#3A4955 !important;
+}
+
+/* charts */
+[data-testid="stVegaLiteChart"]{background:transparent !important}
+
+/* footer */
+.home-foot{
+    color:#6F7E89;font-size:8.2px;padding:7px 0 0;
+    display:flex;align-items:center;gap:6px
+}
+
+/* responsive */
+@media(max-width:1200px){
+    .home-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .ops-grid{grid-template-columns:repeat(2,1fr)}
+    .ops-item{border-right:0;border-bottom:1px solid #2E3D49}
+}
+@media(max-width:700px){
+    .home-head{flex-direction:column}
+    .home-kpis{grid-template-columns:1fr}
+    .ops-grid{grid-template-columns:1fr}
+}
+</style>
         """,
         unsafe_allow_html=True,
     )
 
-
-# ============================================================
-# RENDER
-# ============================================================
 
 def render(ctx):
     _inject_css()
@@ -1257,781 +1092,490 @@ def render(ctx):
 
     default_start, default_end = _period_from_sales(sales_df)
 
-    if "homepro_period" not in st.session_state:
-        st.session_state.homepro_period = (
-            default_start,
-            default_end,
-        )
+    if "dash_period" not in st.session_state:
+        # Mostrar por defecto aproximadamente 12 meses si hay información suficiente.
+        candidate_start = default_end - timedelta(days=364)
+        st.session_state.dash_period = (candidate_start, default_end)
 
     now_cl = datetime.now(CHILE_TZ)
-    greeting = (
-        "Buenos días"
-        if now_cl.hour < 12
-        else "Buenas tardes"
-        if now_cl.hour < 20
-        else "Buenas noches"
-    )
-
     updated = (
         stock_meta.get("generatedAt")
         or stock_meta.get("loaded_at")
         or now_cl.strftime("%d/%m/%Y %H:%M")
     )
 
-    render_html(
-        f"""
-        <div class="homepro-head">
-            <div>
-                <div class="homepro-greeting">{greeting}, Sebastián 👋</div>
-                <div class="homepro-sub">
-                    Aquí tienes un resumen general del negocio.
-                </div>
-            </div>
-            <div class="homepro-update">
-                <span class="homepro-update-dot"></span>
-                <span>Última actualización: {escape(str(updated))}</span>
-            </div>
-        </div>
-        """
-    )
-
     # --------------------------------------------------------
-    # FILTRO DE FECHA
+    # HEADER + FILTRO
     # --------------------------------------------------------
+    head_left, head_mid, head_date = st.columns([2.6, 1.15, 1.55], gap="small")
 
-    filter_left, filter_right = st.columns([1.25, 4.75])
-
-    with filter_left:
-        period = st.date_input(
-            "Período",
-            value=st.session_state.homepro_period,
-            key="homepro_period_picker",
-            format="DD/MM/YYYY",
+    with head_left:
+        render_html(
+            """
+<div class="home-head">
+    <div>
+        <div class="home-title">Dashboard</div>
+        <div class="home-sub">Resumen general del negocio actualizado en tiempo real.</div>
+    </div>
+</div>
+            """
         )
 
-    # st.date_input con rango puede devolver:
-    # - una fecha única,
-    # - una tupla de 1 elemento mientras el usuario elige el segundo día,
-    # - una tupla de 2 fechas cuando el rango está completo.
+    with head_mid:
+        render_html(
+            f"""
+<div class="home-live">
+    <i></i>
+    <span>Datos ERP activos · {escape(str(updated))}</span>
+</div>
+            """
+        )
+
+    with head_date:
+        period = st.date_input(
+            "Período",
+            value=st.session_state.dash_period,
+            key="dash_period_picker",
+            format="DD/MM/YYYY",
+            label_visibility="collapsed",
+        )
+
     if isinstance(period, (tuple, list)):
         if len(period) >= 2:
             start, end = period[0], period[1]
         elif len(period) == 1:
             start = end = period[0]
         else:
-            start, end = default_start, default_end
+            start, end = st.session_state.dash_period
     else:
         start = end = period
 
-    st.session_state.homepro_period = (start, end)
+    st.session_state.dash_period = (start, end)
 
-    # --------------------------------------------------------
-    # DATOS VENTAS
-    # --------------------------------------------------------
-
-    current_sales = _prepare_sales(
-        sales_df,
-        start,
-        end,
-    )
-
+    current_sales = _prepare_sales(sales_df, start, end)
     days = max((end - start).days + 1, 1)
     prev_end = start - timedelta(days=1)
     prev_start = prev_end - timedelta(days=days - 1)
-
-    previous_sales = _prepare_sales(
-        sales_df,
-        prev_start,
-        prev_end,
-    )
+    previous_sales = _prepare_sales(sales_df, prev_start, prev_end)
 
     current_revenue = float(
-        current_sales.get(
-            "VentaDashboard",
-            pd.Series(dtype="float64"),
-        ).sum()
+        current_sales.get("VentaDashboard", pd.Series(dtype="float64")).sum()
     )
-
     previous_revenue = float(
-        previous_sales.get(
-            "VentaDashboard",
-            pd.Series(dtype="float64"),
-        ).sum()
+        previous_sales.get("VentaDashboard", pd.Series(dtype="float64")).sum()
     )
 
-    current_units = max(
-        float(
-            current_sales.get(
-                "CantidadDashboard",
-                pd.Series(dtype="float64"),
-            ).sum()
-        ),
-        0,
-    )
+    revenue_delta, revenue_tone = _delta(current_revenue, previous_revenue)
 
-    previous_units = max(
-        float(
-            previous_sales.get(
-                "CantidadDashboard",
-                pd.Series(dtype="float64"),
-            ).sum()
-        ),
-        0,
-    )
+    current_docs = _sales_documents(current_sales)
+    previous_docs = _sales_documents(previous_sales)
+    docs_delta, docs_tone = _delta(float(current_docs), float(previous_docs))
 
-    revenue_delta, revenue_tone = _delta(
-        current_revenue,
-        previous_revenue,
-    )
-
-    units_delta, units_tone = _delta(
-        current_units,
-        previous_units,
-    )
+    clients = _active_clients(current_sales)
+    previous_clients = _active_clients(previous_sales)
+    client_delta, client_tone = _delta(float(clients), float(previous_clients))
 
     margin, margin_pct = _margin_data(current_sales)
-
     stock = _stock_metrics(cons)
 
-    total_states = max(
-        stock["healthy"]
-        + stock["low"]
-        + stock["risk"]
-        + stock["zero"],
-        1,
-    )
-
-    healthy_pct = (
-        stock["healthy"] / total_states * 100
-    )
+    total_states = max(stock["healthy"] + stock["low"] + stock["risk"] + stock["zero"], 1)
+    healthy_pct = stock["healthy"] / total_states * 100
 
     if margin is None:
         margin_value = "—"
         margin_helper = "Costo no disponible en ERP"
-        margin_tone = "yellow"
     else:
         margin_value = _money_compact(margin)
         margin_helper = (
-            f"{margin_pct:.1f}% sobre venta neta"
-            if margin_pct is not None
-            else "Margen calculado"
+            f"{margin_pct:.1f}% sobre ventas" if margin_pct is not None else "Margen calculado"
         )
-        margin_tone = "green" if margin >= 0 else "red"
 
     # --------------------------------------------------------
-    # KPIs
+    # KPI SUPERIORES
     # --------------------------------------------------------
-
-    kpis = "".join(
-        [
-            _kpi_html(
-                "Ventas Netas",
-                _money_compact(current_revenue),
-                revenue_delta,
-                "↗",
-                "green" if revenue_tone == "positive" else (
-                    "red" if revenue_tone == "negative" else "yellow"
-                ),
-            ),
-            _kpi_html(
-                "Margen Bruto",
-                margin_value,
-                margin_helper,
-                "◫",
-                margin_tone,
-            ),
-            _kpi_html(
-                "Unidades Vendidas",
-                _fmt_int(current_units),
-                units_delta,
-                "▣",
-                "green" if units_tone == "positive" else (
-                    "red" if units_tone == "negative" else "yellow"
-                ),
-            ),
-            _kpi_html(
-                "Stock Total (UND)",
-                _fmt_int(stock["units"]),
-                f"{healthy_pct:.0f}% del inventario saludable",
-                "⬡",
-                "yellow",
-            ),
-            _kpi_html(
-                "SKU Activos",
-                _fmt_int(stock["sku"]),
-                f"{_fmt_int(stock['low'] + stock['zero'])} requieren atención",
-                "⌘",
-                "yellow",
-            ),
-        ]
-    )
-
-    render_html(
-        f"""
-        <div class="homepro-kpis">
-            {kpis}
+    kpis = f"""
+<div class="home-kpis">
+    <div class="home-kpi yellow">
+        <div class="home-kpi-top">
+            <div class="home-kpi-icon yellow">↗</div>
+            <div>
+                <div class="home-kpi-label">Ventas período</div>
+                <div class="home-kpi-value">{escape(_money_compact(current_revenue))}</div>
+                <div class="home-kpi-help {'positive' if revenue_tone == 'positive' else 'negative' if revenue_tone == 'negative' else 'yellow'}">{escape(revenue_delta)}</div>
+            </div>
         </div>
-        """
-    )
+    </div>
+
+    <div class="home-kpi green">
+        <div class="home-kpi-top">
+            <div class="home-kpi-icon green">$</div>
+            <div>
+                <div class="home-kpi-label">Margen bruto</div>
+                <div class="home-kpi-value">{escape(margin_value)}</div>
+                <div class="home-kpi-help positive">{escape(margin_helper)}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="home-kpi purple">
+        <div class="home-kpi-top">
+            <div class="home-kpi-icon purple">▥</div>
+            <div>
+                <div class="home-kpi-label">Pedidos / documentos</div>
+                <div class="home-kpi-value">{_fmt_int(current_docs)}</div>
+                <div class="home-kpi-help {'positive' if docs_tone == 'positive' else 'negative' if docs_tone == 'negative' else 'yellow'}">{escape(docs_delta)}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="home-kpi orange">
+        <div class="home-kpi-top">
+            <div class="home-kpi-icon orange">●</div>
+            <div>
+                <div class="home-kpi-label">Clientes activos</div>
+                <div class="home-kpi-value">{_fmt_int(clients)}</div>
+                <div class="home-kpi-help {'positive' if client_tone == 'positive' else 'negative' if client_tone == 'negative' else 'yellow'}">{escape(client_delta)}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="home-kpi blue">
+        <div class="home-kpi-top">
+            <div class="home-kpi-icon blue">◇</div>
+            <div>
+                <div class="home-kpi-label">Stock total</div>
+                <div class="home-kpi-value">{_fmt_int(stock['units'])}</div>
+                <div class="home-kpi-help positive">{healthy_pct:.0f}% del inventario saludable</div>
+            </div>
+        </div>
+    </div>
+</div>
+"""
+    render_html(kpis)
 
     # --------------------------------------------------------
-    # FILA PRINCIPAL
+    # FILA 1: VENTAS / MIX / TOP PRODUCTOS
     # --------------------------------------------------------
+    c1, c2, c3 = st.columns([1.55, 1.05, 1.15], gap="medium")
 
-    left, middle, right = st.columns(
-        [1.55, 1.08, 1.12],
-        gap="medium",
-    )
-
-    with left:
+    with c1:
         with st.container(border=True):
             render_html(
                 """
-                <div class="homepro-card-title">Ventas Netas</div>
-                <div class="homepro-card-sub">
-                    Evolución diaria del período seleccionado
-                </div>
+<div class="home-card-title">Ventas por período</div>
+<div class="home-card-sub">Evolución de ventas dentro del rango seleccionado</div>
                 """
             )
 
             if current_sales.empty:
-                st.info("No hay ventas disponibles para el período seleccionado.")
+                st.info("No hay ventas para el período seleccionado.")
             else:
-                daily = (
+                monthly = (
                     current_sales.assign(
-                        Día=current_sales["FechaDashboard"].dt.floor("D")
+                        Mes=current_sales["FechaDashboard"].dt.to_period("M").dt.to_timestamp()
                     )
-                    .groupby("Día", as_index=False)["VentaDashboard"]
+                    .groupby("Mes", as_index=False)["VentaDashboard"]
                     .sum()
                     .rename(columns={"VentaDashboard": "Venta"})
-                    .sort_values("Día")
+                    .sort_values("Mes")
                 )
+                monthly["Acumulado"] = monthly["Venta"].cumsum()
 
-                line = (
-                    alt.Chart(daily)
-                    .mark_area(
-                        line={
-                            "color": "#f3b400",
-                            "strokeWidth": 2.3,
-                        },
-                        color="#ffd94f",
-                        opacity=0.19,
-                    )
+                bars = (
+                    alt.Chart(monthly)
+                    .mark_bar(color="#FFC400", cornerRadiusTopLeft=2, cornerRadiusTopRight=2)
                     .encode(
-                        x=alt.X(
-                            "Día:T",
-                            title=None,
-                            axis=alt.Axis(
-                                format="%d %b",
-                                labelColor="#AFC0CF",
-                                domain=False,
-                                tickColor="#34414D",
-                            ),
-                        ),
-                        y=alt.Y(
-                            "Venta:Q",
-                            title=None,
-                            axis=alt.Axis(
-                                format="~s",
-                                labelColor="#AFC0CF",
-                                domain=False,
-                                gridColor="#34414D",
-                            ),
-                        ),
+                        x=alt.X("Mes:T", title=None, axis=alt.Axis(format="%b %Y", labelColor="#9EACB8", labelAngle=0, domain=False, tickColor="#33434F")),
+                        y=alt.Y("Venta:Q", title=None, axis=alt.Axis(format="~s", labelColor="#9EACB8", domain=False, gridColor="#2D3C47")),
                         tooltip=[
-                            alt.Tooltip("Día:T", title="Fecha", format="%d/%m/%Y"),
+                            alt.Tooltip("Mes:T", title="Mes", format="%m/%Y"),
                             alt.Tooltip("Venta:Q", title="Venta", format=",.0f"),
                         ],
                     )
-                    .properties(height=270, background="#111B24")
+                )
+                line = (
+                    alt.Chart(monthly)
+                    .mark_line(color="#E9EEF2", point=alt.OverlayMarkDef(color="#E9EEF2", size=28), strokeWidth=1.7)
+                    .encode(
+                        x="Mes:T",
+                        y=alt.Y("Acumulado:Q", axis=alt.Axis(orient="right", format="~s", labelColor="#9EACB8", domain=False, grid=False)),
+                        tooltip=[alt.Tooltip("Acumulado:Q", title="Acumulado", format=",.0f")],
+                    )
                 )
 
                 st.altair_chart(
-                    line,
+                    alt.layer(bars, line).resolve_scale(y="independent").properties(height=255, background="#111A22"),
                     width="stretch",
                 )
 
-    with middle:
+    with c2:
         with st.container(border=True):
+            mix, mix_label = _mix_summary(current_sales)
             render_html(
-                """
-                <div class="homepro-card-title">Ventas por Canal</div>
-                <div class="homepro-card-sub">
-                    Participación sobre la venta neta
-                </div>
+                f"""
+<div class="home-card-title">Ventas por {escape(mix_label.lower())}</div>
+<div class="home-card-sub">Participación sobre las ventas del período</div>
                 """
             )
 
-            channel_col = _channel_column(sales_df)
-
-            if (
-                current_sales.empty
-                or not channel_col
-                or channel_col not in current_sales.columns
-            ):
-                st.info("No se encontró una columna de canal o marketplace.")
+            if mix.empty:
+                st.info("No se encontró categoría o canal en ERP Ventas.")
             else:
-                channel = current_sales.copy()
-
-                channel["CanalDashboard"] = (
-                    channel[channel_col]
-                    .fillna("Sin canal")
-                    .astype(str)
-                    .str.strip()
-                    .replace("", "Sin canal")
-                )
-
-                channel = (
-                    channel.groupby(
-                        "CanalDashboard",
-                        as_index=False,
-                    )["VentaDashboard"]
-                    .sum()
-                    .rename(
-                        columns={
-                            "CanalDashboard": "Canal",
-                            "VentaDashboard": "Venta",
-                        }
-                    )
-                    .sort_values("Venta", ascending=False)
-                    .head(7)
-                )
-
                 donut = (
-                    alt.Chart(channel)
-                    .mark_arc(
-                        innerRadius=68,
-                        outerRadius=100,
-                        cornerRadius=4,
-                    )
+                    alt.Chart(mix)
+                    .mark_arc(innerRadius=58, outerRadius=88, cornerRadius=3)
                     .encode(
                         theta=alt.Theta("Venta:Q"),
                         color=alt.Color(
-                            "Canal:N",
-                            scale=alt.Scale(
-                                range=[
-                                    "#ffc400",
-                                    "#1d232a",
-                                    "#7fbf4d",
-                                    "#ef624f",
-                                    "#9aa3ac",
-                                    "#4d82bc",
-                                    "#d7a847",
-                                ]
-                            ),
-                            legend=alt.Legend(
-                                orient="bottom",
-                                columns=2,
-                                labelColor="#AFC0CF",
-                                title=None,
-                            ),
+                            f"{mix_label}:N",
+                            scale=alt.Scale(range=["#FFC400","#4A83D8","#76BF59","#EF694F","#8B5CF6","#F29542"]),
+                            legend=alt.Legend(orient="bottom", columns=2, labelColor="#A8B4BE", title=None, labelLimit=120),
                         ),
                         tooltip=[
-                            alt.Tooltip("Canal:N", title="Canal"),
+                            alt.Tooltip(f"{mix_label}:N", title=mix_label),
                             alt.Tooltip("Venta:Q", title="Venta", format=",.0f"),
                         ],
                     )
-                    .properties(height=270, background="#111B24")
+                    .properties(height=255, background="#111A22")
                 )
+                st.altair_chart(donut, width="stretch")
 
-                st.altair_chart(
-                    donut,
-                    width="stretch",
-                )
-
-    with right:
+    with c3:
         with st.container(border=True):
             render_html(
                 """
-                <div class="homepro-card-title">Alertas y Oportunidades</div>
-                <div class="homepro-card-sub">
-                    Prioridades operacionales actuales
-                </div>
+<div class="home-card-title">Top 5 productos</div>
+<div class="home-card-sub">Productos con mayor venta del período</div>
                 """
             )
-
-            alerts_html = f"""
-            <div class="homepro-alerts">
-                <div class="homepro-alert">
-                    <div class="homepro-alert-icon red">!</div>
-                    <div>
-                        <strong>{_fmt_int(stock['zero'])} productos sin stock</strong>
-                        <small>Revisar disponibilidad y demanda.</small>
-                    </div>
-                    <div class="homepro-alert-value">Crítico</div>
-                </div>
-
-                <div class="homepro-alert">
-                    <div class="homepro-alert-icon yellow">△</div>
-                    <div>
-                        <strong>{_fmt_int(stock['low'])} productos con stock bajo</strong>
-                        <small>Productos con necesidad de reposición.</small>
-                    </div>
-                    <div class="homepro-alert-value">Atención</div>
-                </div>
-
-                <div class="homepro-alert">
-                    <div class="homepro-alert-icon blue">↻</div>
-                    <div>
-                        <strong>{_fmt_int(stock['risk'])} productos en riesgo</strong>
-                        <small>Revisar cobertura y disponibilidad.</small>
-                    </div>
-                    <div class="homepro-alert-value">Revisar</div>
-                </div>
-
-                <div class="homepro-alert">
-                    <div class="homepro-alert-icon green">✓</div>
-                    <div>
-                        <strong>{healthy_pct:.0f}% del inventario saludable</strong>
-                        <small>{_fmt_int(stock['healthy'])} SKU disponibles.</small>
-                    </div>
-                    <div class="homepro-alert-value">OK</div>
-                </div>
-            </div>
-            """
-
-            render_html(alerts_html)
-
-    # --------------------------------------------------------
-    # SEGUNDA FILA
-    # --------------------------------------------------------
-
-    left2, middle2, right2 = st.columns(
-        [1.55, 1.08, 1.12],
-        gap="medium",
-    )
-
-    with left2:
-        with st.container(border=True):
-            render_html(
-                """
-                <div class="homepro-card-title">Top 5 Productos por Ventas</div>
-                <div class="homepro-card-sub">
-                    Productos con mayor venta neta del período
-                </div>
-                """
-            )
-
-            top = _top_products(
-                raw,
-                current_sales,
-                limit=5,
-            )
-
+            top = _top_products(raw, current_sales, limit=5)
             if top.empty:
                 st.info("No hay ventas por SKU disponibles.")
             else:
+                max_sale = max(float(top["Venta"].max()), 1.0)
                 rows = ""
-
                 for i, row in top.iterrows():
+                    width = max(3.0, min(float(row["Venta"]) / max_sale * 100, 100))
                     rows += f"""
-                    <div class="homepro-product-row">
-                        <div class="homepro-rank">{i + 1}</div>
-                        <div class="homepro-product-main">
-                            <strong>{escape(str(row['Producto'])[:42])}</strong>
-                            <span>SKU {escape(str(row['SKUDashboard']))}</span>
-                        </div>
-                        <div class="homepro-num">{_fmt_int(row['Unidades'])}</div>
-                        <div class="homepro-money">{_money_compact(row['Venta'])}</div>
-                    </div>
-                    """
+<div class="prod-row">
+    <div class="prod-rank">{i + 1}</div>
+    <div class="prod-main">
+        <strong>{escape(str(row['Producto'])[:34])}</strong>
+        <span>SKU {escape(str(row['SKUDashboard']))}</span>
+    </div>
+    <div class="prod-money">{escape(_money_compact(row['Venta']))}</div>
+    <div class="prod-bar"><i style="width:{width:.1f}%"></i></div>
+</div>
+"""
+                render_html(f'<div class="prod-list">{rows}</div>')
 
-                render_html(
-                    f"""
-                    <div class="homepro-product-list">
-                        {rows}
-                    </div>
-                    """
-                )
+    # --------------------------------------------------------
+    # FILA 2: OPERACIONALES / VENDEDORES / ALERTAS
+    # --------------------------------------------------------
+    r2a, r2b, r2c = st.columns([1.55, 1.05, 1.15], gap="medium")
 
-    with middle2:
+    with r2a:
         with st.container(border=True):
             render_html(
                 """
-                <div class="homepro-card-title">Estado del Inventario</div>
-                <div class="homepro-card-sub">
-                    Salud y disponibilidad actual de los SKU
-                </div>
+<div class="home-card-title">Indicadores operacionales</div>
+<div class="home-card-sub">Lectura rápida del desempeño comercial y de inventario</div>
                 """
             )
-
-            healthy_units = stock["healthy"]
-            low_units = stock["low"]
-            risk_units = stock["risk"]
-            zero_units = stock["zero"]
+            ticket = current_revenue / current_docs if current_docs else 0
+            sales_per_client = current_revenue / clients if clients else 0
+            units = float(current_sales.get("CantidadDashboard", pd.Series(dtype="float64")).sum()) if not current_sales.empty else 0.0
+            units_per_doc = units / current_docs if current_docs else 0
+            attention = stock["low"] + stock["risk"] + stock["zero"]
 
             render_html(
                 f"""
-                <div class="homepro-inventory-hero">
-                    <div
-                        class="homepro-health-ring"
-                        style="--p:{healthy_pct:.1f}%"
-                    >
-                        <div>
-                            <strong>{healthy_pct:.0f}%</strong>
-                            <span>Saludable</span>
-                        </div>
-                    </div>
-
-                    <div class="homepro-health-copy">
-                        <strong>
-                            {_fmt_int(healthy_units)} SKU con disponibilidad normal
-                        </strong>
-                        <p>
-                            El indicador resume la condición actual del inventario.
-                            Los productos con stock bajo, riesgo o quiebre quedan
-                            destacados para revisión.
-                        </p>
-                    </div>
-                </div>
-
-                <div class="homepro-status-list">
-                    <div class="homepro-status-row">
-                        <i class="green"></i>
-                        <span>Saludable</span>
-                        <strong>{_fmt_int(healthy_units)} SKU</strong>
-                    </div>
-
-                    <div class="homepro-status-row">
-                        <i class="yellow"></i>
-                        <span>Stock bajo</span>
-                        <strong>{_fmt_int(low_units)} SKU</strong>
-                    </div>
-
-                    <div class="homepro-status-row">
-                        <i class="orange"></i>
-                        <span>Riesgo operacional</span>
-                        <strong>{_fmt_int(risk_units)} SKU</strong>
-                    </div>
-
-                    <div class="homepro-status-row">
-                        <i class="red"></i>
-                        <span>Sin stock</span>
-                        <strong>{_fmt_int(zero_units)} SKU</strong>
-                    </div>
-                </div>
+<div class="ops-grid">
+    <div class="ops-item">
+        <div class="ops-icon blue">$</div>
+        <div class="ops-label">Ticket promedio</div>
+        <div class="ops-value">{escape(_money_compact(ticket))}</div>
+        <div class="ops-help">Venta / documento</div>
+    </div>
+    <div class="ops-item">
+        <div class="ops-icon teal">◎</div>
+        <div class="ops-label">Venta por cliente</div>
+        <div class="ops-value">{escape(_money_compact(sales_per_client))}</div>
+        <div class="ops-help">Promedio período</div>
+    </div>
+    <div class="ops-item">
+        <div class="ops-icon pink">▣</div>
+        <div class="ops-label">Unidades</div>
+        <div class="ops-value">{_fmt_int(units)}</div>
+        <div class="ops-help">{units_per_doc:.1f} por documento</div>
+    </div>
+    <div class="ops-item">
+        <div class="ops-icon yellow">✓</div>
+        <div class="ops-label">Stock saludable</div>
+        <div class="ops-value">{healthy_pct:.1f}%</div>
+        <div class="ops-help">{_fmt_int(stock['healthy'])} SKU</div>
+    </div>
+    <div class="ops-item">
+        <div class="ops-icon purple">!</div>
+        <div class="ops-label">Requieren atención</div>
+        <div class="ops-value">{_fmt_int(attention)}</div>
+        <div class="ops-help">Bajo + riesgo + sin stock</div>
+    </div>
+</div>
                 """
             )
 
-    with right2:
+    with r2b:
         with st.container(border=True):
             render_html(
                 """
-                <div class="homepro-card-title">Distribución por Bodega</div>
-                <div class="homepro-card-sub">
-                    Unidades disponibles por ubicación
-                </div>
+<div class="home-card-title">Ventas por vendedor</div>
+<div class="home-card-sub">Top 10 del período seleccionado</div>
                 """
             )
-
-            warehouses = _warehouse_summary(raw)
-
-            if warehouses.empty:
-                st.info("No hay distribución por bodega disponible.")
+            sellers = _seller_summary(current_sales, 10)
+            if sellers.empty:
+                st.info("No se encontró vendedor en ERP Ventas.")
             else:
-                warehouses = warehouses.head(8).copy()
-                total_wh = float(warehouses["Stock"].clip(lower=0).sum())
-                max_wh = max(float(warehouses["Stock"].max()), 1.0)
-
-                wh_rows = ""
-
-                for _, row in warehouses.iterrows():
-                    units = max(float(row["Stock"]), 0.0)
-                    width = min((units / max_wh) * 100, 100)
-                    share = (units / total_wh * 100) if total_wh > 0 else 0
-
-                    wh_rows += f"""
-                    <div class="homepro-wh-row">
-                        <div class="homepro-wh-name">
-                            {escape(str(row['Bodega']))}
-                        </div>
-
-                        <div class="homepro-wh-track">
-                            <div
-                                class="homepro-wh-bar"
-                                style="width:{width:.1f}%"
-                            ></div>
-                        </div>
-
-                        <div class="homepro-wh-value">
-                            {_fmt_int(units)}
-                        </div>
-                    </div>
-                    """
-
-                top_wh = str(warehouses.iloc[0]["Bodega"])
-                top_share = (
-                    float(warehouses.iloc[0]["Stock"]) / total_wh * 100
-                    if total_wh > 0
-                    else 0
+                chart = (
+                    alt.Chart(sellers)
+                    .mark_bar(color="#58B96A", cornerRadiusEnd=2)
+                    .encode(
+                        x=alt.X("Venta:Q", title=None, axis=alt.Axis(format="~s", labelColor="#9EACB8", gridColor="#2D3C47", domain=False)),
+                        y=alt.Y("Vendedor:N", sort="-x", title=None, axis=alt.Axis(labelColor="#C4CDD4", domain=False, labelLimit=110)),
+                        tooltip=[
+                            alt.Tooltip("Vendedor:N", title="Vendedor"),
+                            alt.Tooltip("Venta:Q", title="Venta", format=",.0f"),
+                        ],
+                    )
+                    .properties(height=235, background="#111A22")
                 )
+                st.altair_chart(chart, width="stretch")
 
-                render_html(
-                    f"""
-                    <div class="homepro-wh-list">
-                        {wh_rows}
-                    </div>
-
-                    <div class="homepro-wh-total">
-                        <span>
-                            Mayor concentración:
-                            <strong>{escape(top_wh)}</strong>
-                            · {top_share:.0f}%
-                        </span>
-                        <strong>{_fmt_int(total_wh)} UND</strong>
-                    </div>
-                    """
-                )
-
-    # --------------------------------------------------------
-    # ALERTA + TABLA + ACCESOS
-    # --------------------------------------------------------
-
-    attention_count = stock["low"] + stock["zero"] + stock["risk"]
-
-    render_html(
-        f"""
-        <div class="homepro-attention">
-            <div>
-                <strong>⚠ {_fmt_int(attention_count)} productos requieren atención</strong>
-                <span>
-                    Revisa el detalle de productos con stock bajo,
-                    sin stock o riesgo operacional.
-                </span>
-            </div>
-        </div>
-        """
-    )
-
-    table_col, quick_col = st.columns(
-        [2.55, 1.0],
-        gap="medium",
-    )
-
-    with table_col:
+    with r2c:
         with st.container(border=True):
             render_html(
                 """
-                <div class="homepro-card-title">Productos que requieren atención</div>
-                <div class="homepro-card-sub">
-                    Prioridad según disponibilidad actual
-                </div>
+<div class="home-card-title">Alertas y pendientes</div>
+<div class="home-card-sub">Prioridades actuales de inventario</div>
+                """
+            )
+            render_html(
+                f"""
+<div class="alert-list">
+    <div class="alert-row">
+        <div class="alert-icon red">!</div>
+        <div><strong>Productos sin stock</strong><small>Requieren revisión inmediata</small></div>
+        <div class="alert-value">{_fmt_int(stock['zero'])}</div>
+    </div>
+    <div class="alert-row">
+        <div class="alert-icon orange">↓</div>
+        <div><strong>Stock bajo</strong><small>Revisar reposición y cobertura</small></div>
+        <div class="alert-value">{_fmt_int(stock['low'])}</div>
+    </div>
+    <div class="alert-row">
+        <div class="alert-icon yellow">△</div>
+        <div><strong>Riesgo operacional</strong><small>Productos que requieren seguimiento</small></div>
+        <div class="alert-value">{_fmt_int(stock['risk'])}</div>
+    </div>
+    <div class="alert-row">
+        <div class="alert-icon green">✓</div>
+        <div><strong>Inventario saludable</strong><small>SKU con disponibilidad normal</small></div>
+        <div class="alert-value">{_fmt_int(stock['healthy'])}</div>
+    </div>
+</div>
                 """
             )
 
-            critical = _critical_products(
-                cons,
-                limit=7,
-            )
+    # --------------------------------------------------------
+    # FILA 3: ÚLTIMOS PEDIDOS / INVENTARIO
+    # --------------------------------------------------------
+    r3a, r3b = st.columns([1.75, 1.0], gap="medium")
 
-            if critical.empty:
-                st.success("No hay productos críticos para mostrar.")
+    with r3a:
+        with st.container(border=True):
+            render_html(
+                """
+<div class="home-card-title">Últimos pedidos / documentos</div>
+<div class="home-card-sub">Movimientos comerciales más recientes dentro del período</div>
+                """
+            )
+            orders = _latest_orders(current_sales, 5)
+            if orders.empty:
+                st.info("No hay documentos recientes para mostrar.")
             else:
                 rows = ""
-
-                for _, row in critical.iterrows():
-                    state = str(row["Estado"])
-                    state_low = state.lower()
-
-                    if (
-                        "sin stock" in state_low
-                        or "negativo" in state_low
-                        or "agotado" in state_low
-                    ):
-                        badge_class = "red"
-                        badge_text = "SIN STOCK"
-                    elif "riesgo" in state_low:
-                        badge_class = "orange"
-                        badge_text = "RIESGO"
-                    else:
-                        badge_class = "yellow"
-                        badge_text = "BAJO"
-
+                for _, row in orders.iterrows():
                     rows += f"""
-                    <tr>
-                        <td>{escape(str(row['SKU']))}</td>
-                        <td>{escape(str(row['Producto'])[:55])}</td>
-                        <td style="text-align:right">{_fmt_int(row['Stock Actual'])}</td>
-                        <td>
-                            <span class="homepro-badge {badge_class}">
-                                {badge_text}
-                            </span>
-                        </td>
-                    </tr>
-                    """
-
+<tr>
+    <td>{escape(str(row['Documento'])[:22])}</td>
+    <td>{escape(str(row['Fecha']))}</td>
+    <td>{escape(str(row['Cliente'])[:34])}</td>
+    <td>{escape(str(row['Vendedor'])[:24])}</td>
+    <td class="money">{escape(_money_compact(row['Total']))}</td>
+</tr>
+"""
                 render_html(
                     f"""
-                    <table class="homepro-table">
-                        <thead>
-                            <tr>
-                                <th>SKU</th>
-                                <th>Producto</th>
-                                <th style="text-align:right">Stock actual</th>
-                                <th>Estado</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {rows}
-                        </tbody>
-                    </table>
+<table class="dash-table">
+    <thead><tr><th>Documento</th><th>Fecha</th><th>Cliente</th><th>Vendedor</th><th style="text-align:right">Total</th></tr></thead>
+    <tbody>{rows}</tbody>
+</table>
                     """
                 )
 
-    with quick_col:
+    with r3b:
         with st.container(border=True):
             render_html(
                 """
-                <div class="homepro-quick-title">Accesos Rápidos</div>
+<div class="home-card-title">Estado del inventario</div>
+<div class="home-card-sub">Distribución actual de los SKU por condición</div>
                 """
             )
-
-            q1, q2 = st.columns(2, gap="small")
-
-            with q1:
-                _nav_button(
-                    "📦 Stock General",
-                    "Stock General",
-                    "homepro_stock",
-                )
-
-            with q2:
-                _nav_button(
-                    "🛒 Marketplace",
-                    "Marketplace",
-                    "homepro_market",
-                )
-
-            q3, q4 = st.columns(2, gap="small")
-
-            with q3:
-                _nav_button(
-                    "📊 Resumen",
-                    "Resumen Ejecutivo",
-                    "homepro_resumen",
-                )
-
-            with q4:
-                _nav_button(
-                    "📄 Plantillas",
-                    "Plantillas",
-                    "homepro_templates",
-                )
-
             render_html(
                 f"""
-                <div class="homepro-inventory-mini">
-                    <div class="homepro-inventory-mini-label">Resumen de inventario</div>
-                    <div class="homepro-inventory-mini-value">{_fmt_int(stock['units'])} UND</div>
-                    <div class="homepro-inventory-mini-sub">{_fmt_int(stock['sku'])} SKU activos</div>
-                </div>
+<div class="inv-layout">
+    <div class="inv-donut" style="--p:{healthy_pct:.1f}%">
+        <div><strong>{healthy_pct:.0f}%</strong><span>Saludable</span></div>
+    </div>
+    <div class="inv-list">
+        <div class="inv-line"><i class="green"></i><span>Saludable</span><strong>{_fmt_int(stock['healthy'])}</strong></div>
+        <div class="inv-line"><i class="yellow"></i><span>Stock bajo</span><strong>{_fmt_int(stock['low'])}</strong></div>
+        <div class="inv-line"><i class="orange"></i><span>Riesgo</span><strong>{_fmt_int(stock['risk'])}</strong></div>
+        <div class="inv-line"><i class="red"></i><span>Sin stock</span><strong>{_fmt_int(stock['zero'])}</strong></div>
+    </div>
+</div>
+<div class="home-card-foot">{_fmt_int(stock['units'])} unidades disponibles · {_fmt_int(stock['sku'])} SKU activos</div>
                 """
             )
+
+    # --------------------------------------------------------
+    # ACCESOS RÁPIDOS
+    # --------------------------------------------------------
+    with st.container(border=True):
+        render_html(
+            """
+<div class="home-card-title">Accesos rápidos</div>
+<div class="home-card-sub">Navegación directa a los módulos operacionales</div>
+            """
+        )
+        q1, q2, q3, q4, q5 = st.columns(5, gap="small")
+        with q1:
+            _nav_button("📦 Stock General", "Stock General", "dash_stock")
+        with q2:
+            _nav_button("🛒 Marketplace", "Marketplace", "dash_market")
+        with q3:
+            _nav_button("🔗 Integración ERP", "Integración ERP", "dash_erp")
+        with q4:
+            _nav_button("👤 CRM", "CRM", "dash_crm")
+        with q5:
+            _nav_button("📊 Resumen", "Resumen Ejecutivo", "dash_summary")
 
     render_html(
         """
-        <div class="homepro-foot">
-            MARITEX · Control de Inventario
-        </div>
+<div class="home-foot">
+    <span>ⓘ</span>
+    <span>Los indicadores se construyen con ERP Ventas y ERP Stock disponibles en la sesión actual.</span>
+</div>
         """
     )

@@ -2,35 +2,93 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
+import stat
+import tempfile
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-
-# ============================================================
-# HELPERS
-# ============================================================
 
 def _sha256(raw: bytes) -> str:
     return hashlib.sha256(raw).hexdigest()
 
 
 def _safe_filename(filename: str) -> str:
-    """Evita rutas accidentales y conserva solo el nombre del archivo."""
     return Path(str(filename or "archivo")).name
 
 
+def _ensure_writable(path: Path) -> None:
+    path = Path(path)
+    if not path.exists():
+        return
+    try:
+        path.chmod(path.stat().st_mode | stat.S_IWRITE)
+    except Exception:
+        pass
+
+
+def _replace_file(
+    temp_path: Path,
+    final_path: Path,
+    *,
+    retries: int = 8,
+    delay: float = 0.15,
+) -> None:
+    temp_path = Path(temp_path)
+    final_path = Path(final_path)
+
+    last_error: Exception | None = None
+
+    for attempt in range(retries):
+        try:
+            _ensure_writable(final_path)
+            os.replace(temp_path, final_path)
+            return
+        except (PermissionError, OSError) as exc:
+            last_error = exc
+            _ensure_writable(final_path)
+            if attempt < retries - 1:
+                time.sleep(delay * (attempt + 1))
+
+    raise PermissionError(
+        f"No fue posible reemplazar '{final_path}'. "
+        f"Windows mantiene el archivo bloqueado o sin permisos de escritura. "
+        f"Último error: {last_error}"
+    )
+
+
 def _atomic_write_bytes(path: Path, raw: bytes) -> None:
-    """
-    Escritura segura:
-    primero escribe un temporal y luego reemplaza el archivo final.
-    """
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
 
-    temp_path = path.with_suffix(path.suffix + ".tmp")
-    temp_path.write_bytes(raw)
-    temp_path.replace(path)
+    temp_path: Path | None = None
+
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="wb",
+            dir=path.parent,
+            prefix=f".{path.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as temp_file:
+            temp_file.write(raw)
+            temp_file.flush()
+            try:
+                os.fsync(temp_file.fileno())
+            except OSError:
+                pass
+            temp_path = Path(temp_file.name)
+
+        _replace_file(temp_path, path)
+
+    finally:
+        if temp_path is not None and temp_path.exists():
+            try:
+                temp_path.unlink()
+            except Exception:
+                pass
 
 
 def _atomic_write_text(
@@ -39,20 +97,38 @@ def _atomic_write_text(
     *,
     encoding: str = "utf-8",
 ) -> None:
-    """
-    Escritura segura para archivos de texto/JSON.
-    """
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
 
-    temp_path = path.with_suffix(path.suffix + ".tmp")
-    temp_path.write_text(text, encoding=encoding)
-    temp_path.replace(path)
+    temp_path: Path | None = None
 
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            dir=path.parent,
+            prefix=f".{path.name}.",
+            suffix=".tmp",
+            delete=False,
+            encoding=encoding,
+            newline="",
+        ) as temp_file:
+            temp_file.write(text)
+            temp_file.flush()
+            try:
+                os.fsync(temp_file.fileno())
+            except OSError:
+                pass
+            temp_path = Path(temp_file.name)
 
-# ============================================================
-# GUARDAR FUENTE
-# ============================================================
+        _replace_file(temp_path, path)
+
+    finally:
+        if temp_path is not None and temp_path.exists():
+            try:
+                temp_path.unlink()
+            except Exception:
+                pass
+
 
 def save_source(
     raw: bytes,
@@ -63,13 +139,6 @@ def save_source(
     history_dir: Path | None = None,
     source_key: str | None = None,
 ):
-    """
-    Guarda una fuente ERP y su metadata.
-
-    Si se entregan history_dir y source_key, además guarda una copia
-    histórica bajo history_dir / source_key.
-    """
-
     data_path = Path(data_path)
     meta_path = Path(meta_path)
 
@@ -80,9 +149,7 @@ def save_source(
 
     meta = {
         "filename": _safe_filename(filename),
-        "loaded_at": datetime.now().astimezone().isoformat(
-            timespec="seconds"
-        ),
+        "loaded_at": datetime.now().astimezone().isoformat(timespec="seconds"),
         "sha256": _sha256(raw),
         "size": len(raw),
     }
@@ -103,7 +170,6 @@ def save_source(
 
     if history_dir is not None:
         target_dir = Path(history_dir)
-
         if source_key:
             target_dir = target_dir / source_key
 
@@ -117,16 +183,10 @@ def save_source(
     return meta
 
 
-# ============================================================
-# CARGAR FUENTE
-# ============================================================
-
 def load_source(
     data_path: Path,
     meta_path: Path,
 ):
-    """Carga una fuente ERP previamente guardada."""
-
     data_path = Path(data_path)
     meta_path = Path(meta_path)
 
@@ -142,32 +202,18 @@ def load_source(
 
     if meta_path.exists():
         try:
-            meta = json.loads(
-                meta_path.read_text(encoding="utf-8")
-            )
+            meta = json.loads(meta_path.read_text(encoding="utf-8"))
         except Exception:
             meta = {}
 
     return raw, meta
 
 
-# ============================================================
-# HISTÓRICO
-# ============================================================
-
 def list_history(
     history_dir: Path,
     source_key: str | None = None,
     limit: int | None = None,
 ):
-    """
-    Lista archivos históricos desde el más reciente.
-
-    Compatible con estas dos formas:
-        list_history(HISTORY_DIR, "erp_sales")
-        list_history(ERP_SALES_HISTORY_DIR)
-    """
-
     history_dir = Path(history_dir)
 
     if source_key:
@@ -183,27 +229,21 @@ def list_history(
             continue
 
         try:
-            stat = path.stat()
-
+            stat_info = path.stat()
             rows.append(
                 {
                     "name": path.name,
                     "filename": path.name,
                     "path": path,
                     "full_path": str(path),
-                    "modified_at": datetime.fromtimestamp(
-                        stat.st_mtime
-                    ).astimezone(),
-                    "size": stat.st_size,
+                    "modified_at": datetime.fromtimestamp(stat_info.st_mtime).astimezone(),
+                    "size": stat_info.st_size,
                 }
             )
         except Exception:
             continue
 
-    rows.sort(
-        key=lambda x: x["modified_at"],
-        reverse=True,
-    )
+    rows.sort(key=lambda x: x["modified_at"], reverse=True)
 
     if limit is not None:
         rows = rows[: int(limit)]
@@ -211,46 +251,28 @@ def list_history(
     return rows
 
 
-# ============================================================
-# GUARDAR COPIA HISTÓRICA
-# ============================================================
-
 def save_history(
     raw: bytes,
     filename: str,
     history_dir: Path,
     prefix: str = "",
 ):
-    """Guarda una copia histórica de un archivo."""
-
     history_dir = Path(history_dir)
     history_dir.mkdir(parents=True, exist_ok=True)
 
-    timestamp = datetime.now().astimezone().strftime(
-        "%Y%m%d_%H%M%S_%f"
-    )
-
+    timestamp = datetime.now().astimezone().strftime("%Y%m%d_%H%M%S_%f")
     original_name = _safe_filename(filename)
 
     if prefix:
-        history_name = (
-            f"{prefix}_{timestamp}_{original_name}"
-        )
+        history_name = f"{prefix}_{timestamp}_{original_name}"
     else:
-        history_name = (
-            f"{timestamp}_{original_name}"
-        )
+        history_name = f"{timestamp}_{original_name}"
 
     target = history_dir / history_name
-
     _atomic_write_bytes(target, raw)
 
     return target
 
-
-# ============================================================
-# ARCHIVOS NOMBRADOS / MOVIMIENTOS
-# ============================================================
 
 def save_named_file(
     raw: bytes,
@@ -259,12 +281,6 @@ def save_named_file(
     *,
     overwrite: bool = True,
 ) -> Path:
-    """
-    Guarda un archivo conservando su nombre dentro de una carpeta.
-
-    Se usa para archivos mensuales de movimientos Flexline.
-    """
-
     directory = Path(directory)
     directory.mkdir(parents=True, exist_ok=True)
 
@@ -272,12 +288,9 @@ def save_named_file(
     target = directory / safe_name
 
     if target.exists() and not overwrite:
-        raise FileExistsError(
-            f"Ya existe {safe_name}"
-        )
+        raise FileExistsError(f"Ya existe {safe_name}")
 
     _atomic_write_bytes(target, raw)
-
     return target
 
 
@@ -285,20 +298,14 @@ def list_named_files(
     directory: Path,
     suffixes: tuple[str, ...] | None = None,
 ):
-    """Lista archivos guardados en una carpeta."""
-
     directory = Path(directory)
 
     if not directory.exists():
         return []
 
     normalized_suffixes = None
-
     if suffixes:
-        normalized_suffixes = tuple(
-            str(s).lower()
-            for s in suffixes
-        )
+        normalized_suffixes = tuple(str(s).lower() for s in suffixes)
 
     rows = []
 
@@ -306,35 +313,25 @@ def list_named_files(
         if not path.is_file():
             continue
 
-        if (
-            normalized_suffixes
-            and path.suffix.lower()
-            not in normalized_suffixes
-        ):
+        if normalized_suffixes and path.suffix.lower() not in normalized_suffixes:
             continue
 
         try:
-            stat = path.stat()
-
+            stat_info = path.stat()
             rows.append(
                 {
                     "name": path.name,
                     "filename": path.name,
                     "path": path,
                     "full_path": str(path),
-                    "modified_at": datetime.fromtimestamp(
-                        stat.st_mtime
-                    ).astimezone(),
-                    "size": stat.st_size,
+                    "modified_at": datetime.fromtimestamp(stat_info.st_mtime).astimezone(),
+                    "size": stat_info.st_size,
                 }
             )
         except Exception:
             continue
 
-    rows.sort(
-        key=lambda x: x["name"].lower()
-    )
-
+    rows.sort(key=lambda x: x["name"].lower())
     return rows
 
 
@@ -342,14 +339,12 @@ def delete_named_file(
     directory: Path,
     filename: str,
 ) -> bool:
-    """Elimina un archivo concreto de una carpeta controlada."""
-
     directory = Path(directory)
     target = directory / _safe_filename(filename)
 
     if not target.exists() or not target.is_file():
         return False
 
+    _ensure_writable(target)
     target.unlink()
-
     return True
