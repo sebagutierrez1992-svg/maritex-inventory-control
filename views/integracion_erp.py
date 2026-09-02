@@ -449,13 +449,26 @@ def _status_badge(
     if "integrado" in category_lower:
         return "✅ Integrado"
 
-    if "stock" in category_lower:
+    has_stock = "stock" in category_lower
+    has_credit = "crédito" in category_lower or "credito" in category_lower
+    has_payment = "pago" in category_lower
+
+    if has_credit and has_stock:
+        return "⚠️ Crédito + Stock"
+
+    if has_payment and has_stock:
+        return "⚠️ Pago + Stock"
+
+    if has_credit and has_payment:
+        return "⚠️ Crédito + Pago"
+
+    if has_stock:
         return "📦 Stock"
 
-    if "crédito" in category_lower or "credito" in category_lower:
+    if has_credit:
         return "💳 Crédito"
 
-    if "pago" in category_lower:
+    if has_payment:
         return "💰 Pago"
 
     if "cliente" in category_lower:
