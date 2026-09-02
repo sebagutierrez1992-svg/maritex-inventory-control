@@ -1,4 +1,5 @@
 import streamlit as st
+import altair as alt
 
 from analytics.stock_metrics import (
     stock_view,
@@ -23,6 +24,7 @@ from ui.components import render_html
 from ui.styles import apply_styles
 
 from views import (
+    integracion_erp,
     marketplaces,
     metricas_stock,
     metricas_vendedores,
@@ -121,7 +123,7 @@ st.markdown(
         width: 7px;
         height: 31px;
         border-radius: 2px;
-        background: #111111;
+        background: #ffc400;
         transform-origin: center;
     }
 
@@ -323,6 +325,55 @@ st.markdown(
 )
 
 
+
+
+# ============================================================
+# TEMA ALTAIR · DARK MARITEX
+# ============================================================
+
+def _configure_altair_dark():
+    """Tema global para evitar fondos blancos en gráficos Altair."""
+    def _theme():
+        return {
+            "config": {
+                "background": "#111a22",
+                "view": {
+                    "fill": "#111a22",
+                    "stroke": "#33414d",
+                },
+                "axis": {
+                    "labelColor": "#aeb8c2",
+                    "titleColor": "#dbe2e8",
+                    "gridColor": "#2b3945",
+                    "domainColor": "#4b5c69",
+                    "tickColor": "#4b5c69",
+                },
+                "legend": {
+                    "labelColor": "#dce2e8",
+                    "titleColor": "#dce2e8",
+                },
+                "title": {
+                    "color": "#f7f9fb",
+                },
+            }
+        }
+
+    try:
+        # Altair 5.x
+        alt.themes.register("maritex_dark", _theme)
+        alt.themes.enable("maritex_dark")
+    except Exception:
+        try:
+            # Compatibilidad con versiones nuevas
+            alt.theme.register("maritex_dark", _theme)
+            alt.theme.enable("maritex_dark")
+        except Exception:
+            pass
+
+
+_configure_altair_dark()
+
+
 # ============================================================
 # PÁGINAS
 # ============================================================
@@ -331,6 +382,7 @@ PAGE_MAP = {
     "Inicio": inicio.render,
     "Stock General": stock_general.render,
     "Marketplace": marketplaces.render,
+    "Integración ERP": lambda ctx: integracion_erp.render(),
     "Métricas Stock": metricas_stock.render,
     "Métricas Vendedores": metricas_vendedores.render,
     "Resumen Ejecutivo": resumen_ejecutivo.render,
@@ -761,6 +813,13 @@ with st.sidebar:
     )
 
     sidebar_button(
+        "Integración ERP",
+        "Integración ERP",
+        "nav_integracion_erp",
+        ":material/sync_alt:",
+    )
+
+    sidebar_button(
         "Resumen Ejecutivo",
         "Resumen Ejecutivo",
         "nav_resumen_ejecutivo",
@@ -839,6 +898,349 @@ ctx = build_context_for_page(
 )
 
 
+
+
+# ============================================================
+# DARK RUNTIME OVERRIDE · DEBE EJECUTARSE DESPUÉS DE CADA VISTA
+# ============================================================
+
+def apply_dark_runtime_override():
+    st.markdown(
+        """
+        <style>
+        /* -----------------------------------------------------
+           Fondo y texto general
+           ----------------------------------------------------- */
+        [data-testid="stAppViewContainer"],
+        [data-testid="stAppViewContainer"] > .main,
+        .main {
+            background:
+                radial-gradient(circle at 85% 0%, rgba(39,66,86,.22), rgba(39,66,86,0) 28%),
+                linear-gradient(135deg,#14202a 0%,#0f1821 66%,#0b141c 100%) !important;
+            color:#f5f7f9 !important;
+        }
+
+        [data-testid="stHeader"]{
+            background:rgba(15,24,33,.90) !important;
+            border-bottom:1px solid #263642 !important;
+        }
+
+        /* -----------------------------------------------------
+           Títulos
+           ----------------------------------------------------- */
+        .re-title,.re-card-title,.re-rank-name,.re-client-name,
+        .homepro-greeting,.homepro-card-title,.homepro-product-main strong,
+        .sgx-title,.sgx-card-title,.sgx-search-head strong,.sgx-product-meta strong,
+        .ms-title,.ms-section-head,.ms-card-head,
+        .mk2-title,.mk2-platform-title,
+        .seller-title,.seller-card-title,.seller-section-title,
+        .tpl3-title,.tpl3-name,.tpl3-source strong {
+            color:#f7f9fb !important;
+        }
+
+        .re-sub,.re-card-sub,
+        .homepro-sub,.homepro-card-sub,.homepro-update,
+        .sgx-subtitle,.sgx-update,.sgx-search-head span,.sgx-card-sub,
+        .ms-subtitle,.ms-head-badge,
+        .mk2-subtitle,.mk2-live,
+        .seller-subtitle,.sales-detail-subtitle,
+        .tpl3-subtitle,.tpl3-file,.tpl3-date,.tpl3-source span {
+            color:#9eabb6 !important;
+        }
+
+        /* -----------------------------------------------------
+           Controles Streamlit
+           ----------------------------------------------------- */
+        [data-testid="stSelectbox"] label,
+        [data-testid="stDateInput"] label,
+        [data-testid="stNumberInput"] label,
+        [data-testid="stTextInput"] label,
+        [data-testid="stMultiSelect"] label,
+        [data-testid="stFileUploader"] label {
+            color:#b8c2cb !important;
+        }
+
+        div[data-baseweb="select"] > div,
+        [data-testid="stDateInput"] input,
+        [data-testid="stNumberInput"] input,
+        [data-testid="stTextInput"] input,
+        [data-testid="stMultiSelect"] > div > div {
+            background:#141e27 !important;
+            border:1px solid #3b4a56 !important;
+            color:#f4f7f9 !important;
+            box-shadow:none !important;
+        }
+
+        div[data-baseweb="select"] span,
+        div[data-baseweb="select"] svg,
+        [data-testid="stDateInput"] input,
+        [data-testid="stNumberInput"] input,
+        [data-testid="stTextInput"] input {
+            color:#e9eef2 !important;
+            fill:#dfe6eb !important;
+        }
+
+        /* Toggle */
+        [data-testid="stToggle"] label p{
+            color:#f0f3f6 !important;
+        }
+
+        /* -----------------------------------------------------
+           Contenedores Streamlit
+           ----------------------------------------------------- */
+        div[data-testid="stVerticalBlockBorderWrapper"]{
+            background:linear-gradient(145deg,#18232d,#121b23) !important;
+            border:1px solid #34434f !important;
+            box-shadow:0 10px 28px rgba(0,0,0,.12) !important;
+        }
+
+        /* -----------------------------------------------------
+           RESUMEN EJECUTIVO
+           ----------------------------------------------------- */
+        .re-info{
+            background:#111a22 !important;
+            border:1px solid #3b4b57 !important;
+            color:#cbd3da !important;
+            box-shadow:none !important;
+        }
+        .re-info strong{color:#ffc400 !important;}
+
+        .re-kpi{
+            background:linear-gradient(145deg,#1a2530,#141e27) !important;
+            border:1px solid #34434f !important;
+            box-shadow:0 10px 25px rgba(0,0,0,.11) !important;
+        }
+        .re-kpi-label{color:#b3bec8 !important;}
+        .re-kpi-value{color:#ffffff !important;}
+        .re-kpi-foot{color:#9da9b4 !important;}
+        .re-kpi-foot span{color:#9da9b4 !important;}
+
+        .re-icon.green{background:#123f28 !important;color:#6be394 !important;}
+        .re-icon.blue{background:#17375e !important;color:#69a9ff !important;}
+        .re-icon.purple{background:#382265 !important;color:#c08cff !important;}
+        .re-icon.yellow{background:#4b3b08 !important;color:#ffc400 !important;}
+        .re-icon.red{background:#572323 !important;color:#ff6d6d !important;}
+
+        .st-key-re_open_docs button{
+            background:rgba(37,99,235,.10) !important;
+            border-color:#2862ad !important;
+            color:#70a7ff !important;
+        }
+        .st-key-re_open_clients button{
+            background:rgba(124,58,237,.11) !important;
+            border-color:#6740a6 !important;
+            color:#c08cff !important;
+        }
+        .st-key-re_open_nc button{
+            background:rgba(220,38,38,.12) !important;
+            border-color:#a53232 !important;
+            color:#ff7474 !important;
+        }
+
+        .re-client-head,.re-rank-head{
+            color:#9eabb6 !important;
+            border-color:#34434f !important;
+        }
+        .re-client-row,.re-rank-row{
+            color:#e8edf1 !important;
+            border-color:#2d3c47 !important;
+        }
+        .re-client-rank{color:#8e9aa5 !important;}
+        .re-client-value,.re-rank-value{color:#f5f7f9 !important;}
+        .re-rank-row.current{
+            background:#332b0c !important;
+        }
+
+        .re-detail-pill{
+            background:#17232d !important;
+            border-color:#3a4955 !important;
+            color:#dce3e8 !important;
+        }
+
+        .re-goal{
+            background:linear-gradient(145deg,#202b35,#141d25) !important;
+            border-color:#3b4955 !important;
+        }
+        .re-goal-title,.re-projection{color:#aeb8c2 !important;}
+        .re-goal-title strong{color:#fff !important;}
+        .re-goal-track{background:#2d3944 !important;}
+
+        /* -----------------------------------------------------
+           INICIO
+           ----------------------------------------------------- */
+        .homepro-kpi,
+        .homepro-attention,
+        .homepro-status-summary > div{
+            background:linear-gradient(145deg,#1a2530,#141e27) !important;
+            border-color:#34434f !important;
+            color:#f5f7f9 !important;
+        }
+        .homepro-kpi-label,.homepro-kpi-helper,
+        .homepro-alert small,.homepro-status-summary span,
+        .homepro-product-main span{
+            color:#9da9b4 !important;
+        }
+        .homepro-kpi-value,.homepro-alert strong,
+        .homepro-status-summary strong,.homepro-product-main strong,
+        .homepro-num,.homepro-money{
+            color:#f7f9fb !important;
+        }
+        .homepro-alert,.homepro-product-row,.homepro-table th,.homepro-table td{
+            border-color:#2d3c47 !important;
+        }
+        .homepro-table th{color:#9eabb6 !important;}
+        .homepro-table td{color:#dfe5ea !important;}
+        .homepro-attention span{color:#b5aa86 !important;}
+        .homepro-attention strong{color:#fff !important;}
+
+        /* -----------------------------------------------------
+           STOCK GENERAL
+           ----------------------------------------------------- */
+        .sgx-search-card,.sgx-kpi,.sgx-product-meta > div,
+        .sgx-wh-total,.sgx-detail-hero,.sgx-card{
+            background:linear-gradient(145deg,#1a2530,#141e27) !important;
+            border-color:#34434f !important;
+            color:#f5f7f9 !important;
+        }
+        .sgx-kpi-copy > span,.sgx-kpi-copy > small,
+        .sgx-product-meta span,.sgx-status-row span,.sgx-wh-name{
+            color:#9da9b4 !important;
+        }
+        .sgx-kpi-copy > strong,.sgx-product-meta strong,.sgx-status-row strong,
+        .sgx-wh-value,.sgx-ring strong{
+            color:#f7f9fb !important;
+        }
+        .sgx-ring{
+            background:
+                radial-gradient(circle at center,#16212a 57%,transparent 58%),
+                conic-gradient(#79c35a var(--p),#ffc400 var(--p),#26343f 0) !important;
+        }
+        .sgx-ring span{color:#9da9b4 !important;}
+        .sgx-wh-track{background:#273640 !important;}
+        .sgx-healthy-note{
+            background:#163323 !important;
+            color:#72d48b !important;
+        }
+
+        /* -----------------------------------------------------
+           MARKETPLACE
+           ----------------------------------------------------- */
+        .mk2-source,.mk2-platform-head,.mk2-summary-grid > div,
+        .mk3-compact-summary{
+            background:linear-gradient(145deg,#1a2530,#141e27) !important;
+            border-color:#34434f !important;
+            color:#dfe5ea !important;
+        }
+        .mk3-compact-summary{color:#9da9b4 !important;}
+        .mk3-compact-summary b{color:#f5f7f9 !important;}
+
+        /* -----------------------------------------------------
+           MÉTRICAS STOCK
+           ----------------------------------------------------- */
+        .ms-source,.ms-kpi,.ms-risk-strip,.ms-info-box,
+        .ms-movement-summary > div{
+            background:linear-gradient(145deg,#1a2530,#141e27) !important;
+            border-color:#34434f !important;
+            color:#e6ebef !important;
+        }
+        .ms-kpi-label,.ms-kpi-helper,.ms-source-update,.ms-source-item span{
+            color:#9da9b4 !important;
+        }
+        .ms-kpi-value,.ms-source-item strong{color:#f7f9fb !important;}
+
+        /* -----------------------------------------------------
+           MÉTRICAS VENDEDORES
+           ----------------------------------------------------- */
+        .seller-rule,.sales-rule-strip,.sales-data-status,
+        .seller-card,.client-search-summary,.sales-detail-box,
+        .seller-goal-wrap{
+            background:linear-gradient(145deg,#1a2530,#141e27) !important;
+            border-color:#34434f !important;
+            color:#dfe5ea !important;
+        }
+        .sales-kpi-button-wrap .stButton > button{
+            background:linear-gradient(145deg,#1a2530,#141e27) !important;
+            border-color:#34434f !important;
+            color:#f4f7f9 !important;
+        }
+
+        /* -----------------------------------------------------
+           PLANTILLAS
+           ----------------------------------------------------- */
+        .tpl3-card,.tpl3-source{
+            background:linear-gradient(145deg,#1a2530,#141e27) !important;
+            border-color:#34434f !important;
+            color:#e6ebef !important;
+        }
+
+        /* -----------------------------------------------------
+           Botones, descargas, expanders y alertas
+           ----------------------------------------------------- */
+        .main .stButton > button:not([kind="primary"]),
+        .main .stDownloadButton > button{
+            background:#17232d !important;
+            border-color:#3b4a56 !important;
+            color:#eef2f5 !important;
+        }
+        .main .stButton > button:not([kind="primary"]):hover,
+        .main .stDownloadButton > button:hover{
+            background:#202d38 !important;
+            border-color:#556675 !important;
+            color:#fff !important;
+        }
+
+        [data-testid="stExpander"]{
+            background:#141f28 !important;
+            border-color:#34434f !important;
+        }
+        [data-testid="stExpander"] summary,
+        [data-testid="stExpander"] summary *{
+            color:#e9eef2 !important;
+        }
+
+        [data-testid="stAlert"]{
+            background:#17232d !important;
+            border-color:#3b4a56 !important;
+            color:#e8edf1 !important;
+        }
+        [data-testid="stAlert"] *{color:inherit !important;}
+
+        /* -----------------------------------------------------
+           DATAFRAME
+           ----------------------------------------------------- */
+        [data-testid="stDataFrame"]{
+            background:#111a22 !important;
+            border-color:#34434f !important;
+        }
+
+        /* -----------------------------------------------------
+           VEGA / ALTAIR
+           ----------------------------------------------------- */
+        [data-testid="stVegaLiteChart"],
+        [data-testid="stVegaLiteChart"] > div{
+            background:#111a22 !important;
+            border-radius:9px !important;
+        }
+
+        /* -----------------------------------------------------
+           Menús flotantes
+           ----------------------------------------------------- */
+        div[data-baseweb="popover"],
+        div[data-baseweb="menu"],
+        ul[role="listbox"],
+        li[role="option"]{
+            background:#17232d !important;
+            color:#eef2f5 !important;
+        }
+        li[role="option"]:hover{
+            background:#24323d !important;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 # ============================================================
 # RENDER
 # ============================================================
@@ -848,3 +1250,6 @@ PAGE_MAP[
 ](
     ctx
 )
+
+# Se inyecta al final para ganar a los estilos internos de cada vista.
+apply_dark_runtime_override()
