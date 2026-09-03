@@ -1,4 +1,4 @@
-from __future__ import annotations
+
 
 from datetime import datetime
 from html import escape
@@ -7,7 +7,14 @@ import altair as alt
 import pandas as pd
 import streamlit as st
 
-from analytics.sales_metrics import calculate_commercial_totals, filter_sales
+from analytics.sales_metrics import calculate_commercial_totals
+from services.commercial_dashboard_service import (
+    commercial_metrics,
+    find_client_column,
+    filter_commercial_view,
+    prepare_commercial_base,
+    signed_amount,
+)
 from ui.components import render_html
 from utils.numbers import format_clp
 
@@ -236,72 +243,18 @@ def _stock_metrics(ctx) -> dict:
 # ============================================================
 
 def _prepare_sales(sales_df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Prepara la MISMA base que Resumen Ejecutivo.
-
-    Regla importante:
-    - NO altera VentaMonto_num.
-    - NO aplica abs() al dataframe que después recibe
-      calculate_commercial_totals().
-    - Sólo normaliza Fecha_dt y limita Grupo comercial a los
-      mismos grupos reconocidos por Resumen Ejecutivo.
-    """
-    if sales_df is None or sales_df.empty:
-        return pd.DataFrame()
-
-    work = sales_df.copy()
-
-    if "Fecha_dt" not in work.columns:
-        return pd.DataFrame()
-
-    work["Fecha_dt"] = pd.to_datetime(
-        work["Fecha_dt"],
-        errors="coerce",
+    """Usa la base comercial oficial compartida."""
+    work = prepare_commercial_base(
+        sales_df
     )
-
-    work = work.dropna(
-        subset=["Fecha_dt"]
-    ).copy()
 
     if work.empty:
         return work
 
-    if "Grupo comercial" not in work.columns:
-        return pd.DataFrame()
-
-    work = work[
-        work["Grupo comercial"].isin(
-            VALID_GROUPS
-        )
-    ].copy()
-
-    if work.empty:
-        return work
-
-    # VentaDashboard es SOLO una columna auxiliar para gráficos.
-    # El KPI principal seguirá usando calculate_commercial_totals()
-    # sobre VentaMonto_num original, igual que Resumen Ejecutivo.
-    amount = pd.to_numeric(
-        work.get(
-            "VentaMonto_num",
-            pd.Series(0.0, index=work.index),
-        ),
-        errors="coerce",
-    ).fillna(0.0).abs()
-
-    sign = (
-        work["Grupo comercial"]
-        .map(
-            {
-                "Factura": 1,
-                "Boleta": 1,
-                "Nota de crédito": -1,
-            }
-        )
-        .fillna(0)
+    work["VentaDashboard"] = signed_amount(
+        work,
+        no_vat=False,
     )
-
-    work["VentaDashboard"] = amount * sign
 
     return work
 
@@ -387,78 +340,24 @@ def _filter_sales(
 
 
 def _sales_summary(work: pd.DataFrame) -> dict:
-    """
-    Misma lógica de KPI que views/resumen_ejecutivo.py:
-    calculate_commercial_totals(actual_view, VAT_RATE)
-    y base Con IVA.
-    """
-    result = {
-        "net": 0.0,
-        "gross": 0.0,
-        "credits": 0.0,
-        "documents": 0,
-        "clients": 0,
-        "ticket": 0.0,
-    }
+    client_col = find_client_column(
+        work
+    )
 
-    if work is None or work.empty:
-        return result
-
-    # MISMO cálculo que Resumen Ejecutivo.
-    totals = calculate_commercial_totals(
+    metrics = commercial_metrics(
         work,
-        VAT_RATE,
+        no_vat=False,
+        client_col=client_col,
     )
 
-    result["net"] = float(
-        totals["venta_neta_con_iva"]
-    )
-    result["gross"] = float(
-        totals["ventas_brutas_con_iva"]
-    )
-    result["credits"] = float(
-        totals["notas_credito_con_iva"]
-    )
-
-    sales_only = work[
-        work["Grupo comercial"].isin(
-            ["Factura", "Boleta"]
-        )
-    ].copy()
-
-    result["documents"] = (
-        int(sales_only["Numero"].nunique())
-        if "Numero" in sales_only.columns
-        else int(len(sales_only))
-    )
-
-    client_col = (
-        "RazonSocial"
-        if "RazonSocial" in sales_only.columns
-        else "CLIENTE"
-        if "CLIENTE" in sales_only.columns
-        else None
-    )
-
-    if client_col:
-        result["clients"] = int(
-            sales_only[client_col]
-            .fillna("")
-            .astype(str)
-            .str.strip()
-            .replace("", pd.NA)
-            .dropna()
-            .nunique()
-        )
-
-    result["ticket"] = (
-        result["gross"]
-        / result["documents"]
-        if result["documents"]
-        else 0.0
-    )
-
-    return result
+    return {
+        "net": metrics["net"],
+        "gross": metrics["gross"],
+        "credits": metrics["credits"],
+        "documents": metrics["docs"],
+        "clients": metrics["clients"],
+        "ticket": metrics["ticket"],
+    }
 
 
 def _daily_sales(work: pd.DataFrame) -> pd.DataFrame:
@@ -1525,28 +1424,13 @@ def render(ctx):
         end_date = selected_period
 
     # ========================================================
-    # MISMA VISTA COMERCIAL QUE RESUMEN EJECUTIVO
+    # VISTA COMERCIAL ÚNICA COMPARTIDA
     # ========================================================
-    # Resumen Ejecutivo NO pasa directamente "base" al cálculo.
-    # Primero llama filter_sales(), incluso cuando los filtros
-    # visuales están vacíos. Inicio debe hacer exactamente lo mismo.
-    commercial_base = filter_sales(
+    sales = filter_commercial_view(
         sales_all,
-        sellers=[],
-        warehouses=[],
-        document_types=[],
+        start_date,
+        end_date,
     )
-
-    sales = commercial_base[
-        (
-            commercial_base["Fecha_dt"].dt.date
-            >= start_date
-        )
-        & (
-            commercial_base["Fecha_dt"].dt.date
-            <= end_date
-        )
-    ].copy()
 
     metrics = _sales_summary(
         sales
@@ -1565,8 +1449,8 @@ def render(ctx):
     )
 
     st.caption(
-        "Misma vista comercial del Resumen Ejecutivo · "
-        "filter_sales + Factura + Boleta - Nota de crédito · Con IVA · "
+        "Servicio comercial único · catálogo autorizado + "
+        "Factura + Boleta - Nota de crédito · Con IVA · "
         f"Fuente: {source_name} · Última fecha ERP: {actual_max_date}"
     )
 

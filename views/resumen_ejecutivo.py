@@ -6,6 +6,11 @@ import pandas as pd
 import streamlit as st
 
 from analytics.sales_metrics import calculate_commercial_totals, filter_sales
+from services.commercial_dashboard_service import (
+    commercial_metrics,
+    filter_commercial_view,
+    prepare_commercial_base,
+)
 from ui.components import render_html
 from utils.dates import available_months, month_bounds, month_label_es
 from utils.numbers import format_clp
@@ -17,7 +22,7 @@ VALID_GROUPS = ["Factura", "Boleta", "Nota de crédito"]
 # Catálogo comercial aprobado para esta vista.
 # 52 y 53 quedan fuera expresamente.
 SELLER_CATALOG = {
-    "03": ("DANIEL ALVARADO", "Vendedores"),
+    "03": ("GC1-DANIEL ALVARADO", "Vendedores"),
     "04": ("ROXANA VALENCIA", "Vendedores"),
     "05": ("GRACIELA SANTANDER", "Vendedores"),
     "06": ("CLAUDIA LOPEZ", "Vendedores"),
@@ -448,23 +453,23 @@ def render(ctx):
             font-size:31px;
             font-weight:900;
             letter-spacing:-.035em;
-            color:#f7f9fb;
+            color:#101218;
             line-height:1.05;
         }
         .re-sub{
             margin-top:7px;
-            color:#aab5bf;
+            color:#374151;
             font-size:13px;
             font-weight:600;
         }
 
         /* Barra informativa */
         .re-info{
-            background:#17212a;
-            border:1px solid #34434f;
+            background:#fff;
+            border:1px solid #e6e9ef;
             border-radius:10px;
             padding:10px 14px;
-            color:#c9d1d8;
+            color:#4b5563;
             font-size:11px;
             margin:10px 0 12px;
             box-shadow:0 2px 10px rgba(17,24,39,.025);
@@ -475,7 +480,7 @@ def render(ctx):
         div[data-testid="stDateInput"] label,
         div[data-testid="stNumberInput"] label,
         div[data-testid="stMultiSelect"] label{
-            color:#b8c2cb !important;
+            color:#262b34 !important;
             font-size:11px !important;
             font-weight:700 !important;
         }
@@ -489,9 +494,9 @@ def render(ctx):
         div[data-testid="stButton"] button{
             min-height:45px;
             border-radius:9px;
-            border:1px solid #3b4a56;
-            background:#17212a;
-            color:#f4f7f9;
+            border:1px solid #d7dce4;
+            background:#fff;
+            color:#111827;
             font-weight:700;
         }
 
@@ -503,8 +508,8 @@ def render(ctx):
             margin:12px 0;
         }
         .re-kpi{
-            background:#17212a;
-            border:1px solid #34434f;
+            background:#fff;
+            border:1px solid #e3e7ed;
             border-radius:12px;
             padding:17px 17px 13px;
             min-height:120px;
@@ -533,14 +538,14 @@ def render(ctx):
         .re-icon.red{background:#fff0f0;color:#de2f2f;}
         .re-kpi-copy{min-width:0;}
         .re-kpi-label{
-            color:#b4bec8;
+            color:#344054;
             font-size:10px;
             font-weight:800;
             text-transform:uppercase;
             letter-spacing:.02em;
         }
         .re-kpi-value{
-            color:#f7f9fb;
+            color:#101218;
             font-size:23px;
             line-height:1.15;
             font-weight:900;
@@ -554,7 +559,7 @@ def render(ctx):
             align-items:center;
             margin-top:12px;
             font-size:9.5px;
-            color:#9da9b4;
+            color:#667085;
         }
         .trend-up{color:#159447;}
         .trend-down{color:#d92d20;}
@@ -572,18 +577,18 @@ def render(ctx):
             margin-top:-5px !important;
         }
         .st-key-re_open_docs button{
-            background:rgba(37,99,235,.10) !important;
-            border-color:#2862ad !important;
+            background:#f4f7ff !important;
+            border-color:#dbe5ff !important;
             color:#225fc8 !important;
         }
         .st-key-re_open_clients button{
-            background:rgba(124,58,237,.11) !important;
-            border-color:#6740a6 !important;
+            background:#f7f4ff !important;
+            border-color:#e5dcff !important;
             color:#6840bd !important;
         }
         .st-key-re_open_nc button{
-            background:rgba(220,38,38,.12) !important;
-            border-color:#a53232 !important;
+            background:#fff5f5 !important;
+            border-color:#ffdada !important;
             color:#c92a2a !important;
         }
         .re-detail-summary{
@@ -593,32 +598,32 @@ def render(ctx):
             margin:4px 0 10px;
         }
         .re-detail-pill{
-            background:#17232d;
-            border:1px solid #3a4955;
+            background:#f7f8fa;
+            border:1px solid #e5e8ee;
             border-radius:999px;
             padding:5px 10px;
-            color:#aab4be;
+            color:#475467;
             font-size:10px;
             font-weight:700;
         }
 
         /* Tarjetas de sección */
         .re-card-title{
-            color:#f7f9fb;
+            color:#151820;
             font-size:13px;
             font-weight:850;
             margin-bottom:6px;
         }
         .re-card-sub{
-            color:#9da9b4;
+            color:#667085;
             font-size:10px;
             margin-bottom:8px;
         }
         div[data-testid="stVerticalBlockBorderWrapper"]{
-            border-color:#34434f !important;
+            border-color:#e3e7ed !important;
             border-radius:12px !important;
             box-shadow:0 3px 14px rgba(17,24,39,.025);
-            background:#17212a;
+            background:#fff;
         }
 
         /* Tabla top clientes en HTML */
@@ -629,19 +634,19 @@ def render(ctx):
             align-items:center;
         }
         .re-client-head{
-            color:#9da9b4;
+            color:#667085;
             font-size:9.5px;
             padding:7px 4px;
-            border-bottom:1px solid #34434f;
+            border-bottom:1px solid #e9edf2;
         }
         .re-client-row{
             padding:10px 4px;
-            border-bottom:1px solid #2d3c47;
+            border-bottom:1px solid #edf0f4;
             font-size:10.5px;
-            color:#e8edf1;
+            color:#20242c;
         }
         .re-client-row:last-child{border-bottom:none;}
-        .re-client-rank{color:#aab4be;}
+        .re-client-rank{color:#475467;}
         .re-client-name{
             overflow:hidden;
             text-overflow:ellipsis;
@@ -658,17 +663,17 @@ def render(ctx):
         }
         .re-rank-head{
             padding:7px 8px;
-            color:#9da9b4;
+            color:#667085;
             font-size:9.5px;
-            border-bottom:1px solid #34434f;
+            border-bottom:1px solid #e9edf2;
         }
         .re-rank-row{
             padding:10px 8px;
-            border-bottom:1px solid #2d3c47;
+            border-bottom:1px solid #edf0f4;
             font-size:10.5px;
         }
         .re-rank-row.current{
-            background:#332b0c;
+            background:#fff8dc;
             border-radius:6px;
         }
         .re-rank-name{font-weight:700;}
@@ -683,8 +688,8 @@ def render(ctx):
             grid-template-columns:1.15fr 1fr .8fr;
             gap:24px;
             align-items:center;
-            background:#17212a;
-            border:1px solid #34434f;
+            background:#fff;
+            border:1px solid #e3e7ed;
             border-radius:12px;
             padding:15px 18px;
             margin-top:12px;
@@ -695,12 +700,12 @@ def render(ctx):
             color:#3b4250;
         }
         .re-goal-title strong{
-            color:#f4f7f9;
+            color:#111827;
             font-weight:850;
         }
         .re-goal-track{
             height:9px;
-            background:#2d3944;
+            background:#edf0f4;
             border-radius:999px;
             overflow:hidden;
         }
@@ -716,7 +721,7 @@ def render(ctx):
         }
         .re-projection{
             text-align:right;
-            color:#aab4be;
+            color:#475467;
             font-size:11px;
         }
         .re-projection strong{color:#14823b;}
@@ -732,6 +737,41 @@ def render(ctx):
             .re-goal{grid-template-columns:1fr;}
             .re-projection{text-align:left;}
         }
+        
+        /* MARITEX · Resumen Ejecutivo · Visual Master V2 */
+        .re-kpi{
+            background:rgba(255,255,255,.97) !important;
+            border-color:#cfd6dd !important;
+            box-shadow:0 8px 24px rgba(28,38,48,.055) !important;
+        }
+        .re-card,
+        .re-panel{
+            background:rgba(255,255,255,.97) !important;
+            border-color:#cfd6dd !important;
+            box-shadow:0 8px 24px rgba(28,38,48,.05) !important;
+        }
+        .re-title{color:#0d1319 !important;}
+
+        /* La sección comercial final queda deliberadamente oscura */
+        .re-goal-master-dark{
+            margin-top:20px;
+            padding:22px 22px 18px;
+            border-radius:14px;
+            background:
+                radial-gradient(circle at 85% 0%,rgba(255,196,0,.06),rgba(255,196,0,0) 32%),
+                linear-gradient(135deg,#202832 0%,#111820 100%);
+            border:1px solid #313b46;
+            color:#f7f8fa;
+            box-shadow:0 12px 28px rgba(15,22,29,.13);
+        }
+        .re-goal-master-dark h1,
+        .re-goal-master-dark h2,
+        .re-goal-master-dark h3,
+        .re-goal-master-dark strong{color:#fff !important;}
+        .re-goal-master-dark p,
+        .re-goal-master-dark span,
+        .re-goal-master-dark small{color:#b8c1ca !important;}
+
         </style>
         """,
         unsafe_allow_html=True,
@@ -760,9 +800,10 @@ def render(ctx):
         st.error(f"Faltan columnas requeridas en ERP Ventas: {', '.join(missing)}")
         return
 
-    base = df[df["Grupo comercial"].isin(VALID_GROUPS)].copy()
-    base = _prepare_sellers(base)
-    base = base[base["_VendedorCodigo"].notna()].copy()
+    # Base comercial oficial compartida con Dashboard.
+    base = prepare_commercial_base(
+        df
+    )
 
     if base.empty:
         st.warning("No hay ventas asociadas a los vendedores/canales configurados.")
@@ -862,15 +903,26 @@ def render(ctx):
     if selected_label != "Todos":
         selected_code = selected_label.split(" · ", 1)[0]
 
-    work = base.copy()
-    if seller_group != "Todos":
-        work = work[work["_VendedorGrupo"].eq(seller_group)].copy()
-    if selected_code:
-        work = work[work["_VendedorCodigo"].eq(selected_code)].copy()
+    current = filter_commercial_view(
+        base,
+        start_date,
+        end_date,
+        seller_group=seller_group,
+        seller_code=selected_code,
+    )
 
-    current = _date_filter(work, start_date, end_date)
-    prev_start, prev_end = _previous_period(start_date, end_date)
-    previous = _date_filter(work, prev_start, prev_end)
+    prev_start, prev_end = _previous_period(
+        start_date,
+        end_date,
+    )
+
+    previous = filter_commercial_view(
+        base,
+        prev_start,
+        prev_end,
+        seller_group=seller_group,
+        seller_code=selected_code,
+    )
 
     # Exportación respeta todos los filtros.
     with f4:
@@ -890,8 +942,16 @@ def render(ctx):
         "<strong>Facturas + Boletas − Notas de crédito.</strong></div>"
     )
 
-    cur = _metrics(current, no_vat, client_col)
-    prv = _metrics(previous, no_vat, client_col)
+    cur = commercial_metrics(
+        current,
+        no_vat=no_vat,
+        client_col=client_col,
+    )
+    prv = commercial_metrics(
+        previous,
+        no_vat=no_vat,
+        client_col=client_col,
+    )
 
     var_net = _pct_change(cur["net"], prv["net"]) if compare_previous else 0
     var_docs = _pct_change(cur["docs"], prv["docs"]) if compare_previous else 0
@@ -1127,7 +1187,7 @@ def render(ctx):
                         y=alt.Y(
                             "Venta:Q",
                             title=None,
-                            axis=alt.Axis(format="~s", grid=True, gridColor="#2b3945"),
+                            axis=alt.Axis(format="~s", grid=True, gridColor="#edf0f4"),
                         ),
                         color=alt.Color(
                             "Serie:N",
@@ -1159,24 +1219,7 @@ def render(ctx):
                         ],
                     )
                 )
-                dark_line_chart = (
-                    (line + points)
-                    .properties(height=245)
-                    .configure(background="#111a22")
-                    .configure_view(fill="#111a22", stroke="#34434f")
-                    .configure_axis(
-                        labelColor="#aeb8c2",
-                        titleColor="#dbe2e8",
-                        gridColor="#2b3945",
-                        domainColor="#4b5c69",
-                        tickColor="#4b5c69",
-                    )
-                    .configure_legend(
-                        labelColor="#dce2e8",
-                        titleColor="#dce2e8",
-                    )
-                )
-                st.altair_chart(dark_line_chart, width="stretch")
+                st.altair_chart((line + points).properties(height=245), width="stretch")
 
     # Composición
     with middle:
@@ -1218,16 +1261,7 @@ def render(ctx):
                     )
                     .properties(height=190)
                 )
-                dark_donut = (
-                    donut
-                    .configure(background="#111a22")
-                    .configure_view(fill="#111a22", stroke="#34434f")
-                    .configure_legend(
-                        labelColor="#dce2e8",
-                        titleColor="#dce2e8",
-                    )
-                )
-                st.altair_chart(dark_donut, width="stretch")
+                st.altair_chart(donut, width="stretch")
 
             total_positive = inv + bol
             inv_pct = inv / total_positive * 100 if total_positive else 0
@@ -1236,14 +1270,14 @@ def render(ctx):
 
             render_html(
                 f"""
-                <div style="font-size:10px;line-height:1.9;color:#dce3e8">
+                <div style="font-size:10px;line-height:1.9;color:#303744">
                   <div>🟡 <strong>Facturas</strong> &nbsp; {format_clp(inv)}
                     <span style="float:right">{_fmt_pct(inv_pct, False)}</span></div>
                   <div>🔵 <strong>Boletas</strong> &nbsp; {format_clp(bol)}
                     <span style="float:right">{_fmt_pct(bol_pct, False)}</span></div>
                   <div>🔴 <strong>Notas de Crédito</strong> &nbsp; -{format_clp(nc)}
                     <span style="float:right">-{_fmt_pct(nc_pct, False)}</span></div>
-                  <div style="margin-top:10px;padding:8px 9px;background:#2c260f;border-radius:7px;">
+                  <div style="margin-top:10px;padding:8px 9px;background:#fff9e9;border-radius:7px;">
                     Venta neta = Facturas + Boletas - Notas de crédito
                   </div>
                 </div>
