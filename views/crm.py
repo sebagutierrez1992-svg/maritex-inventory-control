@@ -1,4 +1,4 @@
-from __future__ import annotations
+
 
 from datetime import datetime, timedelta
 from typing import Any
@@ -73,29 +73,32 @@ def _apply_styles() -> None:
         """
 <style>
 /* =========================================================
-   CRM MONDAY-INSPIRED · MARITEX
+   CRM MARITEX · FUNCIONALIDAD TIPO MONDAY
+   Paleta: negro / grafito / blanco / grises / amarillo
    ========================================================= */
 
 .block-container{
-    max-width:1700px;
-    padding-top:1rem;
-    padding-bottom:2.5rem;
+    max-width:1750px;
+    padding-top:.8rem;
+    padding-bottom:2rem;
 }
 
 [data-testid="stAppViewContainer"]{
-    background:#0F151B;
+    background:
+        radial-gradient(circle at 80% 0%, rgba(255,196,0,.035), transparent 24%),
+        #0D141A;
 }
 
 [data-testid="stHeader"]{
-    background:rgba(15,21,27,.94);
+    background:rgba(13,20,26,.94);
 }
 
 div[data-testid="stVerticalBlock"]{
-    gap:.72rem;
+    gap:.68rem;
 }
 
 /* ---------------------------------------------------------
-   HEADER
+   CABECERA
    --------------------------------------------------------- */
 
 .crm-page-head{
@@ -103,39 +106,39 @@ div[data-testid="stVerticalBlock"]{
     align-items:center;
     justify-content:space-between;
     gap:18px;
-    padding:18px 20px;
-    border:1px solid #313D47;
-    border-radius:16px;
-    background:#151D24;
-    box-shadow:0 4px 18px rgba(0,0,0,.16);
-    margin-bottom:10px;
+    padding:14px 18px;
+    border:1px solid #26323C;
+    border-radius:14px;
+    background:linear-gradient(145deg,#121B23,#0F171E);
+    box-shadow:0 4px 18px rgba(0,0,0,.18);
+    margin-bottom:8px;
 }
 
 .crm-page-head h1{
     margin:0;
     color:#FFFFFF;
-    font-size:31px;
+    font-size:28px;
     line-height:1;
-    letter-spacing:-.8px;
+    letter-spacing:-.65px;
     font-weight:850;
 }
 
 .crm-page-head p{
-    margin:8px 0 0;
-    color:#AEB8C2;
-    font-size:12px;
+    margin:7px 0 0;
+    color:#9BA7B1;
+    font-size:11px;
 }
 
 .crm-live-pill{
     display:inline-flex;
     align-items:center;
     gap:8px;
-    padding:9px 13px;
-    border:1px solid #313D47;
+    padding:8px 12px;
+    border:1px solid #31404B;
     border-radius:999px;
-    background:#111920;
-    color:#E8EDF2;
-    font-size:10px;
+    background:#111A21;
+    color:#DCE3E8;
+    font-size:9px;
     font-weight:750;
     white-space:nowrap;
 }
@@ -145,55 +148,132 @@ div[data-testid="stVerticalBlock"]{
     width:8px;
     height:8px;
     border-radius:999px;
-    background:#22C55E;
-    box-shadow:0 0 0 4px rgba(34,197,94,.10);
+    background:#19C96A;
+    box-shadow:0 0 0 4px rgba(25,201,106,.10);
 }
 
 /* ---------------------------------------------------------
-   NAV / SEGMENTED
+   NAVEGACIÓN CRM
    --------------------------------------------------------- */
 
 div[data-testid="stSegmentedControl"]{
-    background:#151D24;
-    border:1px solid #313D47;
-    border-radius:13px;
-    padding:4px;
-    box-shadow:0 2px 10px rgba(0,0,0,.12);
+    background:#111A21;
+    border:1px solid #2C3943;
+    border-radius:10px;
+    padding:3px;
 }
 
 div[data-testid="stSegmentedControl"] button{
-    color:#C2CBD3 !important;
-    border-radius:9px !important;
-    font-size:10px !important;
-    font-weight:750 !important;
+    color:#D6DEE4 !important;
+    border-radius:7px !important;
+    font-size:9.5px !important;
+    font-weight:760 !important;
 }
 
 div[data-testid="stSegmentedControl"] button[aria-pressed="true"]{
-    background:#2B2613 !important;
+    background:#2A250D !important;
     color:#FFC400 !important;
-    box-shadow:inset 0 0 0 1px #F2C200 !important;
+    box-shadow:inset 0 0 0 1px #CFA300 !important;
 }
 
 /* ---------------------------------------------------------
-   KPI CARDS
+   SECCIONES
+   --------------------------------------------------------- */
+
+.crm-section-kicker{
+    color:#FFC400;
+    text-transform:uppercase;
+    letter-spacing:.11em;
+    font-size:7.5px;
+    font-weight:900;
+    margin-bottom:3px;
+}
+
+.crm-section-title{
+    color:#FFFFFF;
+    font-size:15px;
+    font-weight:850;
+    margin:0 0 3px;
+}
+
+.crm-section-sub{
+    color:#84919C;
+    font-size:8.5px;
+    margin-bottom:8px;
+}
+
+/* ---------------------------------------------------------
+   TOOLBAR / FILTROS
+   --------------------------------------------------------- */
+
+.crm-toolbar{
+    display:flex;
+    align-items:flex-end;
+    justify-content:space-between;
+    gap:12px;
+    margin:10px 0 8px;
+}
+
+.crm-toolbar-left{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    align-items:center;
+}
+
+.crm-toolbar-right{
+    display:flex;
+    gap:8px;
+    align-items:center;
+}
+
+.crm-view-tabs{
+    display:flex;
+    gap:0;
+    border:1px solid #2E3B45;
+    border-radius:8px;
+    overflow:hidden;
+    background:#111A21;
+}
+
+.crm-view-tab{
+    padding:8px 15px;
+    color:#CCD5DC;
+    font-size:9px;
+    font-weight:760;
+    border-right:1px solid #2E3B45;
+}
+
+.crm-view-tab:last-child{
+    border-right:0;
+}
+
+.crm-view-tab.active{
+    color:#FFC400;
+    background:#201C0B;
+    box-shadow:inset 0 0 0 1px #C99D00;
+}
+
+/* ---------------------------------------------------------
+   KPIs
    --------------------------------------------------------- */
 
 .crm-kpis{
     display:grid;
     grid-template-columns:repeat(4,minmax(0,1fr));
-    gap:12px;
-    margin:8px 0 12px;
+    gap:10px;
+    margin:10px 0 12px;
 }
 
 .crm-kpi{
     position:relative;
+    min-height:104px;
+    border:1px solid #2C3943;
+    border-radius:10px;
+    padding:14px 15px;
+    background:linear-gradient(145deg,#121C24,#101820);
+    box-shadow:0 3px 14px rgba(0,0,0,.15);
     overflow:hidden;
-    min-height:118px;
-    border:1px solid #313D47;
-    border-radius:14px;
-    padding:16px;
-    background:#151D24;
-    box-shadow:0 3px 14px rgba(0,0,0,.14);
 }
 
 .crm-kpi::before{
@@ -202,211 +282,210 @@ div[data-testid="stSegmentedControl"] button[aria-pressed="true"]{
     left:0;
     top:0;
     bottom:0;
-    width:4px;
-    border-radius:14px 0 0 14px;
+    width:3px;
+    background:#FFC400;
 }
 
-.crm-kpi.yellow::before{background:#F6C500}
-.crm-kpi.green::before{background:#FFC400}
-.crm-kpi.purple::before{background:#FFC400}
-.crm-kpi.orange::before{background:#FFC400}
-
 .crm-kpi-label{
-    color:#9DA8B2;
-    font-size:9px;
+    color:#A7B2BB;
+    font-size:8px;
     text-transform:uppercase;
     letter-spacing:.06em;
-    font-weight:800;
+    font-weight:850;
 }
 
 .crm-kpi-value{
     color:#FFFFFF;
-    font-size:24px;
-    font-weight:850;
+    font-size:22px;
+    font-weight:900;
     line-height:1;
     margin-top:8px;
-    letter-spacing:-.45px;
+    letter-spacing:-.4px;
 }
 
 .crm-kpi-help{
-    color:#9DA8B2;
-    font-size:8.8px;
-    margin-top:10px;
+    color:#8996A1;
+    font-size:8px;
+    margin-top:9px;
     font-weight:650;
 }
 
-.crm-kpi-help.green{color:#FFC400}
-.crm-kpi-help.orange{color:#FFC400}
-
-/* ---------------------------------------------------------
-   CONTAINERS / TABLES
-   --------------------------------------------------------- */
-
-div[data-testid="stVerticalBlockBorderWrapper"]{
-    border:1px solid #313D47 !important;
-    background:#FFFFFF !important;
-    border-radius:14px !important;
-    box-shadow:0 3px 14px rgba(0,0,0,.14) !important;
-}
-
-div[data-testid="stDataFrame"]{
-    border:1px solid #313D47;
-    border-radius:12px;
-    overflow:hidden;
-    background:#151D24;
-}
-
-div[data-testid="stDataFrame"] *{
-    color:#E8EDF2;
-}
-
-div[data-testid="stMetric"]{
-    border:1px solid #313D47;
-    border-radius:12px;
-    background:#151D24;
-    padding:10px 12px;
-}
-
-div[data-testid="stMetricLabel"]{
-    color:#7B8592 !important;
-    font-size:9px !important;
-    font-weight:750 !important;
-}
-
-div[data-testid="stMetricValue"]{
-    color:#1D2430 !important;
-    font-size:19px !important;
-}
-
-/* ---------------------------------------------------------
-   SECTION TITLES
-   --------------------------------------------------------- */
-
-.crm-section-kicker{
+.crm-kpi-help.accent{
     color:#FFC400;
-    text-transform:uppercase;
-    letter-spacing:.10em;
-    font-size:8px;
-    font-weight:850;
-    margin-bottom:3px;
-}
-
-.crm-section-title{
-    color:#FFFFFF;
-    font-size:14px;
-    font-weight:850;
-    margin:0 0 3px;
-}
-
-.crm-section-sub{
-    color:#9DA8B2;
-    font-size:9px;
-    margin-bottom:8px;
-}
-
-.crm-client-title{
-    color:#FFFFFF;
-    font-size:19px;
-    font-weight:850;
-    margin-bottom:2px;
-}
-
-.crm-client-sub{
-    color:#9DA8B2;
-    font-size:10px;
-    margin-bottom:8px;
 }
 
 /* ---------------------------------------------------------
-   TOP CLIENTS
+   BOARD
    --------------------------------------------------------- */
 
-.crm-top-row{
-    display:grid;
-    grid-template-columns:28px minmax(0,1.6fr) 110px 92px 65px 90px;
-    gap:8px;
-    align-items:center;
-    min-height:39px;
-    border-bottom:1px solid #26323C;
-    font-size:8.8px;
+.crm-board-wrap{
+    margin-top:4px;
 }
 
-.crm-top-row.header{
-    color:#87939E;
-    font-size:7.7px;
-    text-transform:uppercase;
-    font-weight:750;
-}
-
-.crm-top-row:last-child{border-bottom:0}
-.crm-rank{color:#87939E;font-weight:800}
-.crm-client-name{
-    color:#F2F5F7;
-    font-weight:780;
-    white-space:nowrap;
+.crm-stage-head{
+    border:1px solid #2D3A44;
+    border-radius:10px 10px 6px 6px;
+    padding:11px 12px 9px;
+    margin-bottom:6px;
+    background:linear-gradient(145deg,#131D25,#101820);
+    position:relative;
     overflow:hidden;
-    text-overflow:ellipsis;
 }
-.crm-client-rut{color:#AEB8C2}
-.crm-money{color:#FFC400;font-weight:850;text-align:right}
-.crm-orders{color:#C2CBD3;text-align:right}
-.crm-date{color:#AEB8C2;text-align:right}
 
-/* ---------------------------------------------------------
-   EMPTY STATES
-   --------------------------------------------------------- */
+.crm-stage-head::before{
+    content:"";
+    position:absolute;
+    top:0;
+    left:0;
+    right:0;
+    height:3px;
+    background:#FFC400;
+}
 
-.crm-empty{
-    min-height:170px;
+.crm-stage-name{
+    color:#FFFFFF;
+    font-size:10px;
+    font-weight:900;
+    text-transform:uppercase;
+    letter-spacing:.02em;
+    margin-top:2px;
+}
+
+.crm-stage-countline{
     display:flex;
-    flex-direction:column;
     align-items:center;
-    justify-content:center;
-    text-align:center;
-    border:1px dashed #3A4650;
-    border-radius:12px;
-    color:#9DA8B2;
-    padding:20px;
-    background:#111920;
+    gap:8px;
+    margin-top:7px;
 }
 
-.crm-empty strong{
-    color:#F2F5F7;
-    font-size:12px;
+.crm-stage-count{
+    color:#FFFFFF;
+    font-size:17px;
+    font-weight:850;
+}
+
+.crm-stage-total{
+    color:#96A2AC;
+    font-size:8px;
+}
+
+.crm-kanban-card{
+    border:1px solid #2E3B46;
+    border-radius:9px;
+    padding:11px;
+    margin-bottom:7px;
+    background:linear-gradient(145deg,#131E26,#101820);
+    box-shadow:0 3px 12px rgba(0,0,0,.18);
+}
+
+.crm-kanban-id{
+    color:#7F8B95;
+    font-size:7.4px;
     margin-bottom:5px;
 }
 
-.crm-empty span{
-    font-size:9px;
-    max-width:360px;
+.crm-kanban-client{
+    color:#FFFFFF;
+    font-size:9.8px;
+    font-weight:900;
+    line-height:1.25;
+}
+
+.crm-kanban-title{
+    color:#A8B2BB;
+    font-size:8.3px;
+    margin-top:4px;
+}
+
+.crm-kanban-money{
+    color:#FFC400;
+    font-size:12px;
+    font-weight:900;
+    margin-top:10px;
+}
+
+.crm-kanban-chip{
+    display:inline-flex;
+    padding:3px 7px;
+    border-radius:999px;
+    border:1px solid #7F6500;
+    background:#201B05;
+    color:#FFC400;
+    font-size:7.2px;
+    font-weight:850;
+    margin-top:6px;
+}
+
+.crm-kanban-meta{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+    color:#9BA7B1;
+    font-size:7.5px;
+    margin-top:9px;
+}
+
+.crm-kanban-label{
+    color:#7F8B95;
+    font-size:7.2px;
+    margin-top:8px;
+}
+
+.crm-kanban-action{
+    color:#DCE3E8;
+    font-size:8px;
+    margin-top:2px;
+    line-height:1.3;
+}
+
+.crm-stage-empty{
+    border:1px dashed #3A4650;
+    border-radius:8px;
+    padding:19px 8px;
+    color:#7F8B95;
+    text-align:center;
+    font-size:8px;
+    background:#10171D;
 }
 
 /* ---------------------------------------------------------
-   INPUTS / BUTTONS
+   BOTONES
    --------------------------------------------------------- */
 
 .stButton>button{
-    border-radius:9px !important;
-    min-height:36px !important;
-    font-size:9.5px !important;
+    border-radius:7px !important;
+    min-height:33px !important;
+    font-size:8.8px !important;
     font-weight:780 !important;
+    border:1px solid #33414C !important;
+    background:#111A21 !important;
+    color:#DCE4EA !important;
+}
+
+.stButton>button:hover{
+    border-color:#FFC400 !important;
+    color:#FFC400 !important;
 }
 
 .stButton>button[kind="primary"]{
-    background:#F5C400 !important;
-    border-color:#F5C400 !important;
-    color:#302600 !important;
+    background:#FFC400 !important;
+    border-color:#FFC400 !important;
+    color:#191500 !important;
 }
+
+/* ---------------------------------------------------------
+   INPUTS
+   --------------------------------------------------------- */
 
 [data-testid="stTextInput"] input,
 [data-testid="stTextArea"] textarea,
 [data-testid="stSelectbox"] div[data-baseweb="select"]>div,
 [data-testid="stNumberInput"] input,
 [data-testid="stDateInput"] input{
-    background:#FFFFFF !important;
-    border-color:#313D47 !important;
-    color:#202733 !important;
-    border-radius:9px !important;
+    background:#111920 !important;
+    border-color:#2F3B45 !important;
+    color:#EEF2F5 !important;
+    border-radius:7px !important;
 }
 
 [data-testid="stTextInput"] label,
@@ -415,174 +494,139 @@ div[data-testid="stMetricValue"]{
 [data-testid="stNumberInput"] label,
 [data-testid="stDateInput"] label,
 [data-testid="stRadio"] label{
-    color:#AEB8C2 !important;
-    font-size:9px !important;
-    font-weight:750 !important;
+    color:#A7B2BB !important;
+    font-size:8px !important;
+    font-weight:760 !important;
 }
 
 /* ---------------------------------------------------------
-   EXPANDERS
+   CONTAINERS / TABLES / EXPANDERS
    --------------------------------------------------------- */
 
+div[data-testid="stVerticalBlockBorderWrapper"]{
+    border:1px solid #2C3943 !important;
+    background:#111A21 !important;
+    border-radius:10px !important;
+    box-shadow:0 3px 14px rgba(0,0,0,.14) !important;
+}
+
+div[data-testid="stDataFrame"]{
+    border:1px solid #2C3943;
+    border-radius:9px;
+    overflow:hidden;
+    background:#101820;
+}
+
+div[data-testid="stDataFrame"] *{
+    color:#EAF0F4;
+}
+
+div[data-testid="stMetric"]{
+    border:1px solid #2C3943;
+    border-radius:9px;
+    background:#111A21;
+    padding:9px 11px;
+}
+
+div[data-testid="stMetricLabel"]{
+    color:#A7B2BB !important;
+    font-size:8px !important;
+    font-weight:760 !important;
+}
+
+div[data-testid="stMetricValue"]{
+    color:#FFFFFF !important;
+    font-size:18px !important;
+}
+
 details{
-    background:#FFFFFF !important;
-    border:1px solid #313D47 !important;
-    border-radius:12px !important;
+    background:#111A21 !important;
+    border:1px solid #2C3943 !important;
+    border-radius:9px !important;
 }
 
 details summary{
-    color:#384252 !important;
-    font-size:10px !important;
+    color:#DCE3E8 !important;
+    font-size:9px !important;
     font-weight:780 !important;
 }
 
 /* ---------------------------------------------------------
-   MONDAY BOARD
+   CLIENTES / RESUMEN
    --------------------------------------------------------- */
 
-.crm-board-head{
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    gap:12px;
-    margin:8px 0 10px;
-}
-
-.crm-board-title{
-    font-size:15px;
-    font-weight:850;
+.crm-client-title{
     color:#FFFFFF;
+    font-size:18px;
+    font-weight:900;
+    margin-bottom:2px;
 }
 
-.crm-board-meta{
+.crm-client-sub{
+    color:#8C99A3;
     font-size:9px;
-    color:#9DA8B2;
-}
-
-.crm-stage-head{
-    border-radius:12px 12px 8px 8px;
-    padding:12px 12px 10px;
     margin-bottom:8px;
-    background:#151D24;
-    border:1px solid #313D47;
-    box-shadow:0 2px 10px rgba(0,0,0,.12);
-    position:relative;
-    overflow:hidden;
 }
 
-.crm-stage-head::before{
-    content:"";
-    position:absolute;
-    left:0;
-    top:0;
-    right:0;
-    height:4px;
-    background:#F5C400;
-}
-
-.crm-stage-name{
-    color:#F2F5F7;
-    font-size:11px;
-    font-weight:850;
-    margin-top:2px;
-}
-
-.crm-stage-count{
-    color:#FFFFFF;
-    font-size:21px;
-    font-weight:850;
-    margin-top:5px;
-}
-
-.crm-stage-total{
-    color:#8B95A2;
-    font-size:8.5px;
-    margin-top:2px;
-}
-
-.crm-kanban-card{
-    border:1px solid #313D47;
-    border-radius:12px;
-    padding:12px;
-    margin-bottom:8px;
-    background:#151D24;
-    box-shadow:0 3px 12px rgba(0,0,0,.16);
-}
-
-.crm-kanban-id{
-    color:#87939E;
-    font-size:7.8px;
-    margin-bottom:5px;
-}
-
-.crm-kanban-client{
-    color:#FFFFFF;
-    font-size:10.5px;
-    font-weight:850;
-    line-height:1.25;
-}
-
-.crm-kanban-title{
-    color:#AEB8C2;
-    font-size:8.8px;
-    margin-top:4px;
-}
-
-.crm-kanban-money{
-    color:#FFC400;
-    font-size:13px;
-    font-weight:850;
-    margin-top:10px;
-}
-
-.crm-kanban-chip{
-    display:inline-flex;
+.crm-top-row{
+    display:grid;
+    grid-template-columns:28px minmax(0,1.6fr) 110px 92px 65px 90px;
+    gap:8px;
     align-items:center;
-    padding:3px 7px;
-    border-radius:999px;
-    background:#332B08;
-    color:#FFC400;
-    font-size:7.5px;
+    min-height:38px;
+    border-bottom:1px solid #25313A;
+    font-size:8.2px;
+}
+
+.crm-top-row.header{
+    color:#87939D;
+    font-size:7.2px;
+    text-transform:uppercase;
+    font-weight:750;
+}
+
+.crm-top-row:last-child{border-bottom:0}
+.crm-rank{color:#87939D;font-weight:800}
+.crm-client-name{
+    color:#EEF2F5;
     font-weight:800;
-    margin-top:6px;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
 }
+.crm-client-rut{color:#A7B2BB}
+.crm-money{color:#FFC400;font-weight:900;text-align:right}
+.crm-orders{color:#D2DAE0;text-align:right}
+.crm-date{color:#A1ADB7;text-align:right}
 
-.crm-kanban-label{
-    color:#87939E;
-    font-size:7.5px;
-    margin-top:9px;
-}
-
-.crm-kanban-action{
-    color:#E4E9ED;
-    font-size:8.5px;
-    margin-top:2px;
-    line-height:1.3;
-}
-
-.crm-kanban-date{
-    color:#9DA8B2;
-    font-size:7.7px;
-    margin-top:3px;
-}
-
-.crm-stage-empty{
-    border:1px dashed #3A4650;
-    border-radius:10px;
-    padding:22px 10px;
-    color:#A0A8B3;
+.crm-empty{
+    min-height:150px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
     text-align:center;
-    font-size:8.5px;
-    background:#111920;
+    border:1px dashed #3A4650;
+    border-radius:9px;
+    color:#8B98A2;
+    padding:18px;
+    background:#10171D;
+}
+
+.crm-empty strong{
+    color:#E6ECEF;
+    font-size:11px;
+    margin-bottom:4px;
+}
+
+.crm-empty span{
+    font-size:8.2px;
+    max-width:340px;
 }
 
 hr{
-    border-color:#E9EDF1 !important;
+    border-color:#25313A !important;
 }
-
-/* ---------------------------------------------------------
-   RESPONSIVE
-   --------------------------------------------------------- */
 
 @media(max-width:1100px){
     .crm-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
@@ -2950,331 +2994,475 @@ def _render_pipeline() -> None:
     st.markdown(
         """
 <div class="crm-section-kicker">TUBERÍA</div>
-<div class="crm-section-title">Tablero comercial</div>
-<div class="crm-section-sub">Vista inspirada en Monday para gestionar oportunidades por etapa.</div>
+<div class="crm-section-title">Tubería comercial</div>
+<div class="crm-section-sub">Gestiona tu pipeline moviendo oportunidades entre etapas.</div>
         """,
         unsafe_allow_html=True,
     )
 
     try:
-        open_rows = list_opportunities(
-            status="Abierta",
-            limit=1000,
+        all_rows = list_opportunities(
+            limit=1500,
         )
         summary = get_crm_summary()
+        pending_followups = list_followups(
+            pending_only=True,
+            limit=10,
+        )
     except Exception as exc:
         st.error(
             f"No fue posible cargar la tubería comercial: {exc}"
         )
         return
 
-    open_amount = float(
-        summary.get("open_amount") or 0
-    )
-    weighted_amount = float(
-        summary.get("weighted_amount") or 0
-    )
-    open_count = int(
-        summary.get("open_opportunities") or 0
-    )
-    won_count = int(
-        summary.get("won_opportunities") or 0
+    # --------------------------------------------------------
+    # BARRA SUPERIOR
+    # --------------------------------------------------------
+    top_left, top_right = st.columns(
+        [4.5, 1.2],
+        gap="small",
     )
 
-    board_kpis = (
+    seller_options = sorted(
+        {
+            _safe_text(row.get("seller"), "")
+            for row in all_rows
+            if _safe_text(row.get("seller"), "")
+        }
+    )
+
+    with top_left:
+        f1, f2, f3, f4 = st.columns(
+            [1, 1, 1, 1.3],
+            gap="small",
+        )
+
+        with f1:
+            seller_filter = st.selectbox(
+                "Vendedor",
+                ["Todos"] + seller_options,
+                key="crm_pipe_seller",
+            )
+
+        with f2:
+            stage_filter = st.selectbox(
+                "Etapa",
+                ["Todas"] + list(CRM_STAGES),
+                key="crm_pipe_stage",
+            )
+
+        with f3:
+            status_filter = st.selectbox(
+                "Estado",
+                ["Todas"] + list(CRM_STATUSES),
+                key="crm_pipe_status",
+            )
+
+        with f4:
+            search_filter = st.text_input(
+                "Buscar",
+                placeholder="Cliente u oportunidad...",
+                key="crm_pipe_search",
+            )
+
+    with top_right:
+        st.markdown("<div style='height:19px'></div>", unsafe_allow_html=True)
+        if st.button(
+            "+ Nueva oportunidad",
+            key="crm_pipe_new_opp",
+            type="primary",
+            use_container_width=True,
+        ):
+            st.session_state["crm_section"] = "Oportunidades"
+            st.rerun()
+
+    # --------------------------------------------------------
+    # FILTRAR
+    # --------------------------------------------------------
+    filtered_rows = list(all_rows)
+
+    if seller_filter != "Todos":
+        filtered_rows = [
+            row for row in filtered_rows
+            if _safe_text(row.get("seller"), "") == seller_filter
+        ]
+
+    if stage_filter != "Todas":
+        filtered_rows = [
+            row for row in filtered_rows
+            if _safe_text(row.get("stage"), "") == stage_filter
+        ]
+
+    if status_filter != "Todas":
+        filtered_rows = [
+            row for row in filtered_rows
+            if _safe_text(row.get("status"), "") == status_filter
+        ]
+
+    if search_filter:
+        query = search_filter.strip().lower()
+        filtered_rows = [
+            row
+            for row in filtered_rows
+            if (
+                query in _safe_text(row.get("client_name"), "").lower()
+                or query in _safe_text(row.get("title"), "").lower()
+                or query in _safe_text(row.get("client_rut"), "").lower()
+            )
+        ]
+
+    open_rows = [
+        row
+        for row in filtered_rows
+        if _safe_text(row.get("status"), "") == "Abierta"
+    ]
+
+    open_amount = sum(
+        float(row.get("estimated_amount") or 0)
+        for row in open_rows
+    )
+
+    weighted_amount = sum(
+        float(row.get("estimated_amount") or 0)
+        * float(row.get("probability") or 0)
+        / 100
+        for row in open_rows
+    )
+
+    won_rows = [
+        row
+        for row in filtered_rows
+        if _safe_text(row.get("status"), "") == "Ganada"
+    ]
+
+    # --------------------------------------------------------
+    # KPIs
+    # --------------------------------------------------------
+    kpi_html = (
         '<div class="crm-kpis">'
-        '<div class="crm-kpi yellow">'
-        '<div class="crm-kpi-label">Embudo total</div>'
+        '<div class="crm-kpi">'
+        '<div class="crm-kpi-label">Pipeline total</div>'
         f'<div class="crm-kpi-value">{_money(open_amount)}</div>'
         '<div class="crm-kpi-help">Valor de oportunidades abiertas</div>'
         '</div>'
-        '<div class="crm-kpi purple">'
-        '<div class="crm-kpi-label">Embudo ponderado</div>'
+        '<div class="crm-kpi">'
+        '<div class="crm-kpi-label">Pipeline ponderado</div>'
         f'<div class="crm-kpi-value">{_money(weighted_amount)}</div>'
         '<div class="crm-kpi-help">Monto ajustado por probabilidad</div>'
         '</div>'
-        '<div class="crm-kpi green">'
+        '<div class="crm-kpi">'
         '<div class="crm-kpi-label">Oportunidades abiertas</div>'
-        f'<div class="crm-kpi-value">{open_count}</div>'
-        '<div class="crm-kpi-help green">Negocios activos</div>'
+        f'<div class="crm-kpi-value">{len(open_rows)}</div>'
+        '<div class="crm-kpi-help accent">Negocios activos</div>'
         '</div>'
-        '<div class="crm-kpi orange">'
+        '<div class="crm-kpi">'
         '<div class="crm-kpi-label">Ganadas</div>'
-        f'<div class="crm-kpi-value">{won_count}</div>'
+        f'<div class="crm-kpi-value">{len(won_rows)}</div>'
         '<div class="crm-kpi-help">Cierres exitosos</div>'
         '</div>'
         '</div>'
     )
 
     st.markdown(
-        board_kpis,
+        kpi_html,
         unsafe_allow_html=True,
     )
 
-    st.markdown(
-        """
-<div class="crm-board-head">
-    <div>
-        <div class="crm-board-title">Board de oportunidades</div>
-        <div class="crm-board-meta">Mueve negocios entre etapas con los controles rápidos de cada tarjeta.</div>
-    </div>
-</div>
-        """,
-        unsafe_allow_html=True,
+    # --------------------------------------------------------
+    # VISTA
+    # --------------------------------------------------------
+    view_mode = st.segmented_control(
+        "Vista",
+        options=[
+            "Kanban",
+            "Tabla",
+            "Resumen",
+        ],
+        default="Kanban",
+        key="crm_pipeline_view",
     )
 
-    if not open_rows:
-        st.info(
-            "No existen oportunidades abiertas en la tubería."
-        )
-        return
-
-    stage_columns = st.columns(
-        len(CRM_STAGES),
-        gap="small",
-    )
-
-    for stage_index, (column, stage) in enumerate(
-        zip(stage_columns, CRM_STAGES)
-    ):
-        stage_rows = [
-            row
-            for row in open_rows
-            if _safe_text(
-                row.get("stage"),
-                "",
-            ) == stage
-        ]
-
-        stage_total = sum(
-            float(
-                row.get("estimated_amount")
-                or 0
-            )
-            for row in stage_rows
-        )
-
-        with column:
-            st.markdown(
-                (
-                    '<div class="crm-stage-head">'
-                    f'<div class="crm-stage-name">{stage}</div>'
-                    f'<div class="crm-stage-count">{len(stage_rows)}</div>'
-                    f'<div class="crm-stage-total">{_money(stage_total)}</div>'
-                    '</div>'
-                ),
-                unsafe_allow_html=True,
-            )
-
-            if not stage_rows:
-                st.markdown(
-                    '<div class="crm-stage-empty">Sin oportunidades</div>',
-                    unsafe_allow_html=True,
-                )
-                continue
-
-            for item in stage_rows:
-                opportunity_id = int(
-                    item.get("id")
-                )
-
-                amount = float(
-                    item.get("estimated_amount")
-                    or 0
-                )
-                probability = int(
-                    item.get("probability")
-                    or 0
-                )
-
-                next_date = pd.to_datetime(
-                    item.get("next_action_date"),
-                    errors="coerce",
-                )
-                next_date_label = (
-                    next_date.strftime("%d-%m-%Y")
-                    if not pd.isna(next_date)
-                    else "-"
-                )
-
-                close_date = pd.to_datetime(
-                    item.get("expected_close_date"),
-                    errors="coerce",
-                )
-                close_date_label = (
-                    close_date.strftime("%d-%m-%Y")
-                    if not pd.isna(close_date)
-                    else "-"
-                )
-
-                client_name = _safe_text(
-                    item.get("client_name")
-                )
-                title = _safe_text(
-                    item.get("title")
-                )
-                seller = _safe_text(
-                    item.get("seller")
-                )
-                next_action = _safe_text(
-                    item.get("next_action"),
-                    "Sin próxima acción",
-                )
-
-                st.markdown(
-                    (
-                        '<div class="crm-kanban-card">'
-                        f'<div class="crm-kanban-id">#{opportunity_id} · {seller}</div>'
-                        f'<div class="crm-kanban-client">{client_name}</div>'
-                        f'<div class="crm-kanban-title">{title}</div>'
-                        f'<div class="crm-kanban-money">{_money(amount)}</div>'
-                        f'<div class="crm-kanban-chip">{probability}% probabilidad</div>'
-                        '<div class="crm-kanban-label">Próxima acción</div>'
-                        f'<div class="crm-kanban-action">{next_action}</div>'
-                        f'<div class="crm-kanban-date">{next_date_label}</div>'
-                        f'<div class="crm-kanban-date">Cierre: {close_date_label}</div>'
-                        '</div>'
-                    ),
-                    unsafe_allow_html=True,
-                )
-
-                # ------------------------------------------------
-                # Acciones rápidas tipo board
-                # ------------------------------------------------
-                left_col, right_col = st.columns(
-                    2,
-                    gap="small",
-                )
-
-                if stage_index > 0:
-                    previous_stage = CRM_STAGES[
-                        stage_index - 1
-                    ]
-
-                    with left_col:
-                        if st.button(
-                            "←",
-                            key=f"crm_prev_{opportunity_id}",
-                            help=f"Mover a {previous_stage}",
-                            use_container_width=True,
-                        ):
-                            try:
-                                update_opportunity(
-                                    opportunity_id,
-                                    stage=previous_stage,
-                                    probability=CRM_STAGE_PROBABILITY.get(
-                                        previous_stage,
-                                        probability,
-                                    ),
-                                )
-                                st.rerun()
-                            except Exception as exc:
-                                st.error(
-                                    f"No fue posible mover la oportunidad: {exc}"
-                                )
-                else:
-                    with left_col:
-                        st.caption("")
-
-                if stage_index < len(CRM_STAGES) - 1:
-                    next_stage = CRM_STAGES[
-                        stage_index + 1
-                    ]
-
-                    with right_col:
-                        if st.button(
-                            "→",
-                            key=f"crm_next_{opportunity_id}",
-                            help=f"Mover a {next_stage}",
-                            use_container_width=True,
-                        ):
-                            try:
-                                update_opportunity(
-                                    opportunity_id,
-                                    stage=next_stage,
-                                    probability=CRM_STAGE_PROBABILITY.get(
-                                        next_stage,
-                                        probability,
-                                    ),
-                                )
-                                st.rerun()
-                            except Exception as exc:
-                                st.error(
-                                    f"No fue posible mover la oportunidad: {exc}"
-                                )
-                else:
-                    with right_col:
-                        st.caption("")
-
-                action1, action2 = st.columns(
-                    2,
-                    gap="small",
-                )
-
-                with action1:
-                    if st.button(
-                        "✓ Ganada",
-                        key=f"crm_win_{opportunity_id}",
-                        use_container_width=True,
-                    ):
-                        try:
-                            update_opportunity(
-                                opportunity_id,
-                                status="Ganada",
-                                probability=100,
-                            )
-                            st.rerun()
-                        except Exception as exc:
-                            st.error(
-                                f"No fue posible cerrar como ganada: {exc}"
-                            )
-
-                with action2:
-                    if st.button(
-                        "✕ Perdida",
-                        key=f"crm_lost_{opportunity_id}",
-                        use_container_width=True,
-                    ):
-                        try:
-                            update_opportunity(
-                                opportunity_id,
-                                status="Perdida",
-                                probability=0,
-                            )
-                            st.rerun()
-                        except Exception as exc:
-                            st.error(
-                                f"No fue posible cerrar como perdida: {exc}"
-                            )
-
-                st.markdown("")
+    if not view_mode:
+        view_mode = "Kanban"
 
     st.markdown("")
 
-    with st.expander(
-        "Vista de tabla",
-        expanded=False,
-    ):
+    # --------------------------------------------------------
+    # KANBAN
+    # --------------------------------------------------------
+    if view_mode == "Kanban":
+        if not open_rows:
+            st.info(
+                "No existen oportunidades abiertas para los filtros seleccionados."
+            )
+        else:
+            stage_columns = st.columns(
+                len(CRM_STAGES),
+                gap="small",
+            )
+
+            for stage_index, (column, stage) in enumerate(
+                zip(stage_columns, CRM_STAGES)
+            ):
+                stage_rows = [
+                    row
+                    for row in open_rows
+                    if _safe_text(
+                        row.get("stage"),
+                        "",
+                    ) == stage
+                ]
+
+                stage_total = sum(
+                    float(
+                        row.get("estimated_amount")
+                        or 0
+                    )
+                    for row in stage_rows
+                )
+
+                with column:
+                    st.markdown(
+                        (
+                            '<div class="crm-stage-head">'
+                            f'<div class="crm-stage-name">{stage}</div>'
+                            '<div class="crm-stage-countline">'
+                            f'<div class="crm-stage-count">{len(stage_rows)}</div>'
+                            f'<div class="crm-stage-total">{_money(stage_total)}</div>'
+                            '</div>'
+                            '</div>'
+                        ),
+                        unsafe_allow_html=True,
+                    )
+
+                    if not stage_rows:
+                        st.markdown(
+                            '<div class="crm-stage-empty">Sin oportunidades</div>',
+                            unsafe_allow_html=True,
+                        )
+                        continue
+
+                    for item in stage_rows:
+                        opportunity_id = int(
+                            item.get("id")
+                        )
+
+                        amount = float(
+                            item.get("estimated_amount")
+                            or 0
+                        )
+                        probability = int(
+                            item.get("probability")
+                            or 0
+                        )
+
+                        next_date = pd.to_datetime(
+                            item.get("next_action_date"),
+                            errors="coerce",
+                        )
+                        next_date_label = (
+                            next_date.strftime("%d-%m-%Y")
+                            if not pd.isna(next_date)
+                            else "-"
+                        )
+
+                        close_date = pd.to_datetime(
+                            item.get("expected_close_date"),
+                            errors="coerce",
+                        )
+                        close_date_label = (
+                            close_date.strftime("%d-%m-%Y")
+                            if not pd.isna(close_date)
+                            else "-"
+                        )
+
+                        client_name = _safe_text(
+                            item.get("client_name")
+                        )
+                        title = _safe_text(
+                            item.get("title")
+                        )
+                        seller = _safe_text(
+                            item.get("seller")
+                        )
+                        next_action = _safe_text(
+                            item.get("next_action"),
+                            "Sin próxima acción",
+                        )
+
+                        st.markdown(
+                            (
+                                '<div class="crm-kanban-card">'
+                                f'<div class="crm-kanban-id">#{opportunity_id} · {seller}</div>'
+                                f'<div class="crm-kanban-client">{client_name}</div>'
+                                f'<div class="crm-kanban-title">{title}</div>'
+                                f'<div class="crm-kanban-money">{_money(amount)}</div>'
+                                f'<div class="crm-kanban-chip">{probability}%</div>'
+                                '<div class="crm-kanban-meta">'
+                                f'<span>Vendedor {seller}</span>'
+                                f'<span>{close_date_label}</span>'
+                                '</div>'
+                                '<div class="crm-kanban-label">Próxima acción</div>'
+                                f'<div class="crm-kanban-action">{next_action}</div>'
+                                f'<div class="crm-kanban-meta"><span>{next_date_label}</span></div>'
+                                '</div>'
+                            ),
+                            unsafe_allow_html=True,
+                        )
+
+                        # Acciones rápidas
+                        a1, a2, a3, a4 = st.columns(
+                            4,
+                            gap="small",
+                        )
+
+                        with a1:
+                            if stage_index > 0:
+                                previous_stage = CRM_STAGES[
+                                    stage_index - 1
+                                ]
+
+                                if st.button(
+                                    "←",
+                                    key=f"crm_prev_{opportunity_id}",
+                                    help=f"Mover a {previous_stage}",
+                                    use_container_width=True,
+                                ):
+                                    update_opportunity(
+                                        opportunity_id,
+                                        stage=previous_stage,
+                                        probability=CRM_STAGE_PROBABILITY.get(
+                                            previous_stage,
+                                            probability,
+                                        ),
+                                    )
+                                    st.rerun()
+                            else:
+                                st.caption("")
+
+                        with a2:
+                            if stage_index < len(CRM_STAGES) - 1:
+                                next_stage = CRM_STAGES[
+                                    stage_index + 1
+                                ]
+
+                                if st.button(
+                                    "→",
+                                    key=f"crm_next_{opportunity_id}",
+                                    help=f"Mover a {next_stage}",
+                                    use_container_width=True,
+                                ):
+                                    update_opportunity(
+                                        opportunity_id,
+                                        stage=next_stage,
+                                        probability=CRM_STAGE_PROBABILITY.get(
+                                            next_stage,
+                                            probability,
+                                        ),
+                                    )
+                                    st.rerun()
+                            else:
+                                st.caption("")
+
+                        with a3:
+                            if st.button(
+                                "✓",
+                                key=f"crm_win_{opportunity_id}",
+                                help="Marcar como ganada",
+                                use_container_width=True,
+                            ):
+                                update_opportunity(
+                                    opportunity_id,
+                                    status="Ganada",
+                                    probability=100,
+                                )
+                                st.rerun()
+
+                        with a4:
+                            if st.button(
+                                "✕",
+                                key=f"crm_lost_{opportunity_id}",
+                                help="Marcar como perdida",
+                                use_container_width=True,
+                            ):
+                                update_opportunity(
+                                    opportunity_id,
+                                    status="Perdida",
+                                    probability=0,
+                                )
+                                st.rerun()
+
+                        st.markdown("")
+
+    # --------------------------------------------------------
+    # TABLA
+    # --------------------------------------------------------
+    elif view_mode == "Tabla":
         display = _opportunity_display_frame(
-            open_rows
+            filtered_rows
         )
 
+        if display.empty:
+            st.info(
+                "No existen oportunidades para los filtros seleccionados."
+            )
+        else:
+            st.dataframe(
+                display,
+                hide_index=True,
+                use_container_width=True,
+                height=min(
+                    620,
+                    80 + max(len(display), 1) * 35,
+                ),
+                column_config={
+                    "Monto": st.column_config.NumberColumn(
+                        "Monto",
+                        format="$ %.0f",
+                    ),
+                    "Probabilidad": st.column_config.NumberColumn(
+                        "Probabilidad",
+                        format="%d %%",
+                    ),
+                },
+            )
+
+    # --------------------------------------------------------
+    # RESUMEN
+    # --------------------------------------------------------
+    else:
+        stage_summary = []
+
+        for stage in CRM_STAGES:
+            rows_stage = [
+                row
+                for row in open_rows
+                if _safe_text(row.get("stage"), "") == stage
+            ]
+
+            total_stage = sum(
+                float(row.get("estimated_amount") or 0)
+                for row in rows_stage
+            )
+
+            weighted_stage = sum(
+                float(row.get("estimated_amount") or 0)
+                * float(row.get("probability") or 0)
+                / 100
+                for row in rows_stage
+            )
+
+            stage_summary.append(
+                {
+                    "Etapa": stage,
+                    "Oportunidades": len(rows_stage),
+                    "Monto": total_stage,
+                    "Ponderado": weighted_stage,
+                }
+            )
+
         st.dataframe(
-            display[
-                [
-                    "ID",
-                    "Cliente",
-                    "RUT",
-                    "Oportunidad",
-                    "Monto",
-                    "Etapa",
-                    "Probabilidad",
-                    "Vendedor",
-                    "Cierre estimado",
-                    "Próxima acción",
-                    "Fecha próxima acción",
-                ]
-            ],
+            pd.DataFrame(stage_summary),
             hide_index=True,
             use_container_width=True,
             column_config={
@@ -3282,12 +3470,109 @@ def _render_pipeline() -> None:
                     "Monto",
                     format="$ %.0f",
                 ),
-                "Probabilidad": st.column_config.NumberColumn(
-                    "Probabilidad",
-                    format="%d %%",
+                "Ponderado": st.column_config.NumberColumn(
+                    "Ponderado",
+                    format="$ %.0f",
                 ),
             },
         )
+
+    # --------------------------------------------------------
+    # TODAS LAS OPORTUNIDADES
+    # --------------------------------------------------------
+    st.markdown("")
+
+    with st.expander(
+        "Todas las oportunidades",
+        expanded=True,
+    ):
+        display_all = _opportunity_display_frame(
+            filtered_rows
+        )
+
+        if display_all.empty:
+            st.caption(
+                "Sin oportunidades para mostrar."
+            )
+        else:
+            st.dataframe(
+                display_all[
+                    [
+                        "ID",
+                        "Cliente",
+                        "Etapa",
+                        "Monto",
+                        "Probabilidad",
+                        "Vendedor",
+                        "Próxima acción",
+                        "Cierre estimado",
+                        "Estado",
+                    ]
+                ],
+                hide_index=True,
+                use_container_width=True,
+                column_config={
+                    "Monto": st.column_config.NumberColumn(
+                        "Monto",
+                        format="$ %.0f",
+                    ),
+                    "Probabilidad": st.column_config.NumberColumn(
+                        "Probabilidad",
+                        format="%d %%",
+                    ),
+                },
+            )
+
+    # --------------------------------------------------------
+    # PRÓXIMAS ACCIONES
+    # --------------------------------------------------------
+    with st.expander(
+        "Próximas acciones",
+        expanded=True,
+    ):
+        if not pending_followups:
+            st.caption(
+                "No existen seguimientos pendientes."
+            )
+        else:
+            follow_rows = []
+
+            for item in pending_followups:
+                next_date = pd.to_datetime(
+                    item.get("next_followup_date"),
+                    errors="coerce",
+                )
+
+                follow_rows.append(
+                    {
+                        "Acción": _safe_text(
+                            item.get("subject")
+                            or item.get("followup_type")
+                        ),
+                        "Cliente": _safe_text(
+                            item.get("client_name")
+                        ),
+                        "Vendedor": _safe_text(
+                            item.get("seller")
+                        ),
+                        "Fecha": (
+                            next_date.strftime("%d-%m-%Y")
+                            if not pd.isna(next_date)
+                            else "-"
+                        ),
+                        "Estado": (
+                            "Completado"
+                            if bool(item.get("completed"))
+                            else "Pendiente"
+                        ),
+                    }
+                )
+
+            st.dataframe(
+                pd.DataFrame(follow_rows),
+                hide_index=True,
+                use_container_width=True,
+            )
 
 
 # ============================================================
@@ -3360,8 +3645,8 @@ def render(
     header_html = (
         '<div class="crm-page-head">'
         '<div>'
-        '<h1>CRM Comercial</h1>'
-        '<p>Gestión de clientes, oportunidades, seguimiento y tubería comercial.</p>'
+        '<h1>CRM</h1>'
+        '<p>Gestión comercial de clientes, oportunidades, seguimiento y tubería.</p>'
         '</div>'
         '<div class="crm-live-pill">'
         '<i></i>ERP + PostgreSQL conectados'
