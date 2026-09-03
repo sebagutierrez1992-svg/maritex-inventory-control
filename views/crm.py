@@ -1,4 +1,4 @@
-
+from __future__ import annotations
 
 from datetime import datetime, timedelta
 from typing import Any
@@ -1194,6 +1194,67 @@ def _filter_excluded_db_rows(
     ]
 
 
+
+def _sales_period_from_df(
+    sales_df: pd.DataFrame,
+    detected_columns: dict[str, str] | None = None,
+) -> tuple[pd.Timestamp | None, pd.Timestamp | None]:
+    """Obtiene el rango real de fechas contenido en ERP Ventas."""
+    if sales_df is None or sales_df.empty:
+        return None, None
+
+    date_col = None
+
+    if detected_columns:
+        date_col = detected_columns.get("date")
+
+    if not date_col:
+        candidates = [
+            "Fecha",
+            "FECHA",
+            "fecha",
+            "Fecha Documento",
+            "FechaDocumento",
+        ]
+        for candidate in candidates:
+            if candidate in sales_df.columns:
+                date_col = candidate
+                break
+
+    if not date_col or date_col not in sales_df.columns:
+        return None, None
+
+    dates = pd.to_datetime(
+        sales_df[date_col],
+        errors="coerce",
+        dayfirst=True,
+    ).dropna()
+
+    if dates.empty:
+        return None, None
+
+    return dates.min().normalize(), dates.max().normalize()
+
+
+def _period_label() -> str:
+    start = st.session_state.get("crm_sales_period_start")
+    end = st.session_state.get("crm_sales_period_end")
+
+    if start is None or end is None:
+        return "Período disponible"
+
+    start = pd.to_datetime(start, errors="coerce")
+    end = pd.to_datetime(end, errors="coerce")
+
+    if pd.isna(start) or pd.isna(end):
+        return "Período disponible"
+
+    if start.date() == end.date():
+        return start.strftime("%d-%m-%Y")
+
+    return f"{start.strftime('%d-%m-%Y')} al {end.strftime('%d-%m-%Y')}"
+
+
 # ============================================================
 # DETECCIÓN DE COLUMNAS ERP VENTAS
 # ============================================================
@@ -1567,19 +1628,42 @@ def _render_summary(
         st.info("No existen datos de clientes disponibles.")
         return
 
-    total_clients = len(clients)
-    total_sales = clients["Ventas 12 meses"].sum()
-    average_sales = clients["Ventas 12 meses"].mean() if total_clients else 0
+    active_seller = _get_active_seller()
+    seller_title = (
+        "Todos los vendedores"
+        if active_seller == "Todos"
+        else _seller_name(active_seller)
+    )
 
-    dates = pd.to_datetime(clients["Última compra"], errors="coerce")
+    # --------------------------------------------------------
+    # Datos base ERP
+    # --------------------------------------------------------
+    total_clients = len(clients)
+    total_sales = float(clients["Ventas 12 meses"].sum() or 0)
+    average_sales = (
+        float(clients["Ventas 12 meses"].mean() or 0)
+        if total_clients
+        else 0
+    )
+
+    dates = pd.to_datetime(
+        clients["Última compra"],
+        errors="coerce",
+    )
     valid_dates = dates.dropna()
 
     inactive_clients = 0
     reference_date = None
+
     if not valid_dates.empty:
         reference_date = valid_dates.max()
-        limit = reference_date - timedelta(days=90)
-        inactive_clients = int((dates.notna() & (dates < limit)).sum())
+        inactive_limit = reference_date - timedelta(days=90)
+        inactive_clients = int(
+            (
+                dates.notna()
+                & (dates < inactive_limit)
+            ).sum()
+        )
 
     inactive_pct = (
         inactive_clients / total_clients * 100
@@ -1587,344 +1671,962 @@ def _render_summary(
         else 0
     )
 
-    try:
-        crm_summary = get_crm_summary()
-        upcoming_followups = list_followups(
-            seller=(
-                _get_active_seller()
-                if _get_active_seller() != "Todos"
-                else None
-            ),
-            pending_only=True,
-            limit=6,
-        )
-        open_opportunities = list_opportunities(
-            seller=(
-                _get_active_seller()
-                if _get_active_seller() != "Todos"
-                else None
-            ),
-            status="Abierta",
-            limit=6,
-        )
-    except Exception:
-        crm_summary = {}
-        upcoming_followups = []
-        open_opportunities = []
+    # --------------------------------------------------------
+    # Datos CRM PostgreSQL
+    # --------------------------------------------------------
+    seller_filter = (
+        active_seller
+        if active_seller != "Todos"
+        else None
+    )
 
-    # KPIs
-    # Importante: no dejamos líneas en blanco entre tarjetas HTML.
-    # Streamlit/Markdown puede interpretar los bloques posteriores como código.
+    try:
+        opportunities = list_opportunities(
+            seller=seller_filter,
+            limit=2000,
+        )
+        opportunities = _filter_excluded_db_rows(
+            opportunities
+        )
+
+        followups = list_followups(
+            seller=seller_filter,
+            limit=2000,
+        )
+        followups = _filter_excluded_db_rows(
+            followups
+        )
+
+    except Exception:
+        opportunities = []
+        followups = []
+
+    open_opps = [
+        row
+        for row in opportunities
+        if _safe_text(
+            row.get("status"),
+            "",
+        ) == "Abierta"
+    ]
+
+    won_opps = [
+        row
+        for row in opportunities
+        if _safe_text(
+            row.get("status"),
+            "",
+        ) == "Ganada"
+    ]
+
+    lost_opps = [
+        row
+        for row in opportunities
+        if _safe_text(
+            row.get("status"),
+            "",
+        ) == "Perdida"
+    ]
+
+    total_open_amount = sum(
+        float(
+            row.get("estimated_amount")
+            or 0
+        )
+        for row in open_opps
+    )
+
+    weighted_amount = sum(
+        float(
+            row.get("estimated_amount")
+            or 0
+        )
+        * float(
+            row.get("probability")
+            or 0
+        )
+        / 100
+        for row in open_opps
+    )
+
+    closed_count = len(won_opps) + len(lost_opps)
+
+    close_rate = (
+        len(won_opps) / closed_count * 100
+        if closed_count
+        else 0
+    )
+
+    pending_followups = [
+        row
+        for row in followups
+        if not bool(
+            row.get("completed")
+        )
+    ]
+
+    today = pd.Timestamp.today().normalize()
+
+    overdue_followups = []
+    today_followups = []
+
+    for item in pending_followups:
+        next_dt = pd.to_datetime(
+            item.get(
+                "next_followup_date"
+            ),
+            errors="coerce",
+        )
+
+        if pd.isna(next_dt):
+            continue
+
+        next_day = next_dt.normalize()
+
+        if next_day < today:
+            overdue_followups.append(
+                item
+            )
+        elif next_day == today:
+            today_followups.append(
+                item
+            )
+
+    # --------------------------------------------------------
+    # Cabecera ejecutiva
+    # --------------------------------------------------------
+    st.markdown(
+        f"""
+<div class="crm-section-kicker">RESUMEN EJECUTIVO COMERCIAL</div>
+<div class="crm-title-line">
+    <div class="crm-section-title">Visión gerencial</div>
+    <span class="crm-help">?
+        <span class="crm-help-tip">
+            Consolida ventas ERP, cartera, oportunidades y actividad comercial.
+            El contenido cambia automáticamente según el vendedor seleccionado.
+        </span>
+    </span>
+</div>
+<div class="crm-section-sub">
+    Módulo: <strong>{seller_title}</strong> ·
+    Ventas ERP: <strong>{_period_label()}</strong>
+</div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    # --------------------------------------------------------
+    # KPI principales
+    # --------------------------------------------------------
     kpi_html = (
         f'<div class="crm-kpis">'
         f'<div class="crm-kpi yellow">'
-        f'<div class="crm-kpi-top">'
-        f'<div class="crm-kpi-icon yellow">●</div>'
-        f'<div>'
-        f'<div class="crm-kpi-label">Clientes</div>'
-        f'<div class="crm-kpi-value">{total_clients:,}</div>'
-        f'<div class="crm-kpi-help">Total cartera</div>'
-        f'</div></div></div>'
-        f'<div class="crm-kpi green">'
-        f'<div class="crm-kpi-top">'
-        f'<div class="crm-kpi-icon green">$</div>'
-        f'<div>'
-        f'<div class="crm-kpi-label">Ventas 12 meses</div>'
+        f'<div class="crm-kpi-label">'
+        f'Ventas 12 meses'
+        f'<span class="crm-help">?'
+        f'<span class="crm-help-tip">'
+        f'Suma de ventas ERP contenidas en el archivo cargado para el módulo comercial seleccionado.'
+        f'</span></span></div>'
         f'<div class="crm-kpi-value">{_money(total_sales)}</div>'
-        f'<div class="crm-kpi-help green">Facturación reciente ERP</div>'
-        f'</div></div></div>'
-        f'<div class="crm-kpi purple">'
-        f'<div class="crm-kpi-top">'
-        f'<div class="crm-kpi-icon purple">▥</div>'
-        f'<div>'
-        f'<div class="crm-kpi-label">Venta promedio</div>'
-        f'<div class="crm-kpi-value">{_money(average_sales)}</div>'
-        f'<div class="crm-kpi-help">Promedio por cliente</div>'
-        f'</div></div></div>'
-        f'<div class="crm-kpi orange">'
-        f'<div class="crm-kpi-top">'
-        f'<div class="crm-kpi-icon orange">◷</div>'
-        f'<div>'
-        f'<div class="crm-kpi-label">Sin compra +90 días</div>'
-        f'<div class="crm-kpi-value">{inactive_clients:,}</div>'
-        f'<div class="crm-kpi-help orange">{inactive_pct:.1f}% de la cartera · al corte ERP</div>'
-        f'</div></div></div>'
+        f'<div class="crm-kpi-help">{_period_label()}</div>'
         f'</div>'
-    ).replace(",", ".")
 
-    st.markdown(kpi_html, unsafe_allow_html=True)
+        f'<div class="crm-kpi yellow">'
+        f'<div class="crm-kpi-label">'
+        f'Monto oportunidades'
+        f'<span class="crm-help">?'
+        f'<span class="crm-help-tip">'
+        f'Valor total estimado de las oportunidades que continúan abiertas.'
+        f'</span></span></div>'
+        f'<div class="crm-kpi-value">{_money(total_open_amount)}</div>'
+        f'<div class="crm-kpi-help">Negocios activos</div>'
+        f'</div>'
 
-    s1, s2, s3 = st.columns(3, gap="small")
+        f'<div class="crm-kpi yellow">'
+        f'<div class="crm-kpi-label">'
+        f'Monto ponderado'
+        f'<span class="crm-help">?'
+        f'<span class="crm-help-tip">'
+        f'Monto de cada oportunidad multiplicado por su probabilidad de cierre.'
+        f'</span></span></div>'
+        f'<div class="crm-kpi-value">{_money(weighted_amount)}</div>'
+        f'<div class="crm-kpi-help">Valor esperado</div>'
+        f'</div>'
 
-    with s1:
+        f'<div class="crm-kpi yellow">'
+        f'<div class="crm-kpi-label">'
+        f'Tasa de cierre'
+        f'<span class="crm-help">?'
+        f'<span class="crm-help-tip">'
+        f'Porcentaje de oportunidades ganadas sobre el total de oportunidades ya cerradas.'
+        f'</span></span></div>'
+        f'<div class="crm-kpi-value">{close_rate:.1f}%</div>'
+        f'<div class="crm-kpi-help">{len(won_opps)} ganadas · {len(lost_opps)} perdidas</div>'
+        f'</div>'
+        f'</div>'
+    )
+
+    st.markdown(
+        kpi_html,
+        unsafe_allow_html=True,
+    )
+
+    # --------------------------------------------------------
+    # KPI secundarios
+    # --------------------------------------------------------
+    k1, k2, k3, k4, k5 = st.columns(
+        5,
+        gap="small",
+    )
+
+    with k1:
+        st.metric(
+            "Clientes",
+            total_clients,
+            help=(
+                "Cantidad de clientes pertenecientes "
+                "al módulo comercial seleccionado."
+            ),
+        )
+
+    with k2:
+        st.metric(
+            "Oportunidades abiertas",
+            len(open_opps),
+            help=(
+                "Negocios que todavía se encuentran "
+                "en gestión comercial."
+            ),
+        )
+
+    with k3:
         st.metric(
             "Seguimientos pendientes",
-            int(crm_summary.get("pending_followups") or 0),
+            len(pending_followups),
+            help=(
+                "Llamadas, reuniones, correos, tareas "
+                "u otras acciones todavía pendientes."
+            ),
         )
 
-    with s2:
+    with k4:
         st.metric(
-            "Vencidos",
-            int(crm_summary.get("overdue_followups") or 0),
+            "Seguimientos vencidos",
+            len(overdue_followups),
+            help=(
+                "Acciones cuya fecha de seguimiento "
+                "ya pasó y siguen pendientes."
+            ),
         )
 
-    with s3:
+    with k5:
         st.metric(
-            "Para hoy",
-            int(crm_summary.get("today_followups") or 0),
+            "Sin compra +90 días",
+            inactive_clients,
+            help=(
+                "Clientes cuya última compra está más "
+                "de 90 días antes del último corte ERP."
+            ),
         )
 
-    # Primera fila: ranking / concentración / actividad
-    left, middle, right = st.columns([1.48, 1.0, .92], gap="medium")
+    st.markdown("")
+
+    # --------------------------------------------------------
+    # Primera fila gerencial
+    # --------------------------------------------------------
+    left, center, right = st.columns(
+        [1.3, 1.0, 1.0],
+        gap="medium",
+    )
 
     with left:
-        with st.container(border=True):
-            st.markdown(
-                """
-<div class="crm-section-kicker">CLIENTES</div>
-<div class="crm-title-line"><div class="crm-section-title">Principales clientes</div><span class="crm-help">?<span class="crm-help-tip">Ranking de clientes por ventas de los últimos 12 meses disponibles en ERP Ventas.</span></span></div>
-<div class="crm-section-sub">Top por ventas de los últimos 12 meses.</div>
-                """,
-                unsafe_allow_html=True,
-            )
-
-            top = clients.head(7).copy()
-            rows = """
-<div class="crm-top-row header">
-    <div>#</div><div>Cliente</div><div>RUT</div>
-    <div style="text-align:right">Ventas 12m</div>
-    <div style="text-align:right">Pedidos</div>
-    <div style="text-align:right">Última compra</div>
-</div>
-"""
-            for i, (_, row) in enumerate(top.iterrows(), start=1):
-                dt = pd.to_datetime(row.get("Última compra"), errors="coerce")
-                last = dt.strftime("%d-%m-%Y") if not pd.isna(dt) else "-"
-                rows += f"""
-<div class="crm-top-row">
-    <div class="crm-rank">{i}</div>
-    <div class="crm-client-name">{_safe_text(row.get("Cliente"))}</div>
-    <div class="crm-client-rut">{_safe_text(row.get("RUT"))}</div>
-    <div class="crm-money">{_money(row.get("Ventas 12 meses"))}</div>
-    <div class="crm-orders">{int(_number(row.get("Pedidos")))}</div>
-    <div class="crm-date">{last}</div>
-</div>
-"""
-            st.markdown(rows, unsafe_allow_html=True)
-
-    with middle:
-        with st.container(border=True):
-            st.markdown(
-                """
-<div class="crm-section-kicker">CONCENTRACIÓN</div>
-<div class="crm-title-line"><div class="crm-section-title">Ventas por cliente</div><span class="crm-help">?<span class="crm-help-tip">Muestra qué tan concentradas están las ventas en los clientes principales.</span></span></div>
-<div class="crm-section-sub">Participación de los principales clientes.</div>
-                """,
-                unsafe_allow_html=True,
-            )
-
-            chart = clients[["Cliente", "Ventas 12 meses"]].head(10).copy()
-            chart = chart[chart["Ventas 12 meses"] > 0]
-            if chart.empty:
-                st.info("No existen montos de venta disponibles.")
-            else:
-                st.bar_chart(
-                    chart.set_index("Cliente")["Ventas 12 meses"],
-                    use_container_width=True,
-                    height=285,
-                )
-
-    with right:
-        with st.container(border=True):
-            st.markdown(
-                """
-<div class="crm-section-kicker">ACTIVIDAD</div>
-<div class="crm-section-title">Actividad próxima</div>
-<div class="crm-section-sub">Seguimientos comerciales pendientes.</div>
-                """,
-                unsafe_allow_html=True,
-            )
-
-            if not upcoming_followups:
-                st.markdown(
-                    """
-<div class="crm-empty">
-    <strong>Sin actividades pendientes</strong>
-    <span>No existen seguimientos comerciales pendientes registrados.</span>
-</div>
-                    """,
-                    unsafe_allow_html=True,
-                )
-            else:
-                activity_rows = []
-
-                for item in upcoming_followups:
-                    next_date = pd.to_datetime(
-                        item.get("next_followup_date"),
-                        errors="coerce",
-                    )
-
-                    next_label = (
-                        next_date.strftime("%d-%m")
-                        if not pd.isna(next_date)
-                        else "-"
-                    )
-
-                    activity_rows.append(
-                        {
-                            "Fecha": next_label,
-                            "Cliente": _safe_text(
-                                item.get("client_name")
-                            ),
-                            "Tipo": _safe_text(
-                                item.get("followup_type")
-                            ),
-                            "Acción": _safe_text(
-                                item.get("subject")
-                                or item.get("notes")
-                            ),
-                        }
-                    )
-
-                st.dataframe(
-                    pd.DataFrame(activity_rows),
-                    hide_index=True,
-                    use_container_width=True,
-                    height=285,
-                )
-
-    # Segunda fila: clientes recientes / vendedor / oportunidades
-    left2, middle2, right2 = st.columns([1.48, 1.0, .92], gap="medium")
-
-    with left2:
-        with st.container(border=True):
+        with st.container(
+            border=True
+        ):
             st.markdown(
                 """
 <div class="crm-section-kicker">CARTERA</div>
-<div class="crm-section-title">Clientes recientes</div>
-<div class="crm-section-sub">Clientes ordenados por última compra.</div>
+<div class="crm-title-line">
+    <div class="crm-section-title">Principales clientes</div>
+    <span class="crm-help">?
+        <span class="crm-help-tip">
+            Ranking de clientes según las ventas contenidas en el período real disponible en ERP Ventas.
+        </span>
+    </span>
+</div>
+<div class="crm-section-sub">
+    Clientes de mayor facturación del período.
+</div>
                 """,
                 unsafe_allow_html=True,
             )
 
-            recent = clients.copy()
-            recent["_fecha"] = pd.to_datetime(recent["Última compra"], errors="coerce")
-            recent = recent.sort_values("_fecha", ascending=False).head(8)
-
-            display = recent[
-                ["Cliente", "RUT", "Vendedor", "Última compra", "Ventas 12 meses", "Pedidos"]
-            ].copy()
-            display["Vendedor"] = display["Vendedor"].map(
-                _seller_name
+            top_clients = (
+                clients
+                .sort_values(
+                    "Ventas 12 meses",
+                    ascending=False,
+                )
+                .head(8)
+                .copy()
             )
 
-            display["Última compra"] = pd.to_datetime(
-                display["Última compra"], errors="coerce"
-            ).dt.strftime("%d-%m-%Y")
+            top_display = top_clients[
+                [
+                    "Cliente",
+                    "RUT",
+                    "Vendedor",
+                    "Ventas 12 meses",
+                    "Pedidos",
+                    "Última compra",
+                ]
+            ].copy()
+
+            top_display["Vendedor"] = (
+                top_display["Vendedor"]
+                .map(_seller_name)
+            )
+
+            top_display["Última compra"] = (
+                pd.to_datetime(
+                    top_display[
+                        "Última compra"
+                    ],
+                    errors="coerce",
+                )
+                .dt.strftime(
+                    "%d-%m-%Y"
+                )
+            )
 
             st.dataframe(
-                display,
+                top_display,
                 hide_index=True,
                 use_container_width=True,
-                height=315,
+                height=310,
                 column_config={
-                    "Ventas 12 meses": st.column_config.NumberColumn(
-                        "Ventas 12 meses",
+                    "Ventas 12 meses":
+                    st.column_config.NumberColumn(
+                        "Ventas del período",
                         format="$ %.0f",
                     ),
-                    "Pedidos": st.column_config.NumberColumn(
+                    "Pedidos":
+                    st.column_config.NumberColumn(
                         "Pedidos",
                         format="%d",
                     ),
                 },
             )
 
-    with middle2:
-        with st.container(border=True):
+    with center:
+        with st.container(
+            border=True
+        ):
             st.markdown(
                 """
-<div class="crm-section-kicker">VENDEDORES</div>
-<div class="crm-section-title">Distribución por vendedor</div>
-<div class="crm-section-sub">Ventas 12 meses de la cartera asociada.</div>
+<div class="crm-section-kicker">TUBERÍA</div>
+<div class="crm-title-line">
+    <div class="crm-section-title">Oportunidades por etapa</div>
+    <span class="crm-help">?
+        <span class="crm-help-tip">
+            Distribución de las oportunidades abiertas según su
+            etapa actual dentro del proceso comercial.
+        </span>
+    </span>
+</div>
+<div class="crm-section-sub">
+    Cantidad de negocios activos.
+</div>
                 """,
                 unsafe_allow_html=True,
             )
 
-            sellers = (
-                clients.groupby("Vendedor", as_index=False)["Ventas 12 meses"]
-                .sum()
-                .sort_values("Ventas 12 meses", ascending=False)
-                .head(10)
-            )
-            sellers = sellers[
-                sellers["Vendedor"].fillna("").astype(str).str.strip().ne("")
-                & sellers["Vendedor"].astype(str).ne("-")
-            ]
+            stage_rows = []
 
-            if sellers.empty:
-                st.info("No se encontró vendedor asociado.")
-            else:
-                sellers["Vendedor"] = sellers["Vendedor"].map(
-                    _seller_name
+            for stage in CRM_STAGES:
+                stage_items = [
+                    row
+                    for row in open_opps
+                    if _safe_text(
+                        row.get("stage"),
+                        "",
+                    ) == stage
+                ]
+
+                stage_rows.append(
+                    {
+                        "Etapa": stage,
+                        "Oportunidades": len(
+                            stage_items
+                        ),
+                        "Monto": sum(
+                            float(
+                                row.get(
+                                    "estimated_amount"
+                                )
+                                or 0
+                            )
+                            for row in stage_items
+                        ),
+                    }
                 )
 
-                st.bar_chart(
-                    sellers.set_index("Vendedor")["Ventas 12 meses"],
-                    use_container_width=True,
-                    height=285,
-                )
-
-    with right2:
-        with st.container(border=True):
-            st.markdown(
-                """
-<div class="crm-section-kicker">OPORTUNIDADES</div>
-<div class="crm-section-title">Oportunidades abiertas</div>
-<div class="crm-section-sub">Negocios y cotizaciones activas.</div>
-                """,
-                unsafe_allow_html=True,
+            stage_df = pd.DataFrame(
+                stage_rows
             )
-            if not open_opportunities:
+
+            if (
+                stage_df.empty
+                or stage_df[
+                    "Oportunidades"
+                ].sum() == 0
+            ):
                 st.markdown(
                     """
 <div class="crm-empty">
     <strong>Sin oportunidades abiertas</strong>
-    <span>No existen negocios abiertos registrados actualmente.</span>
+    <span>No existen negocios activos para este módulo.</span>
 </div>
                     """,
                     unsafe_allow_html=True,
                 )
             else:
-                opp_rows = []
+                st.bar_chart(
+                    stage_df.set_index(
+                        "Etapa"
+                    )[
+                        "Oportunidades"
+                    ],
+                    use_container_width=True,
+                    height=255,
+                )
 
-                for item in open_opportunities:
-                    opp_rows.append(
+                st.dataframe(
+                    stage_df,
+                    hide_index=True,
+                    use_container_width=True,
+                    height=150,
+                    column_config={
+                        "Monto":
+                        st.column_config.NumberColumn(
+                            "Monto",
+                            format="$ %.0f",
+                        )
+                    },
+                )
+
+    with right:
+        with st.container(
+            border=True
+        ):
+            st.markdown(
+                """
+<div class="crm-section-kicker">ACTIVIDAD</div>
+<div class="crm-title-line">
+    <div class="crm-section-title">Próximas acciones</div>
+    <span class="crm-help">?
+        <span class="crm-help-tip">
+            Próximas llamadas, correos, reuniones, tareas y otros
+            seguimientos comerciales todavía pendientes.
+        </span>
+    </span>
+</div>
+<div class="crm-section-sub">
+    Agenda comercial inmediata.
+</div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+            sorted_followups = sorted(
+                pending_followups,
+                key=lambda row: (
+                    pd.to_datetime(
+                        row.get(
+                            "next_followup_date"
+                        ),
+                        errors="coerce",
+                    )
+                    if not pd.isna(
+                        pd.to_datetime(
+                            row.get(
+                                "next_followup_date"
+                            ),
+                            errors="coerce",
+                        )
+                    )
+                    else pd.Timestamp.max
+                ),
+            )[:8]
+
+            if not sorted_followups:
+                st.markdown(
+                    """
+<div class="crm-empty">
+    <strong>Sin acciones pendientes</strong>
+    <span>No existen seguimientos registrados para este módulo.</span>
+</div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+            else:
+                action_rows = []
+
+                for item in sorted_followups:
+                    next_dt = pd.to_datetime(
+                        item.get(
+                            "next_followup_date"
+                        ),
+                        errors="coerce",
+                    )
+
+                    if pd.isna(next_dt):
+                        date_label = "-"
+                    else:
+                        date_label = (
+                            next_dt.strftime(
+                                "%d-%m-%Y"
+                            )
+                        )
+
+                    action_rows.append(
                         {
+                            "Fecha": date_label,
                             "Cliente": _safe_text(
-                                item.get("client_name")
+                                item.get(
+                                    "client_name"
+                                )
                             ),
-                            "Etapa": _safe_text(
-                                item.get("stage")
+                            "Acción": _safe_text(
+                                item.get(
+                                    "subject"
+                                )
+                                or item.get(
+                                    "followup_type"
+                                )
                             ),
-                            "Monto": float(
-                                item.get("estimated_amount")
+                            "Responsable": _seller_name(
+                                item.get(
+                                    "seller"
+                                )
+                            ),
+                        }
+                    )
+
+                st.dataframe(
+                    pd.DataFrame(
+                        action_rows
+                    ),
+                    hide_index=True,
+                    use_container_width=True,
+                    height=300,
+                )
+
+    # --------------------------------------------------------
+    # Segunda fila gerencial
+    # --------------------------------------------------------
+    left2, center2, right2 = st.columns(
+        [1.15, 1.0, 1.0],
+        gap="medium",
+    )
+
+    with left2:
+        with st.container(
+            border=True
+        ):
+            st.markdown(
+                """
+<div class="crm-section-kicker">RIESGO COMERCIAL</div>
+<div class="crm-title-line">
+    <div class="crm-section-title">Clientes sin compra +90 días</div>
+    <span class="crm-help">?
+        <span class="crm-help-tip">
+            Detecta clientes que podrían necesitar reactivación comercial.
+            El cálculo usa como referencia el último corte disponible del ERP.
+        </span>
+    </span>
+</div>
+<div class="crm-section-sub">
+    Cartera que requiere revisión.
+</div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+            if (
+                reference_date is None
+                or inactive_clients == 0
+            ):
+                st.markdown(
+                    """
+<div class="crm-empty">
+    <strong>Sin clientes en riesgo detectados</strong>
+    <span>No hay clientes con más de 90 días sin compra.</span>
+</div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+            else:
+                inactive_limit = (
+                    reference_date
+                    - timedelta(
+                        days=90
+                    )
+                )
+
+                risk = clients.copy()
+                risk["_fecha"] = pd.to_datetime(
+                    risk[
+                        "Última compra"
+                    ],
+                    errors="coerce",
+                )
+
+                risk = risk[
+                    risk["_fecha"].notna()
+                    & (
+                        risk["_fecha"]
+                        < inactive_limit
+                    )
+                ].sort_values(
+                    "_fecha",
+                    ascending=True,
+                ).head(10)
+
+                risk_display = risk[
+                    [
+                        "Cliente",
+                        "RUT",
+                        "Vendedor",
+                        "Última compra",
+                        "Ventas 12 meses",
+                    ]
+                ].copy()
+
+                risk_display[
+                    "Vendedor"
+                ] = risk_display[
+                    "Vendedor"
+                ].map(
+                    _seller_name
+                )
+
+                risk_display[
+                    "Última compra"
+                ] = pd.to_datetime(
+                    risk_display[
+                        "Última compra"
+                    ],
+                    errors="coerce",
+                ).dt.strftime(
+                    "%d-%m-%Y"
+                )
+
+                st.dataframe(
+                    risk_display,
+                    hide_index=True,
+                    use_container_width=True,
+                    height=300,
+                    column_config={
+                        "Ventas 12 meses":
+                        st.column_config.NumberColumn(
+                            "Ventas del período",
+                            format="$ %.0f",
+                        )
+                    },
+                )
+
+    with center2:
+        with st.container(
+            border=True
+        ):
+            st.markdown(
+                """
+<div class="crm-section-kicker">OPORTUNIDADES</div>
+<div class="crm-title-line">
+    <div class="crm-section-title">Negocios prioritarios</div>
+    <span class="crm-help">?
+        <span class="crm-help-tip">
+            Oportunidades abiertas ordenadas por monto estimado.
+            Sirve para identificar dónde concentrar la gestión comercial.
+        </span>
+    </span>
+</div>
+<div class="crm-section-sub">
+    Mayores oportunidades actualmente abiertas.
+</div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+            priority_opps = sorted(
+                open_opps,
+                key=lambda row: float(
+                    row.get(
+                        "estimated_amount"
+                    )
+                    or 0
+                ),
+                reverse=True,
+            )[:8]
+
+            if not priority_opps:
+                st.markdown(
+                    """
+<div class="crm-empty">
+    <strong>Sin negocios activos</strong>
+    <span>No hay oportunidades abiertas actualmente.</span>
+</div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+            else:
+                priority_rows = []
+
+                for item in priority_opps:
+                    priority_rows.append(
+                        {
+                            "Cliente":
+                            _safe_text(
+                                item.get(
+                                    "client_name"
+                                )
+                            ),
+                            "Oportunidad":
+                            _safe_text(
+                                item.get(
+                                    "title"
+                                )
+                            ),
+                            "Vendedor":
+                            _seller_name(
+                                item.get(
+                                    "seller"
+                                )
+                            ),
+                            "Etapa":
+                            _safe_text(
+                                item.get(
+                                    "stage"
+                                )
+                            ),
+                            "Prob.":
+                            float(
+                                item.get(
+                                    "probability"
+                                )
+                                or 0
+                            ),
+                            "Monto":
+                            float(
+                                item.get(
+                                    "estimated_amount"
+                                )
                                 or 0
                             ),
                         }
                     )
 
                 st.dataframe(
-                    pd.DataFrame(opp_rows),
+                    pd.DataFrame(
+                        priority_rows
+                    ),
                     hide_index=True,
                     use_container_width=True,
-                    height=285,
+                    height=300,
                     column_config={
-                        "Monto": st.column_config.NumberColumn(
+                        "Monto":
+                        st.column_config.NumberColumn(
                             "Monto",
                             format="$ %.0f",
-                        )
+                        ),
+                        "Prob.":
+                        st.column_config.NumberColumn(
+                            "Prob.",
+                            format="%.0f %%",
+                        ),
                     },
                 )
+
+    with right2:
+        with st.container(
+            border=True
+        ):
+            st.markdown(
+                """
+<div class="crm-section-kicker">GESTIÓN</div>
+<div class="crm-title-line">
+    <div class="crm-section-title">Estado de seguimiento</div>
+    <span class="crm-help">?
+        <span class="crm-help-tip">
+            Resumen de las actividades comerciales pendientes, vencidas
+            y programadas para hoy.
+        </span>
+    </span>
+</div>
+<div class="crm-section-sub">
+    Control de tareas comerciales.
+</div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+            g1, g2, g3 = st.columns(
+                3,
+                gap="small",
+            )
+
+            with g1:
+                st.metric(
+                    "Pendientes",
+                    len(
+                        pending_followups
+                    ),
+                )
+
+            with g2:
+                st.metric(
+                    "Vencidos",
+                    len(
+                        overdue_followups
+                    ),
+                )
+
+            with g3:
+                st.metric(
+                    "Hoy",
+                    len(
+                        today_followups
+                    ),
+                )
+
+            followup_summary = pd.DataFrame(
+                [
+                    {
+                        "Estado": "Pendientes",
+                        "Cantidad": len(
+                            pending_followups
+                        ),
+                    },
+                    {
+                        "Estado": "Vencidos",
+                        "Cantidad": len(
+                            overdue_followups
+                        ),
+                    },
+                    {
+                        "Estado": "Para hoy",
+                        "Cantidad": len(
+                            today_followups
+                        ),
+                    },
+                ]
+            )
+
+            st.bar_chart(
+                followup_summary
+                .set_index(
+                    "Estado"
+                )[
+                    "Cantidad"
+                ],
+                use_container_width=True,
+                height=205,
+            )
+
+    # --------------------------------------------------------
+    # Ranking vendedores solo en vista general
+    # --------------------------------------------------------
+    if active_seller == "Todos":
+        st.markdown("")
+
+        with st.container(
+            border=True
+        ):
+            st.markdown(
+                """
+<div class="crm-section-kicker">EQUIPO COMERCIAL</div>
+<div class="crm-title-line">
+    <div class="crm-section-title">Ranking de vendedores</div>
+    <span class="crm-help">?
+        <span class="crm-help-tip">
+            Compara las ventas del período ERP por vendedor. Los códigos excluidos del CRM
+            no participan del ranking.
+        </span>
+    </span>
+</div>
+<div class="crm-section-sub">
+    Visión gerencial de ventas del período.
+</div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+            st.caption(
+                f"Período ERP: {_period_label()}"
+            )
+
+            seller_rank = (
+                clients.groupby(
+                    "Vendedor",
+                    as_index=False,
+                )
+                .agg(
+                    {
+                        "Ventas 12 meses": "sum",
+                        "Cliente": "count",
+                    }
+                )
+                .rename(
+                    columns={
+                        "Cliente":
+                        "Clientes"
+                    }
+                )
+            )
+
+            seller_rank = seller_rank[
+                ~seller_rank[
+                    "Vendedor"
+                ].map(
+                    _is_excluded_seller
+                )
+            ].copy()
+
+            seller_rank["Vendedor"] = (
+                seller_rank[
+                    "Vendedor"
+                ].map(
+                    _seller_name
+                )
+            )
+
+            seller_rank = (
+                seller_rank
+                .sort_values(
+                    "Ventas 12 meses",
+                    ascending=False,
+                )
+                .head(15)
+            )
+
+            st.dataframe(
+                seller_rank,
+                hide_index=True,
+                use_container_width=True,
+                column_config={
+                    "Ventas 12 meses":
+                    st.column_config.NumberColumn(
+                        "Ventas del período",
+                        format="$ %.0f",
+                    ),
+                    "Clientes":
+                    st.column_config.NumberColumn(
+                        "Clientes",
+                        format="%d",
+                    ),
+                },
+            )
 
 
 # ============================================================
@@ -2029,7 +2731,7 @@ def _render_clients(
         selection_mode="single-row",
         column_config={
             "Ventas 12 meses": st.column_config.NumberColumn(
-                "Ventas 12 meses",
+                "Ventas del período",
                 format="$ %.0f",
             ),
             "Ventas acumuladas": st.column_config.NumberColumn(
@@ -2077,7 +2779,7 @@ def _render_clients(
 
         with c1:
             st.metric(
-                "Ventas 12 meses",
+                "Ventas del período",
                 _money(client.get("Ventas 12 meses")),
             )
 
@@ -4049,6 +4751,13 @@ def render(
             sales_df
         )
     )
+
+    period_start, period_end = _sales_period_from_df(
+        sales_df,
+        detected_columns,
+    )
+    st.session_state["crm_sales_period_start"] = period_start
+    st.session_state["crm_sales_period_end"] = period_end
 
     if "Vendedor" in clients.columns:
         clients = clients[
