@@ -1,4 +1,4 @@
-from __future__ import annotations
+
 
 from datetime import datetime
 from html import escape
@@ -667,52 +667,82 @@ def _top_clients(
     )
 
 
-def _sales_mix(work: pd.DataFrame) -> tuple[pd.DataFrame, str]:
+def _sales_by_branch(work: pd.DataFrame) -> pd.DataFrame:
+    """
+    Ventas por sucursal comercial.
+
+    Sólo considera:
+    - Casa Matriz
+    - Patronato
+    - Concepción
+
+    No mezcla CD ni bodegas de reserva con sucursales.
+    """
+    branches = ["Casa Matriz", "Patronato", "Concepción"]
+
     if work is None or work.empty:
-        return pd.DataFrame(), "Categoría"
+        return pd.DataFrame({"Sucursal": branches, "Venta": [0.0, 0.0, 0.0]})
 
-    candidates = [
-        "Categoria",
-        "Categoría",
-        "CategoriaProducto",
-        "SubCategoria",
-        "Subcategoría",
-        "Canal",
-        "Bodega",
-        "Grupo comercial",
-    ]
+    source_col = None
 
-    selected = None
-
-    for col in candidates:
-        if col in work.columns:
-            selected = col
+    # Si ERP trae una columna explícita de sucursal, tiene prioridad.
+    for candidate in ("Sucursal", "SUCURSAL", "Local", "LOCAL", "Bodega"):
+        if candidate in work.columns:
+            source_col = candidate
             break
 
-    if not selected:
-        return pd.DataFrame(), "Categoría"
+    if not source_col:
+        return pd.DataFrame({"Sucursal": branches, "Venta": [0.0, 0.0, 0.0]})
 
-    mix = (
-        work.groupby(
-            selected,
-            as_index=False,
-        )["VentaDashboard"]
+    temp = work.copy()
+
+    def classify(value):
+        raw = str(value or "").strip().upper()
+        normalized = (
+            raw.replace("Á", "A")
+               .replace("É", "E")
+               .replace("Í", "I")
+               .replace("Ó", "O")
+               .replace("Ú", "U")
+        )
+
+        # Bodegas de reserva no representan ventas de una sucursal.
+        if "RESERVA" in normalized:
+            return None
+
+        if "PATRONATO" in normalized:
+            return "Patronato"
+
+        if "CONCEPCION" in normalized:
+            return "Concepción"
+
+        if "CASA MATRIZ" in normalized:
+            return "Casa Matriz"
+
+        # Aceptar CM sólo cuando el valor identifica directamente la sucursal.
+        compact = normalized.replace("-", " ").replace("_", " ").strip()
+        tokens = compact.split()
+        if normalized == "CM" or compact == "CM" or (
+            len(tokens) <= 3 and "CM" in tokens
+        ):
+            return "Casa Matriz"
+
+        return None
+
+    temp["SucursalDashboard"] = temp[source_col].map(classify)
+    temp = temp[temp["SucursalDashboard"].notna()].copy()
+
+    grouped = (
+        temp.groupby("SucursalDashboard", as_index=False)["VentaDashboard"]
         .sum()
-        .rename(
-            columns={
-                selected: "Grupo",
-                "VentaDashboard":
-                "Venta",
-            }
-        )
-        .sort_values(
-            "Venta",
-            ascending=False,
-        )
-        .head(6)
+        .rename(columns={"SucursalDashboard": "Sucursal", "VentaDashboard": "Venta"})
     )
 
-    return mix, selected
+    base = pd.DataFrame({"Sucursal": branches})
+    result = base.merge(grouped, on="Sucursal", how="left")
+    result["Venta"] = pd.to_numeric(result["Venta"], errors="coerce").fillna(0.0)
+
+    return result
 
 
 # ============================================================
@@ -1340,6 +1370,35 @@ div[data-testid="stHorizontalBlock"] div[data-testid="column"]:has(.quick-card-i
     background:#111D25;
 }
 
+
+/* ============================================================
+   SIDEBAR · ESTADO ACTIVO
+   El botón activo debe ser amarillo Maritex con texto negro.
+   ============================================================ */
+section[data-testid="stSidebar"] div[data-testid="stButton"] button[data-testid="stBaseButton-primary"],
+section[data-testid="stSidebar"] div[data-testid="stButton"] button[kind="primary"]{
+    background:#FFC400 !important;
+    border:1px solid #FFC400 !important;
+    border-left:4px solid #FFE16A !important;
+    color:#080D11 !important;
+    font-weight:800 !important;
+    opacity:1 !important;
+}
+
+section[data-testid="stSidebar"] div[data-testid="stButton"] button[data-testid="stBaseButton-primary"] *,
+section[data-testid="stSidebar"] div[data-testid="stButton"] button[kind="primary"] *{
+    color:#080D11 !important;
+    fill:#080D11 !important;
+    opacity:1 !important;
+}
+
+section[data-testid="stSidebar"] div[data-testid="stButton"] button[data-testid="stBaseButton-primary"]:hover,
+section[data-testid="stSidebar"] div[data-testid="stButton"] button[kind="primary"]:hover{
+    background:#FFD02A !important;
+    border-color:#FFD02A !important;
+    color:#080D11 !important;
+}
+
 </style>
         """,
         unsafe_allow_html=True,
@@ -1656,69 +1715,53 @@ def render(ctx):
 
     with right:
         with st.container(border=True):
-            mix, mix_label = _sales_mix(
-                sales
-            )
+            branch_sales = _sales_by_branch(sales)
 
             render_html(
                 f"""
 <div class="card-title">
-    Ventas por {escape(mix_label)}
-    {_help("Distribución de las ventas según la mejor dimensión disponible en ERP Ventas.")}
+    Ventas por sucursal
+    {_help("Distribución de la venta comercial entre Casa Matriz, Patronato y Concepción. No incluye CD ni bodegas de reserva.")}
 </div>
-<div class="card-sub">Participación sobre el período seleccionado</div>
+<div class="card-sub">Casa Matriz · Patronato · Concepción</div>
                 """
             )
 
-            if mix.empty:
+            branch_positive = branch_sales[branch_sales["Venta"] > 0].copy()
+
+            if branch_positive.empty:
                 st.info(
-                    "No se encontró una dimensión de categoría/canal disponible."
+                    "No hay ventas asociadas a Casa Matriz, Patronato o Concepción en el período seleccionado."
                 )
             else:
                 donut = (
-                    alt.Chart(mix)
+                    alt.Chart(branch_positive)
                     .mark_arc(
                         innerRadius=58,
                         outerRadius=92,
                     )
                     .encode(
-                        theta=alt.Theta(
-                            "Venta:Q"
-                        ),
+                        theta=alt.Theta("Venta:Q"),
                         color=alt.Color(
-                            "Grupo:N",
+                            "Sucursal:N",
+                            sort=["Casa Matriz", "Patronato", "Concepción"],
                             legend=alt.Legend(
                                 labelColor="#DCE4E8",
                                 title=None,
                             ),
                             scale=alt.Scale(
-                                range=[
-                                    "#FFC400",
-                                    "#2B8CEB",
-                                    "#29C38F",
-                                    "#E45B5B",
-                                    "#8B68E8",
-                                    "#82909A",
-                                ]
+                                domain=["Casa Matriz", "Patronato", "Concepción"],
+                                range=["#FFC400", "#2B8CEB", "#29C38F"],
                             ),
                         ),
                         tooltip=[
-                            "Grupo:N",
-                            alt.Tooltip(
-                                "Venta:Q",
-                                format=",.0f",
-                            ),
+                            alt.Tooltip("Sucursal:N", title="Sucursal"),
+                            alt.Tooltip("Venta:Q", title="Venta", format=",.0f"),
                         ],
                     )
-                    .properties(
-                        height=285
-                    )
-                    .configure_view(
-                        stroke=None
-                    )
-                    .configure(
-                        background="#0D161D"
-                    )
+                    .properties(height=285)
+                    .configure_view(stroke=None)
+                    .configure(background="#0D161D")
                 )
 
                 st.altair_chart(
