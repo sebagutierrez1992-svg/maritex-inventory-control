@@ -1255,6 +1255,21 @@ def _period_label() -> str:
     return f"{start.strftime('%d-%m-%Y')} al {end.strftime('%d-%m-%Y')}"
 
 
+
+def _go_to_crm_section(section: str) -> None:
+    st.session_state["crm_section"] = section
+
+
+def _update_pipeline_opportunity(
+    opportunity_id: int,
+    **changes: Any,
+) -> None:
+    update_opportunity(
+        opportunity_id,
+        **changes,
+    )
+
+
 # ============================================================
 # DETECCIÓN DE COLUMNAS ERP VENTAS
 # ============================================================
@@ -4151,14 +4166,14 @@ def _render_pipeline() -> None:
 
     with top_right:
         st.markdown("<div style='height:19px'></div>", unsafe_allow_html=True)
-        if st.button(
+        st.button(
             "+ Nueva oportunidad",
             key="crm_pipe_new_opp",
             type="primary",
             use_container_width=True,
-        ):
-            st.session_state["crm_section"] = "Oportunidades"
-            st.rerun()
+            on_click=_go_to_crm_section,
+            args=("Oportunidades",),
+        )
 
     # --------------------------------------------------------
     # FILTRAR
@@ -4255,14 +4270,10 @@ def _render_pipeline() -> None:
     # --------------------------------------------------------
     # VISTA
     # --------------------------------------------------------
-    view_mode = st.segmented_control(
+    view_mode = st.radio(
         "Vista",
-        options=[
-            "Kanban",
-            "Tabla",
-            "Resumen",
-        ],
-        default="Kanban",
+        options=["Kanban", "Tabla", "Resumen"],
+        horizontal=True,
         key="crm_pipeline_view",
     )
 
@@ -4406,21 +4417,21 @@ def _render_pipeline() -> None:
                                     stage_index - 1
                                 ]
 
-                                if st.button(
+                                st.button(
                                     "←",
                                     key=f"crm_prev_{opportunity_id}",
                                     help=f"Mover a {previous_stage}",
                                     use_container_width=True,
-                                ):
-                                    update_opportunity(
-                                        opportunity_id,
-                                        stage=previous_stage,
-                                        probability=CRM_STAGE_PROBABILITY.get(
+                                    on_click=_update_pipeline_opportunity,
+                                    args=(opportunity_id,),
+                                    kwargs={
+                                        "stage": previous_stage,
+                                        "probability": CRM_STAGE_PROBABILITY.get(
                                             previous_stage,
                                             probability,
                                         ),
-                                    )
-                                    st.rerun()
+                                    },
+                                )
                             else:
                                 st.caption("")
 
@@ -4430,51 +4441,51 @@ def _render_pipeline() -> None:
                                     stage_index + 1
                                 ]
 
-                                if st.button(
+                                st.button(
                                     "→",
                                     key=f"crm_next_{opportunity_id}",
                                     help=f"Mover a {next_stage}",
                                     use_container_width=True,
-                                ):
-                                    update_opportunity(
-                                        opportunity_id,
-                                        stage=next_stage,
-                                        probability=CRM_STAGE_PROBABILITY.get(
+                                    on_click=_update_pipeline_opportunity,
+                                    args=(opportunity_id,),
+                                    kwargs={
+                                        "stage": next_stage,
+                                        "probability": CRM_STAGE_PROBABILITY.get(
                                             next_stage,
                                             probability,
                                         ),
-                                    )
-                                    st.rerun()
+                                    },
+                                )
                             else:
                                 st.caption("")
 
                         with a3:
-                            if st.button(
+                            st.button(
                                 "✓",
                                 key=f"crm_win_{opportunity_id}",
                                 help="Marcar como ganada",
                                 use_container_width=True,
-                            ):
-                                update_opportunity(
-                                    opportunity_id,
-                                    status="Ganada",
-                                    probability=100,
-                                )
-                                st.rerun()
+                                on_click=_update_pipeline_opportunity,
+                                args=(opportunity_id,),
+                                kwargs={
+                                    "status": "Ganada",
+                                    "probability": 100,
+                                },
+                            )
 
                         with a4:
-                            if st.button(
+                            st.button(
                                 "✕",
                                 key=f"crm_lost_{opportunity_id}",
                                 help="Marcar como perdida",
                                 use_container_width=True,
-                            ):
-                                update_opportunity(
-                                    opportunity_id,
-                                    status="Perdida",
-                                    probability=0,
-                                )
-                                st.rerun()
+                                on_click=_update_pipeline_opportunity,
+                                args=(opportunity_id,),
+                                kwargs={
+                                    "status": "Perdida",
+                                    "probability": 0,
+                                },
+                            )
 
                         st.markdown("")
 
@@ -4712,6 +4723,8 @@ def _render_source_info(
 # RENDER PRINCIPAL
 # ============================================================
 
+# Nota: evitar traducción automática del navegador en esta app; puede alterar el DOM React.
+
 def render(
     ctx: dict | None = None,
 ) -> None:
@@ -4821,17 +4834,15 @@ def render(
     # Navegación CRM
     # --------------------------------------------------------
 
-    section = st.segmented_control(
+    if st.session_state.get("crm_section") not in CRM_TABS:
+        st.session_state["crm_section"] = "Resumen Ejecutivo"
+
+    section = st.radio(
         "Sección CRM",
-        options=list(
-            CRM_TABS
-        ),
-        default="Resumen Ejecutivo",
+        options=list(CRM_TABS),
+        horizontal=True,
         key="crm_section",
     )
-
-    if not section:
-        section = "Resumen Ejecutivo"
 
     st.markdown("")
 
