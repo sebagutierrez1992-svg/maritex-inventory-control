@@ -1,4 +1,4 @@
-from __future__ import annotations
+
 
 from datetime import datetime, timedelta
 from typing import Any
@@ -1029,6 +1029,47 @@ def _followup_opportunity_label(
     )
 
 
+
+def _seller_options_from_clients(
+    clients: pd.DataFrame,
+) -> list[str]:
+    if clients is None or clients.empty or "Vendedor" not in clients.columns:
+        return []
+
+    return sorted(
+        {
+            str(value).strip()
+            for value in clients["Vendedor"].dropna().astype(str)
+            if str(value).strip() and str(value).strip() != "-"
+        }
+    )
+
+
+def _filter_clients_by_seller(
+    clients: pd.DataFrame,
+    seller: str,
+) -> pd.DataFrame:
+    if clients is None or clients.empty:
+        return pd.DataFrame()
+
+    if not seller or seller == "Todos":
+        return clients.copy()
+
+    return clients[
+        clients["Vendedor"].fillna("").astype(str).str.strip() == seller
+    ].copy()
+
+
+def _get_active_seller() -> str:
+    return str(
+        st.session_state.get(
+            "crm_active_seller",
+            "Todos",
+        )
+        or "Todos"
+    )
+
+
 # ============================================================
 # DETECCIÓN DE COLUMNAS ERP VENTAS
 # ============================================================
@@ -1425,10 +1466,20 @@ def _render_summary(
     try:
         crm_summary = get_crm_summary()
         upcoming_followups = list_followups(
+            seller=(
+                _get_active_seller()
+                if _get_active_seller() != "Todos"
+                else None
+            ),
             pending_only=True,
             limit=6,
         )
         open_opportunities = list_opportunities(
+            seller=(
+                _get_active_seller()
+                if _get_active_seller() != "Todos"
+                else None
+            ),
             status="Abierta",
             limit=6,
         )
@@ -1752,98 +1803,68 @@ def _render_clients(
     clients: pd.DataFrame,
 ) -> None:
     if clients.empty:
-        st.info(
-            "No fue posible construir la cartera de clientes "
-            "desde ERP Ventas."
-        )
+        st.info("No existen clientes disponibles para el vendedor seleccionado.")
         return
 
-    # --------------------------------------------------------
-    # Filtros
-    # --------------------------------------------------------
-
-    f1, f2 = st.columns(
-        [2, 1],
-        gap="small",
+    st.markdown(
+        """
+<div class="crm-section-kicker">CLIENTES</div>
+<div class="crm-title-line">
+    <div class="crm-section-title">Cartera comercial</div>
+    <span class="crm-help">?
+        <span class="crm-help-tip">
+            Revisa la cartera del vendedor seleccionado y abre una ficha completa
+            de cada cliente con ventas, oportunidades y seguimientos.
+        </span>
+    </span>
+</div>
+<div class="crm-section-sub">Selecciona un cliente para abrir su ficha comercial.</div>
+        """,
+        unsafe_allow_html=True,
     )
+
+    f1, f2 = st.columns([2.2, 1], gap="small")
 
     with f1:
         search = st.text_input(
             "Buscar cliente",
-            placeholder="Nombre, RUT o vendedor...",
-            key="crm_client_search",
+            placeholder="Nombre o RUT...",
+            key="crm_client_search_v2",
         )
 
     with f2:
-        sellers = sorted(
+        order_by = st.selectbox(
+            "Ordenar por",
             [
-                value
-                for value in clients["Vendedor"]
-                .dropna()
-                .astype(str)
-                .unique()
-                if value
-                and value != "-"
-            ]
-        )
-
-        seller = st.selectbox(
-            "Vendedor",
-            ["Todos"] + sellers,
-            key="crm_seller_filter",
+                "Ventas 12 meses",
+                "Ventas acumuladas",
+                "Última compra",
+                "Pedidos",
+            ],
+            key="crm_client_order",
         )
 
     filtered = clients.copy()
 
     if search:
-        query = (
-            str(search)
-            .strip()
-            .lower()
+        query = search.strip().lower()
+        mask = (
+            filtered["Cliente"].fillna("").astype(str).str.lower().str.contains(query, regex=False)
+            | filtered["RUT"].fillna("").astype(str).str.lower().str.contains(query, regex=False)
         )
+        filtered = filtered[mask]
 
-        mask = pd.Series(
-            False,
-            index=filtered.index,
+    ascending = order_by == "Última compra"
+
+    if order_by in filtered.columns:
+        filtered = filtered.sort_values(
+            order_by,
+            ascending=ascending,
         )
-
-        for column in (
-            "Cliente",
-            "RUT",
-            "Vendedor",
-        ):
-            mask = (
-                mask
-                | filtered[column]
-                .fillna("")
-                .astype(str)
-                .str.lower()
-                .str.contains(
-                    query,
-                    regex=False,
-                )
-            )
-
-        filtered = filtered[
-            mask
-        ]
-
-    if seller != "Todos":
-        filtered = filtered[
-            filtered["Vendedor"]
-            .astype(str)
-            == seller
-        ]
 
     if filtered.empty:
-        st.info(
-            "No existen clientes que coincidan con los filtros."
-        )
+        st.info("No existen clientes que coincidan con la búsqueda.")
         return
-
-    # --------------------------------------------------------
-    # Tabla
-    # --------------------------------------------------------
 
     display = filtered[
         [
@@ -1860,52 +1881,25 @@ def _render_clients(
     display["Última compra"] = pd.to_datetime(
         display["Última compra"],
         errors="coerce",
-    ).dt.strftime(
-        "%d-%m-%Y"
-    )
+    ).dt.strftime("%d-%m-%Y")
 
     table_event = st.dataframe(
         display,
         hide_index=True,
         use_container_width=True,
-        height=min(
-            500,
-            38 + len(display) * 35,
-        ),
-        key="crm_clients_table",
+        height=min(460, 70 + len(display) * 34),
+        key="crm_clients_table_v2",
         on_select="rerun",
         selection_mode="single-row",
         column_config={
-            "Cliente": st.column_config.TextColumn(
-                "Cliente",
-                width="large",
-            ),
-
-            "RUT": st.column_config.TextColumn(
-                "RUT",
-                width="medium",
-            ),
-
-            "Vendedor": st.column_config.TextColumn(
-                "Vendedor",
-                width="medium",
-            ),
-
-            "Última compra": st.column_config.TextColumn(
-                "Última compra",
-                width="medium",
-            ),
-
             "Ventas 12 meses": st.column_config.NumberColumn(
                 "Ventas 12 meses",
                 format="$ %.0f",
             ),
-
             "Ventas acumuladas": st.column_config.NumberColumn(
                 "Venta acumulada",
                 format="$ %.0f",
             ),
-
             "Pedidos": st.column_config.NumberColumn(
                 "Pedidos",
                 format="%d",
@@ -1913,121 +1907,198 @@ def _render_clients(
         },
     )
 
-    # --------------------------------------------------------
-    # Cliente seleccionado
-    # --------------------------------------------------------
-
-    selected_position = None
+    selected_position = 0
 
     try:
-        selected_rows = list(
-            table_event.selection.rows
-        )
-
+        selected_rows = list(table_event.selection.rows)
         if selected_rows:
-            selected_position = int(
-                selected_rows[0]
-            )
-
+            selected_position = int(selected_rows[0])
     except Exception:
-        selected_position = None
-
-    if selected_position is None:
         selected_position = 0
 
-    if (
-        selected_position < 0
-        or selected_position >= len(filtered)
-    ):
+    if selected_position < 0 or selected_position >= len(filtered):
         return
 
-    client = filtered.iloc[
-        selected_position
-    ]
+    client = filtered.iloc[selected_position]
 
-    st.divider()
+    client_name = _safe_text(client.get("Cliente"))
+    client_rut = _safe_text(client.get("RUT"))
+    client_seller = _safe_text(client.get("Vendedor"))
 
-    with st.container(
-        border=True
-    ):
+    st.markdown("")
+
+    with st.container(border=True):
         st.markdown(
             f"""
-            <div class="crm-section-kicker">
-                CLIENTE SELECCIONADO
-            </div>
-
-            <div class="crm-client-title">
-                {_safe_text(client.get("Cliente"))}
-            </div>
-
-            <div class="crm-client-sub">
-                {_safe_text(client.get("RUT"))}
-            </div>
+<div class="crm-section-kicker">FICHA COMERCIAL</div>
+<div class="crm-client-title">{client_name}</div>
+<div class="crm-client-sub">RUT {client_rut} · Vendedor {client_seller}</div>
             """,
             unsafe_allow_html=True,
         )
 
-        c1, c2, c3, c4 = st.columns(
-            4,
-            gap="small",
-        )
+        c1, c2, c3, c4 = st.columns(4, gap="small")
 
         with c1:
             st.metric(
                 "Ventas 12 meses",
-                _money(
-                    client.get(
-                        "Ventas 12 meses"
-                    )
-                ),
+                _money(client.get("Ventas 12 meses")),
             )
 
         with c2:
             st.metric(
                 "Ventas acumuladas",
-                _money(
-                    client.get(
-                        "Ventas acumuladas"
-                    )
-                ),
+                _money(client.get("Ventas acumuladas")),
             )
 
         with c3:
             st.metric(
                 "Pedidos",
-                int(
-                    _number(
-                        client.get(
-                            "Pedidos"
-                        )
-                    )
-                ),
+                int(_number(client.get("Pedidos"))),
             )
 
         with c4:
-            date_value = pd.to_datetime(
-                client.get(
-                    "Última compra"
-                ),
+            last_dt = pd.to_datetime(
+                client.get("Última compra"),
                 errors="coerce",
             )
-
-            last_purchase = (
-                date_value.strftime(
-                    "%d-%m-%Y"
-                )
-                if not pd.isna(date_value)
-                else "-"
-            )
-
             st.metric(
                 "Última compra",
-                last_purchase,
+                last_dt.strftime("%d-%m-%Y")
+                if not pd.isna(last_dt)
+                else "-",
             )
 
-        st.caption(
-            f"Vendedor: {_safe_text(client.get('Vendedor'))}"
+        try:
+            client_opps = list_opportunities(
+                client_rut=client_rut,
+                limit=200,
+            )
+            client_followups = list_followups(
+                client_rut=client_rut,
+                limit=200,
+            )
+        except Exception as exc:
+            st.error(f"No fue posible cargar la ficha del cliente: {exc}")
+            return
+
+        open_opps = [
+            row for row in client_opps
+            if _safe_text(row.get("status"), "") == "Abierta"
+        ]
+
+        open_amount = sum(
+            float(row.get("estimated_amount") or 0)
+            for row in open_opps
         )
+
+        pending_followups = [
+            row for row in client_followups
+            if not bool(row.get("completed"))
+        ]
+
+        f1, f2, f3 = st.columns(3, gap="small")
+
+        with f1:
+            st.metric("Oportunidades abiertas", len(open_opps))
+
+        with f2:
+            st.metric("Monto abierto", _money(open_amount))
+
+        with f3:
+            st.metric("Seguimientos pendientes", len(pending_followups))
+
+        detail_tab = st.segmented_control(
+            "Detalle cliente",
+            options=[
+                "Resumen",
+                "Oportunidades",
+                "Seguimientos",
+            ],
+            default="Resumen",
+            key=f"crm_client_detail_{client_rut}",
+        )
+
+        if detail_tab == "Oportunidades":
+            opp_display = _opportunity_display_frame(client_opps)
+            if opp_display.empty:
+                st.caption("Este cliente no tiene oportunidades registradas.")
+            else:
+                st.dataframe(
+                    opp_display,
+                    hide_index=True,
+                    use_container_width=True,
+                    column_config={
+                        "Monto": st.column_config.NumberColumn(
+                            "Monto",
+                            format="$ %.0f",
+                        ),
+                        "Probabilidad": st.column_config.NumberColumn(
+                            "Probabilidad",
+                            format="%d %%",
+                        ),
+                    },
+                )
+
+        elif detail_tab == "Seguimientos":
+            follow_display = _followup_display_frame(client_followups)
+            if follow_display.empty:
+                st.caption("Este cliente no tiene seguimientos registrados.")
+            else:
+                st.dataframe(
+                    follow_display,
+                    hide_index=True,
+                    use_container_width=True,
+                )
+
+        else:
+            left, right = st.columns([1.2, 1], gap="medium")
+
+            with left:
+                st.markdown("**Oportunidades recientes**")
+                opp_display = _opportunity_display_frame(client_opps[:5])
+                if opp_display.empty:
+                    st.caption("Sin oportunidades registradas.")
+                else:
+                    st.dataframe(
+                        opp_display[
+                            [
+                                "Oportunidad",
+                                "Monto",
+                                "Etapa",
+                                "Estado",
+                            ]
+                        ],
+                        hide_index=True,
+                        use_container_width=True,
+                        column_config={
+                            "Monto": st.column_config.NumberColumn(
+                                "Monto",
+                                format="$ %.0f",
+                            )
+                        },
+                    )
+
+            with right:
+                st.markdown("**Próximos seguimientos**")
+                follow_display = _followup_display_frame(
+                    pending_followups[:5]
+                )
+                if follow_display.empty:
+                    st.caption("Sin seguimientos pendientes.")
+                else:
+                    st.dataframe(
+                        follow_display[
+                            [
+                                "Tipo",
+                                "Asunto",
+                                "Próximo seguimiento",
+                                "Estado",
+                            ]
+                        ],
+                        hide_index=True,
+                        use_container_width=True,
+                    )
 
 
 # ============================================================
@@ -2047,7 +2118,14 @@ def _render_opportunities(
     )
 
     try:
-        rows = list_opportunities(limit=1000)
+        rows = list_opportunities(
+            seller=(
+                _get_active_seller()
+                if _get_active_seller() != "Todos"
+                else None
+            ),
+            limit=1000,
+        )
     except Exception as exc:
         st.error(f"No fue posible cargar las oportunidades: {exc}")
         return
@@ -2618,9 +2696,19 @@ def _render_followups(
 
     try:
         followups = list_followups(
+            seller=(
+                _get_active_seller()
+                if _get_active_seller() != "Todos"
+                else None
+            ),
             limit=1000,
         )
         opportunities = list_opportunities(
+            seller=(
+                _get_active_seller()
+                if _get_active_seller() != "Todos"
+                else None
+            ),
             limit=1000,
         )
         summary = get_crm_summary()
@@ -3139,10 +3227,20 @@ def _render_pipeline() -> None:
 
     try:
         all_rows = list_opportunities(
+            seller=(
+                _get_active_seller()
+                if _get_active_seller() != "Todos"
+                else None
+            ),
             limit=1500,
         )
         summary = get_crm_summary()
         pending_followups = list_followups(
+            seller=(
+                _get_active_seller()
+                if _get_active_seller() != "Todos"
+                else None
+            ),
             pending_only=True,
             limit=10,
         )
@@ -3803,6 +3901,38 @@ def render(
         _prepare_clients(
             sales_df
         )
+    )
+
+    seller_options = _seller_options_from_clients(
+        clients
+    )
+
+    active_seller = st.selectbox(
+        "Módulo vendedor",
+        options=["Todos"] + seller_options,
+        index=(
+            ["Todos"] + seller_options
+        ).index(
+            st.session_state.get(
+                "crm_active_seller",
+                "Todos",
+            )
+            if st.session_state.get(
+                "crm_active_seller",
+                "Todos",
+            ) in ["Todos"] + seller_options
+            else "Todos"
+        ),
+        key="crm_active_seller",
+        help=(
+            "Selecciona un vendedor para ver su cartera, oportunidades, "
+            "seguimientos y tubería como un módulo comercial independiente."
+        ),
+    )
+
+    clients = _filter_clients_by_seller(
+        clients,
+        active_seller,
     )
 
     if clients.empty:
