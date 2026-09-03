@@ -1,4 +1,4 @@
-
+from __future__ import annotations
 
 from datetime import datetime, timedelta
 from typing import Any
@@ -337,6 +337,10 @@ def _normalize_name(
         .replace("í", "i")
         .replace("ó", "o")
         .replace("ú", "u")
+        .replace(" ", "")
+        .replace("_", "")
+        .replace("-", "")
+        .replace(".", "")
     )
 
 
@@ -384,6 +388,11 @@ def _detect_sales_columns(
         "rut": _find_column(
             sales_df,
             [
+                "CodigoLegal",
+                "CódigoLegal",
+                "Codigo Legal",
+                "Código Legal",
+                "CodLegal",
                 "rut cliente",
                 "rutcliente",
                 "rut",
@@ -396,6 +405,8 @@ def _detect_sales_columns(
         "client": _find_column(
             sales_df,
             [
+                "RazonSocial",
+                "RazónSocial",
                 "razon social",
                 "razón social",
                 "cliente",
