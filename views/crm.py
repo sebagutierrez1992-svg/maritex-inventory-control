@@ -749,6 +749,146 @@ div[data-testid="stVerticalBlockBorderWrapper"]{
     }
 }
 
+
+/* =========================================================
+   AJUSTE VISUAL FINAL · CRM MARITEX
+   ========================================================= */
+
+/* Header más ejecutivo, como mockup */
+.crm-page-head{
+    position:relative;
+    padding:12px 16px 12px 20px !important;
+    border-radius:10px !important;
+    background:linear-gradient(180deg,#111A21 0%,#0D151B 100%) !important;
+    border:1px solid #293741 !important;
+    box-shadow:none !important;
+}
+
+.crm-page-head::before{
+    content:"";
+    position:absolute;
+    left:0;
+    top:12px;
+    bottom:12px;
+    width:3px;
+    border-radius:0 3px 3px 0;
+    background:#FFC400;
+}
+
+.crm-page-head h1,
+.crm-page-head .crm-page-title{
+    font-size:27px !important;
+    letter-spacing:-.5px !important;
+}
+
+/* Selector vendedor tipo barra superior */
+div[data-testid="stSelectbox"] > div > div{
+    background:#101A22 !important;
+    border-color:#2D3C47 !important;
+    border-radius:8px !important;
+}
+
+/* Radio horizontal = tabs compactas con acento amarillo */
+div[role="radiogroup"]{
+    gap:0 !important;
+    border-bottom:1px solid #263540;
+    padding-bottom:0 !important;
+}
+
+div[role="radiogroup"] label{
+    padding:9px 14px 8px !important;
+    border-bottom:2px solid transparent;
+    margin:0 !important;
+    border-radius:0 !important;
+}
+
+div[role="radiogroup"] label:has(input:checked){
+    border-bottom-color:#FFC400 !important;
+    background:rgba(255,196,0,.035) !important;
+}
+
+div[role="radiogroup"] label:has(input:checked) p{
+    color:#FFC400 !important;
+}
+
+/* Resumen ejecutivo: títulos compactos */
+.crm-section-kicker{
+    color:#FFC400 !important;
+    font-size:8px !important;
+    letter-spacing:.09em !important;
+    margin-bottom:3px !important;
+}
+
+.crm-section-title{
+    font-size:17px !important;
+    font-weight:800 !important;
+}
+
+.crm-section-sub{
+    color:#81939F !important;
+}
+
+/* KPI como mockup */
+.crm-kpis{
+    gap:10px !important;
+}
+
+.crm-kpi{
+    min-height:112px !important;
+    border-radius:9px !important;
+    background:linear-gradient(180deg,#111B23 0%,#0F181F 100%) !important;
+    border-color:#2D3B45 !important;
+    padding:14px 15px 12px 17px !important;
+    box-shadow:none !important;
+}
+
+.crm-kpi-value{
+    font-size:23px !important;
+    margin-top:11px !important;
+}
+
+.crm-kpi-label{
+    font-size:8px !important;
+    letter-spacing:.06em !important;
+}
+
+/* Contenedores inferiores */
+div[data-testid="stVerticalBlockBorderWrapper"]{
+    background:linear-gradient(180deg,#111A21 0%,#0E171D 100%) !important;
+    border:1px solid #2A3944 !important;
+    border-radius:9px !important;
+    box-shadow:none !important;
+}
+
+/* Dataframes integrados a la paleta */
+div[data-testid="stDataFrame"]{
+    border-radius:8px !important;
+    overflow:hidden;
+    border:1px solid #263640;
+}
+
+/* Botón principal amarillo */
+button[kind="primary"]{
+    background:#FFC400 !important;
+    color:#101419 !important;
+    border-color:#FFC400 !important;
+    font-weight:800 !important;
+}
+
+button[kind="primary"]:hover{
+    background:#FFD12A !important;
+    border-color:#FFD12A !important;
+    color:#101419 !important;
+}
+
+/* Métricas nativas */
+div[data-testid="stMetric"]{
+    background:#101A21;
+    border:1px solid #2B3944;
+    border-radius:9px;
+    padding:10px 12px;
+}
+
 </style>
         """,
         unsafe_allow_html=True,
@@ -1270,6 +1410,19 @@ def _sales_period_from_df(
     if sales_df is None or sales_df.empty:
         return None, None
 
+    # services/erp_sales normaliza la fecha real en Fecha_dt.
+    if "Fecha_dt" in sales_df.columns:
+        dates = pd.to_datetime(
+            sales_df["Fecha_dt"],
+            errors="coerce",
+        ).dropna()
+
+        if not dates.empty:
+            return (
+                dates.min().normalize(),
+                dates.max().normalize(),
+            )
+
     date_col = None
 
     if detected_columns:
@@ -1517,7 +1670,12 @@ def _prepare_clients(
     # Fecha
     # --------------------------------------------------------
 
-    if date_col:
+    if "Fecha_dt" in work.columns:
+        work["_crm_fecha"] = pd.to_datetime(
+            work["Fecha_dt"],
+            errors="coerce",
+        )
+    elif date_col:
         work["_crm_fecha"] = _parse_sales_dates(
             work[date_col]
         )
@@ -1525,10 +1683,38 @@ def _prepare_clients(
         work["_crm_fecha"] = pd.NaT
 
     # --------------------------------------------------------
-    # Venta
+    # Venta comercial REAL
     # --------------------------------------------------------
+    # IMPORTANTE:
+    # El CRM debe usar la misma base que Resumen Ejecutivo.
+    # services/erp_sales ya entrega VentaMonto_num y Grupo comercial.
+    # TotalIngreso NO se usa para el KPI comercial porque puede venir
+    # repetido en líneas de detalle/SKU y sobrestimar la venta.
+    if "VentaMonto_num" in work.columns:
+        base_amount = pd.to_numeric(
+            work["VentaMonto_num"],
+            errors="coerce",
+        ).fillna(0).abs()
 
-    if amount_col:
+        if "Grupo comercial" in work.columns:
+            sign = (
+                work["Grupo comercial"]
+                .map(
+                    {
+                        "Factura": 1,
+                        "Boleta": 1,
+                        "Nota de crédito": -1,
+                    }
+                )
+                .fillna(0)
+            )
+            work["_crm_venta"] = (
+                base_amount * sign
+            )
+        else:
+            work["_crm_venta"] = base_amount
+    elif amount_col:
+        # Fallback sólo para fuentes antiguas que no fueron normalizadas.
         work["_crm_venta"] = pd.to_numeric(
             work[amount_col],
             errors="coerce",
@@ -1565,50 +1751,12 @@ def _prepare_clients(
         work["_crm_documento"] = ""
 
     # --------------------------------------------------------
-    # Ventas del período por documento único
+    # Ventas del período
     # --------------------------------------------------------
-    # TotalIngreso puede repetirse en cada línea SKU de un mismo
-    # documento. Para el CRM comercial el documento debe sumar una
-    # sola vez, usando Numero como identificador.
-    if document_col:
-        valid_document = (
-            work["_crm_documento"]
-            .astype(str)
-            .str.strip()
-            .ne("")
-        )
-
-        work["_crm_venta_documento"] = 0.0
-
-        first_rows = (
-            work.loc[valid_document]
-            .drop_duplicates(
-                subset=["_crm_documento"],
-                keep="first",
-            )
-            .index
-        )
-
-        work.loc[
-            first_rows,
-            "_crm_venta_documento",
-        ] = work.loc[
-            first_rows,
-            "_crm_venta",
-        ].astype(float)
-
-        # Si alguna fila no trae Numero, conservar su venta individual.
-        work.loc[
-            ~valid_document,
-            "_crm_venta_documento",
-        ] = work.loc[
-            ~valid_document,
-            "_crm_venta",
-        ].astype(float)
-    else:
-        work["_crm_venta_documento"] = work["_crm_venta"]
-
-    work["_crm_venta_periodo"] = work["_crm_venta_documento"]
+    # Se suman las líneas comerciales normalizadas:
+    # Factura + Boleta - Nota de crédito.
+    # Así queda alineado con el Resumen Ejecutivo.
+    work["_crm_venta_periodo"] = work["_crm_venta"]
 
     # --------------------------------------------------------
     # Agrupar
@@ -1657,7 +1805,7 @@ def _prepare_clients(
         ),
 
         "Ventas acumuladas": (
-            "_crm_venta_documento",
+            "_crm_venta",
             "sum",
         ),
 
@@ -1936,7 +2084,7 @@ def _render_summary(
         f'Ventas del período'
         f'<span class="crm-help">?'
         f'<span class="crm-help-tip">'
-        f'Suma de TotalIngreso contando cada Numero de documento una sola vez, aunque tenga varios SKU.'
+        f'Venta comercial del ERP: Facturas + Boletas - Notas de crédito, usando VentaMonto_num.'
         f'</span></span></div>'
         f'<div class="crm-kpi-value">{_money(total_sales)}</div>'
         f'<div class="crm-kpi-help">Período: {_period_label()}</div>'
@@ -1983,7 +2131,7 @@ def _render_summary(
     )
 
     st.caption(
-        f"Ventas calculadas por documento único (Numero) desde ERP Ventas · "
+        f"Ventas calculadas con la misma base comercial del Resumen Ejecutivo · "
         f"Período detectado: {_period_label()}"
     )
 
