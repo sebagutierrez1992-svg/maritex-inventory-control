@@ -236,6 +236,16 @@ def _stock_metrics(ctx) -> dict:
 # ============================================================
 
 def _prepare_sales(sales_df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Prepara la MISMA base que Resumen Ejecutivo.
+
+    Regla importante:
+    - NO altera VentaMonto_num.
+    - NO aplica abs() al dataframe que después recibe
+      calculate_commercial_totals().
+    - Sólo normaliza Fecha_dt y limita Grupo comercial a los
+      mismos grupos reconocidos por Resumen Ejecutivo.
+    """
     if sales_df is None or sales_df.empty:
         return pd.DataFrame()
 
@@ -256,19 +266,9 @@ def _prepare_sales(sales_df: pd.DataFrame) -> pd.DataFrame:
     if work.empty:
         return work
 
-    if "VentaMonto_num" not in work.columns:
-        work["VentaMonto_num"] = 0.0
-
-    work["VentaMonto_num"] = pd.to_numeric(
-        work["VentaMonto_num"],
-        errors="coerce",
-    ).fillna(0).abs()
-
     if "Grupo comercial" not in work.columns:
-        work["Grupo comercial"] = "Factura"
+        return pd.DataFrame()
 
-    # Misma base comercial que Resumen Ejecutivo:
-    # sólo Factura, Boleta y Nota de crédito.
     work = work[
         work["Grupo comercial"].isin(
             VALID_GROUPS
@@ -277,6 +277,17 @@ def _prepare_sales(sales_df: pd.DataFrame) -> pd.DataFrame:
 
     if work.empty:
         return work
+
+    # VentaDashboard es SOLO una columna auxiliar para gráficos.
+    # El KPI principal seguirá usando calculate_commercial_totals()
+    # sobre VentaMonto_num original, igual que Resumen Ejecutivo.
+    amount = pd.to_numeric(
+        work.get(
+            "VentaMonto_num",
+            pd.Series(0.0, index=work.index),
+        ),
+        errors="coerce",
+    ).fillna(0.0).abs()
 
     sign = (
         work["Grupo comercial"]
@@ -290,10 +301,7 @@ def _prepare_sales(sales_df: pd.DataFrame) -> pd.DataFrame:
         .fillna(0)
     )
 
-    work["VentaDashboard"] = (
-        work["VentaMonto_num"]
-        * sign
-    )
+    work["VentaDashboard"] = amount * sign
 
     return work
 
@@ -379,6 +387,11 @@ def _filter_sales(
 
 
 def _sales_summary(work: pd.DataFrame) -> dict:
+    """
+    Misma lógica de KPI que views/resumen_ejecutivo.py:
+    calculate_commercial_totals(actual_view, VAT_RATE)
+    y base Con IVA.
+    """
     result = {
         "net": 0.0,
         "gross": 0.0,
@@ -391,58 +404,45 @@ def _sales_summary(work: pd.DataFrame) -> dict:
     if work is None or work.empty:
         return result
 
+    # MISMO cálculo que Resumen Ejecutivo.
     totals = calculate_commercial_totals(
         work,
         VAT_RATE,
     )
 
     result["net"] = float(
-        totals.get(
-            "venta_neta_con_iva",
-            0,
-        )
+        totals["venta_neta_con_iva"]
     )
-
     result["gross"] = float(
-        totals.get(
-            "ventas_brutas_con_iva",
-            0,
-        )
+        totals["ventas_brutas_con_iva"]
     )
-
     result["credits"] = float(
-        totals.get(
-            "notas_credito_con_iva",
-            0,
-        )
+        totals["notas_credito_con_iva"]
     )
 
-    sale_docs = work[
+    sales_only = work[
         work["Grupo comercial"].isin(
             ["Factura", "Boleta"]
         )
     ].copy()
 
-    if "Numero" in sale_docs.columns:
-        result["documents"] = int(
-            sale_docs["Numero"].nunique()
-        )
-    else:
-        result["documents"] = int(
-            len(sale_docs)
-        )
+    result["documents"] = (
+        int(sales_only["Numero"].nunique())
+        if "Numero" in sales_only.columns
+        else int(len(sales_only))
+    )
 
     client_col = (
         "RazonSocial"
-        if "RazonSocial" in sale_docs.columns
+        if "RazonSocial" in sales_only.columns
         else "CLIENTE"
-        if "CLIENTE" in sale_docs.columns
+        if "CLIENTE" in sales_only.columns
         else None
     )
 
     if client_col:
         result["clients"] = int(
-            sale_docs[client_col]
+            sales_only[client_col]
             .fillna("")
             .astype(str)
             .str.strip()
@@ -1537,9 +1537,20 @@ def render(ctx):
 
     crm = _crm_alerts()
 
+    source_name = _safe_text(
+        (ctx.get("sales_meta") or {}).get("filename"),
+        "ERP Ventas",
+    )
+    actual_max_date = (
+        sales_all["Fecha_dt"].max().strftime("%d-%m-%Y")
+        if not sales_all.empty
+        else "-"
+    )
+
     st.caption(
         "Base homologada con Resumen Ejecutivo · "
-        "Factura + Boleta - Nota de crédito · Con IVA"
+        "Factura + Boleta - Nota de crédito · Con IVA · "
+        f"Fuente: {source_name} · Última fecha ERP: {actual_max_date}"
     )
 
     # --------------------------------------------------------
