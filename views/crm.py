@@ -267,13 +267,13 @@ div[data-testid="stSegmentedControl"] button[aria-pressed="true"]{
 
 .crm-kpi{
     position:relative;
+    overflow:visible;
     min-height:104px;
     border:1px solid #2C3943;
     border-radius:10px;
     padding:14px 15px;
     background:linear-gradient(145deg,#121C24,#101820);
     box-shadow:0 3px 14px rgba(0,0,0,.15);
-    overflow:hidden;
 }
 
 .crm-kpi::before{
@@ -646,51 +646,107 @@ hr{
     display:inline-flex;
     align-items:center;
     justify-content:center;
+    flex:0 0 auto;
     width:15px;
     height:15px;
     margin-left:6px;
     border:1px solid #66727C;
     border-radius:50%;
     color:#FFC400;
+    background:#111A21;
     font-size:9px;
     font-weight:900;
     line-height:1;
     cursor:help;
     vertical-align:middle;
+    z-index:20;
 }
+
 .crm-help:hover{
     border-color:#FFC400;
     background:#2A250D;
 }
+
+/* Tooltip general */
 .crm-help .crm-help-tip{
     visibility:hidden;
     opacity:0;
     position:absolute;
     z-index:9999;
-    left:22px;
-    top:-8px;
-    width:260px;
-    padding:10px 12px;
+    top:22px;
+    left:0;
+    width:230px;
+    max-width:min(230px, calc(100vw - 60px));
+    padding:10px 11px;
     border:1px solid #3A4650;
     border-radius:8px;
-    background:#0B1116;
+    background:#090E12;
     color:#E7EDF1;
-    font-size:9px;
+    font-size:8.7px;
     font-weight:500;
     line-height:1.45;
     text-transform:none;
     letter-spacing:0;
-    box-shadow:0 8px 24px rgba(0,0,0,.35);
+    white-space:normal;
+    text-align:left;
+    box-shadow:0 8px 24px rgba(0,0,0,.38);
     pointer-events:none;
 }
+
 .crm-help:hover .crm-help-tip{
     visibility:visible;
     opacity:1;
 }
+
+/* En títulos normales, abrir hacia la derecha pero dentro del área */
 .crm-title-line{
     display:flex;
     align-items:center;
     gap:2px;
+    position:relative;
+    width:100%;
+}
+
+.crm-title-line .crm-help .crm-help-tip{
+    left:0;
+    right:auto;
+}
+
+/* En KPI: el tooltip se abre hacia adentro de la tarjeta */
+.crm-kpi{
+    overflow:visible !important;
+}
+
+.crm-kpi .crm-help{
+    position:static;
+}
+
+.crm-kpi .crm-help .crm-help-tip{
+    top:34px;
+    left:12px;
+    right:12px;
+    width:auto;
+    max-width:none;
+}
+
+/* En columnas Kanban / tarjetas: mantener texto dentro del bloque */
+.crm-stage-head,
+.crm-kanban-card,
+div[data-testid="stVerticalBlockBorderWrapper"]{
+    overflow:visible !important;
+}
+
+/* En pantallas pequeñas: tooltip ocupa casi todo el ancho disponible */
+@media(max-width:700px){
+    .crm-help .crm-help-tip{
+        position:fixed;
+        left:18px !important;
+        right:18px !important;
+        top:auto;
+        bottom:24px;
+        width:auto !important;
+        max-width:none !important;
+    }
 }
 
 </style>
@@ -1451,7 +1507,7 @@ def _render_summary(
             st.markdown(
                 """
 <div class="crm-section-kicker">CLIENTES</div>
-<div class="crm-section-title">Principales clientes</div>
+<div class="crm-title-line"><div class="crm-section-title">Principales clientes</div><span class="crm-help">?<span class="crm-help-tip">Ranking de clientes por ventas de los últimos 12 meses disponibles en ERP Ventas.</span></span></div>
 <div class="crm-section-sub">Top por ventas de los últimos 12 meses.</div>
                 """,
                 unsafe_allow_html=True,
@@ -1486,7 +1542,7 @@ def _render_summary(
             st.markdown(
                 """
 <div class="crm-section-kicker">CONCENTRACIÓN</div>
-<div class="crm-section-title">Ventas por cliente</div>
+<div class="crm-title-line"><div class="crm-section-title">Ventas por cliente</div><span class="crm-help">?<span class="crm-help-tip">Muestra qué tan concentradas están las ventas en los clientes principales.</span></span></div>
 <div class="crm-section-sub">Participación de los principales clientes.</div>
                 """,
                 unsafe_allow_html=True,
@@ -2249,7 +2305,7 @@ def _render_opportunities(
         st.markdown(
             """
 <div class="crm-section-kicker">CARTERA COMERCIAL</div>
-<div class="crm-section-title">Oportunidades registradas</div>
+<div class="crm-title-line"><div class="crm-section-title">Oportunidades registradas</div><span class="crm-help">?<span class="crm-help-tip">Listado de negocios comerciales guardados en PostgreSQL. Puedes filtrar, revisar estado, monto, etapa y próximas acciones.</span></span></div>
 <div class="crm-section-sub">Negocios almacenados de forma persistente en PostgreSQL.</div>
             """,
             unsafe_allow_html=True,
@@ -2841,7 +2897,7 @@ def _render_followups(
         st.markdown(
             """
 <div class="crm-section-kicker">AGENDA COMERCIAL</div>
-<div class="crm-section-title">Seguimientos registrados</div>
+<div class="crm-title-line"><div class="crm-section-title">Seguimientos registrados</div><span class="crm-help">?<span class="crm-help-tip">Historial y agenda de llamadas, correos, reuniones, tareas y notas. Los pendientes y vencidos se calculan según la próxima fecha.</span></span></div>
 <div class="crm-section-sub">Historial y próximas acciones guardadas en PostgreSQL.</div>
             """,
             unsafe_allow_html=True,
