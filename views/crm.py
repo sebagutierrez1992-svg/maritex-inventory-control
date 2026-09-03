@@ -1,4 +1,4 @@
-
+from __future__ import annotations
 
 from datetime import datetime, timedelta
 from typing import Any
@@ -639,6 +639,60 @@ hr{
     }
     .crm-kpis{grid-template-columns:1fr}
 }
+
+/* HELPERS MARITEX */
+.crm-help{
+    position:relative;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    width:15px;
+    height:15px;
+    margin-left:6px;
+    border:1px solid #66727C;
+    border-radius:50%;
+    color:#FFC400;
+    font-size:9px;
+    font-weight:900;
+    line-height:1;
+    cursor:help;
+    vertical-align:middle;
+}
+.crm-help:hover{
+    border-color:#FFC400;
+    background:#2A250D;
+}
+.crm-help .crm-help-tip{
+    visibility:hidden;
+    opacity:0;
+    position:absolute;
+    z-index:9999;
+    left:22px;
+    top:-8px;
+    width:260px;
+    padding:10px 12px;
+    border:1px solid #3A4650;
+    border-radius:8px;
+    background:#0B1116;
+    color:#E7EDF1;
+    font-size:9px;
+    font-weight:500;
+    line-height:1.45;
+    text-transform:none;
+    letter-spacing:0;
+    box-shadow:0 8px 24px rgba(0,0,0,.35);
+    pointer-events:none;
+}
+.crm-help:hover .crm-help-tip{
+    visibility:visible;
+    opacity:1;
+}
+.crm-title-line{
+    display:flex;
+    align-items:center;
+    gap:2px;
+}
+
 </style>
         """,
         unsafe_allow_html=True,
@@ -647,6 +701,33 @@ hr{
 
 # ============================================================
 # HELPERS
+
+
+def _help_icon(message: str) -> str:
+    """Helper visual Maritex con tooltip explicativo."""
+    safe = (
+        str(message)
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace('"', "&quot;")
+    )
+    return (
+        '<span class="crm-help">?'
+        f'<span class="crm-help-tip">{safe}</span>'
+        '</span>'
+    )
+
+
+def _title_with_help(title: str, help_text: str, css_class: str = "crm-section-title") -> str:
+    return (
+        '<div class="crm-title-line">'
+        f'<div class="{css_class}">{title}</div>'
+        f'{_help_icon(help_text)}'
+        '</div>'
+    )
+
+
 # ============================================================
 
 def _safe_text(
@@ -1903,7 +1984,7 @@ def _render_opportunities(
     st.markdown(
         """
 <div class="crm-section-kicker">OPORTUNIDADES</div>
-<div class="crm-section-title">Gestión comercial</div>
+<div class="crm-title-line"><div class="crm-section-title">Gestión comercial</div><span class="crm-help">?<span class="crm-help-tip">Aquí puedes crear, revisar y actualizar oportunidades comerciales asociadas a clientes del ERP.</span></span></div>
 <div class="crm-section-sub">Crea, administra y actualiza negocios comerciales guardados en PostgreSQL.</div>
         """,
         unsafe_allow_html=True,
@@ -2473,7 +2554,7 @@ def _render_followups(
     st.markdown(
         """
 <div class="crm-section-kicker">SEGUIMIENTOS</div>
-<div class="crm-section-title">Próximas acciones</div>
+<div class="crm-title-line"><div class="crm-section-title">Próximas acciones</div><span class="crm-help">?<span class="crm-help-tip">Agenda de llamadas, correos, reuniones, tareas y otros seguimientos pendientes con clientes u oportunidades.</span></span></div>
 <div class="crm-section-sub">Llamadas, correos, reuniones, WhatsApp, tareas y notas comerciales persistentes.</div>
         """,
         unsafe_allow_html=True,
@@ -2994,7 +3075,7 @@ def _render_pipeline() -> None:
     st.markdown(
         """
 <div class="crm-section-kicker">TUBERÍA</div>
-<div class="crm-section-title">Tubería comercial</div>
+<div class="crm-title-line"><div class="crm-section-title">Tubería comercial</div><span class="crm-help">?<span class="crm-help-tip">Vista comercial de las oportunidades abiertas, organizadas por etapa. Permite revisar montos, probabilidades y avanzar cada negocio hasta su cierre.</span></span></div>
 <div class="crm-section-sub">Gestiona tu pipeline moviendo oportunidades entre etapas.</div>
         """,
         unsafe_allow_html=True,
@@ -3141,22 +3222,22 @@ def _render_pipeline() -> None:
     kpi_html = (
         '<div class="crm-kpis">'
         '<div class="crm-kpi">'
-        '<div class="crm-kpi-label">Pipeline total</div>'
+        '<div class="crm-kpi-label">Monto total <span class="crm-help">?<span class="crm-help-tip">Suma del valor estimado de todas las oportunidades abiertas según los filtros actuales.</span></span></div>'
         f'<div class="crm-kpi-value">{_money(open_amount)}</div>'
         '<div class="crm-kpi-help">Valor de oportunidades abiertas</div>'
         '</div>'
         '<div class="crm-kpi">'
-        '<div class="crm-kpi-label">Pipeline ponderado</div>'
+        '<div class="crm-kpi-label">Monto ponderado <span class="crm-help">?<span class="crm-help-tip">Valor esperado del embudo: monto de cada oportunidad multiplicado por su probabilidad de cierre.</span></span></div>'
         f'<div class="crm-kpi-value">{_money(weighted_amount)}</div>'
         '<div class="crm-kpi-help">Monto ajustado por probabilidad</div>'
         '</div>'
         '<div class="crm-kpi">'
-        '<div class="crm-kpi-label">Oportunidades abiertas</div>'
+        '<div class="crm-kpi-label">Oportunidades abiertas <span class="crm-help">?<span class="crm-help-tip">Cantidad de negocios comerciales que todavía se encuentran activos y no han sido ganados ni perdidos.</span></span></div>'
         f'<div class="crm-kpi-value">{len(open_rows)}</div>'
         '<div class="crm-kpi-help accent">Negocios activos</div>'
         '</div>'
         '<div class="crm-kpi">'
-        '<div class="crm-kpi-label">Ganadas</div>'
+        '<div class="crm-kpi-label">Ganadas <span class="crm-help">?<span class="crm-help-tip">Cantidad de oportunidades cerradas exitosamente.</span></span></div>'
         f'<div class="crm-kpi-value">{len(won_rows)}</div>'
         '<div class="crm-kpi-help">Cierres exitosos</div>'
         '</div>'
@@ -3483,7 +3564,7 @@ def _render_pipeline() -> None:
     st.markdown("")
 
     with st.expander(
-        "Todas las oportunidades",
+        "Todas las oportunidades · ⓘ",
         expanded=True,
     ):
         display_all = _opportunity_display_frame(
@@ -3527,7 +3608,7 @@ def _render_pipeline() -> None:
     # PRÓXIMAS ACCIONES
     # --------------------------------------------------------
     with st.expander(
-        "Próximas acciones",
+        "Próximas acciones · ⓘ",
         expanded=True,
     ):
         if not pending_followups:
