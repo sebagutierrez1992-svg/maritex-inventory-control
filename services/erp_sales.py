@@ -805,6 +805,58 @@ def read_sales_source(
     )
 
     # ========================================================
+    # DATOS DE CLIENTE PARA CRM
+    # ========================================================
+
+    client_col = _find_column(
+        df,
+        [
+            "RazonSocial",
+            "Razón Social",
+            "Razon Social",
+            "Cliente",
+            "Nombre Cliente",
+        ],
+    )
+
+    rut_col = _find_column(
+        df,
+        [
+            "CodigoLegal",
+            "Código Legal",
+            "Codigo Legal",
+            "CodLegal",
+            "RUT",
+            "Rut Cliente",
+        ],
+    )
+
+    if client_col:
+        df["RazonSocial"] = (
+            df[client_col]
+            .fillna("")
+            .astype(str)
+            .str.strip()
+        )
+        df["RazonSocialCampo"] = client_col
+    else:
+        df["RazonSocial"] = ""
+        df["RazonSocialCampo"] = "No detectado"
+
+    if rut_col:
+        df["CodigoLegal"] = (
+            df[rut_col]
+            .fillna("")
+            .astype(str)
+            .str.strip()
+            .str.replace(r"\.0$", "", regex=True)
+        )
+        df["CodigoLegalCampo"] = rut_col
+    else:
+        df["CodigoLegal"] = ""
+        df["CodigoLegalCampo"] = "No detectado"
+
+    # ========================================================
     # FECHA
     # ========================================================
 
@@ -1074,6 +1126,8 @@ def read_sales_source(
     print(
         "ERP VENTAS DETECCIÓN:",
         {
+            "cliente": client_col,
+            "rut": rut_col,
             "fecha": date_col,
             "sku": sku_col,
             "cantidad": qty_col,

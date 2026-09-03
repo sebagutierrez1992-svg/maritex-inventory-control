@@ -1,4 +1,4 @@
-
+from __future__ import annotations
 
 from datetime import datetime, timedelta
 from typing import Any
@@ -388,10 +388,6 @@ def _detect_sales_columns(
                 "cliente rut",
                 "cod cliente",
                 "codigo cliente",
-                "codlegal",
-                "cod legal",
-                "codigo legal",
-                "código legal",
             ],
         ),
 
@@ -400,8 +396,6 @@ def _detect_sales_columns(
             [
                 "razon social",
                 "razón social",
-                "razonsocial",
-                "razónsocial",
                 "cliente",
                 "nombre cliente",
                 "nombre",
@@ -433,6 +427,8 @@ def _detect_sales_columns(
         "amount": _find_column(
             sales_df,
             [
+                "TotalIngreso",
+                "total ingreso",
                 "total",
                 "venta",
                 "monto",
