@@ -1,4 +1,4 @@
-
+from __future__ import annotations
 
 from datetime import datetime, timedelta
 from typing import Any
@@ -1565,11 +1565,50 @@ def _prepare_clients(
         work["_crm_documento"] = ""
 
     # --------------------------------------------------------
-    # Ventas del período
+    # Ventas del período por documento único
     # --------------------------------------------------------
-    # El CRM usa exactamente las ventas contenidas en el archivo
-    # cargado. No inventa una ventana de 12 meses.
-    work["_crm_venta_periodo"] = work["_crm_venta"]
+    # TotalIngreso puede repetirse en cada línea SKU de un mismo
+    # documento. Para el CRM comercial el documento debe sumar una
+    # sola vez, usando Numero como identificador.
+    if document_col:
+        valid_document = (
+            work["_crm_documento"]
+            .astype(str)
+            .str.strip()
+            .ne("")
+        )
+
+        work["_crm_venta_documento"] = 0.0
+
+        first_rows = (
+            work.loc[valid_document]
+            .drop_duplicates(
+                subset=["_crm_documento"],
+                keep="first",
+            )
+            .index
+        )
+
+        work.loc[
+            first_rows,
+            "_crm_venta_documento",
+        ] = work.loc[
+            first_rows,
+            "_crm_venta",
+        ].astype(float)
+
+        # Si alguna fila no trae Numero, conservar su venta individual.
+        work.loc[
+            ~valid_document,
+            "_crm_venta_documento",
+        ] = work.loc[
+            ~valid_document,
+            "_crm_venta",
+        ].astype(float)
+    else:
+        work["_crm_venta_documento"] = work["_crm_venta"]
+
+    work["_crm_venta_periodo"] = work["_crm_venta_documento"]
 
     # --------------------------------------------------------
     # Agrupar
@@ -1618,7 +1657,7 @@ def _prepare_clients(
         ),
 
         "Ventas acumuladas": (
-            "_crm_venta",
+            "_crm_venta_documento",
             "sum",
         ),
 
@@ -1897,7 +1936,7 @@ def _render_summary(
         f'Ventas del período'
         f'<span class="crm-help">?'
         f'<span class="crm-help-tip">'
-        f'Suma de ventas ERP contenidas en el archivo cargado para el módulo comercial seleccionado.'
+        f'Suma de TotalIngreso contando cada Numero de documento una sola vez, aunque tenga varios SKU.'
         f'</span></span></div>'
         f'<div class="crm-kpi-value">{_money(total_sales)}</div>'
         f'<div class="crm-kpi-help">Período: {_period_label()}</div>'
@@ -1944,7 +1983,7 @@ def _render_summary(
     )
 
     st.caption(
-        f"Ventas calculadas exclusivamente con el archivo ERP cargado · "
+        f"Ventas calculadas por documento único (Numero) desde ERP Ventas · "
         f"Período detectado: {_period_label()}"
     )
 
