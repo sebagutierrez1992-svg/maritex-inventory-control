@@ -1271,38 +1271,73 @@ div[data-testid="stDataFrame"]{
     }
 }
 
-/* ACCESOS RÁPIDOS COMO EL MOCKUP OBJETIVO */
-.quick-icon{
-    height:44px;
-    margin:12px 0 -51px 0;
+
+/* ============================================================
+   ACCESOS RÁPIDOS · TARJETAS LIMPIAS
+   ============================================================ */
+.quick-card-icon{
+    height:58px;
     display:flex;
+    align-items:flex-end;
     justify-content:center;
-    align-items:center;
     color:#FFC400;
     font-size:30px;
-    font-weight:800;
+    font-weight:850;
+    margin-top:4px;
+    margin-bottom:5px;
     pointer-events:none;
+}
+
+.quick-card-label{
+    min-height:34px;
+    display:flex;
+    align-items:flex-start;
+    justify-content:center;
+    text-align:center;
+    color:#F4F7F9;
+    font-size:10px;
+    font-weight:650;
+    line-height:1.2;
+    padding:0 4px;
+    pointer-events:none;
+}
+
+/* El botón "Abrir" ocupa la tarjeta completa visualmente,
+   pero ocultamos su texto para no superponer icono y nombre */
+div[data-testid="stButton"] > button[kind="secondary"]{
     position:relative;
-    z-index:5;
 }
-.quick-icon + div[data-testid="stButton"] > button{
-    min-height:126px !important;
-    padding:62px 7px 13px !important;
-    justify-content:center !important;
-    align-items:flex-end !important;
-    text-align:center !important;
-    white-space:normal !important;
-    line-height:1.2 !important;
-    font-size:10px !important;
-    font-weight:650 !important;
-    background:linear-gradient(180deg,#101B23,#0B151C) !important;
+
+/* Sólo afecta botones de quick access por estructura dentro de columnas */
+div[data-testid="stHorizontalBlock"] div[data-testid="column"] .quick-card-label + div[data-testid="stButton"] > button{
+    min-height:30px !important;
+    margin-top:4px !important;
+    padding:0 !important;
+    background:#0D171E !important;
     border:1px solid #30414C !important;
-    border-radius:8px !important;
+    border-radius:7px !important;
+    color:#8FA0AB !important;
+    font-size:8px !important;
+    font-weight:600 !important;
 }
-.quick-icon + div[data-testid="stButton"] > button:hover{
+
+div[data-testid="stHorizontalBlock"] div[data-testid="column"] .quick-card-label + div[data-testid="stButton"] > button:hover{
     border-color:#FFC400 !important;
-    color:#FFFFFF !important;
-    background:#111D25 !important;
+    color:#FFC400 !important;
+}
+
+/* Marco exterior visual de cada acceso */
+div[data-testid="stHorizontalBlock"] div[data-testid="column"]:has(.quick-card-icon){
+    background:linear-gradient(180deg,#101B23,#0C151B);
+    border:1px solid #30414C;
+    border-radius:8px;
+    padding:10px 8px 8px;
+    min-height:132px;
+}
+
+div[data-testid="stHorizontalBlock"] div[data-testid="column"]:has(.quick-card-icon):hover{
+    border-color:#FFC400;
+    background:#111D25;
 }
 
 </style>
@@ -1933,11 +1968,15 @@ def render(ctx):
             for col, icon, label, key, page in quick_items:
                 with col:
                     st.markdown(
-                        f'<div class="quick-icon">{icon}</div>',
+                        f"""
+<div class="quick-card-icon">{icon}</div>
+<div class="quick-card-label">{label}</div>
+                        """,
                         unsafe_allow_html=True,
                     )
+
                     st.button(
-                        label,
+                        "Abrir",
                         key=key,
                         use_container_width=True,
                         on_click=_go_to,
