@@ -1,10 +1,12 @@
-from __future__ import annotations
+
 
 from datetime import datetime, timedelta
 from typing import Any
 
 import pandas as pd
 import streamlit as st
+
+from services.crm_service import init_crm_database, test_connection
 
 
 # ============================================================
@@ -1365,6 +1367,74 @@ def _render_source_info(
         )
 
 
+
+# ============================================================
+# DIAGNÓSTICO POSTGRESQL
+# ============================================================
+
+def _render_database_test() -> None:
+    """
+    Prueba temporal de conexión a PostgreSQL.
+
+    Permite verificar que DATABASE_URL funciona en Render
+    y crear las tablas del CRM una sola vez.
+    """
+    with st.expander(
+        "Base de datos CRM",
+        expanded=False,
+    ):
+        st.caption(
+            "Prueba de conexión PostgreSQL y creación inicial de tablas."
+        )
+
+        result = test_connection()
+
+        if result.get("ok"):
+            st.success("PostgreSQL conectado correctamente.")
+
+            info = {
+                "Base de datos": result.get("database_name", "-"),
+                "Usuario": result.get("database_user", "-"),
+            }
+
+            st.dataframe(
+                pd.DataFrame(
+                    [
+                        {"Dato": key, "Valor": value}
+                        for key, value in info.items()
+                    ]
+                ),
+                hide_index=True,
+                use_container_width=True,
+            )
+
+            if st.button(
+                "Crear tablas CRM",
+                key="crm_create_tables",
+                type="primary",
+            ):
+                try:
+                    init_crm_database()
+                    st.success(
+                        "Tablas CRM creadas correctamente."
+                    )
+                except Exception as exc:
+                    st.error(
+                        f"Error creando tablas CRM: {exc}"
+                    )
+
+        else:
+            st.error(
+                "No se pudo conectar con PostgreSQL."
+            )
+            st.code(
+                result.get(
+                    "message",
+                    "Error desconocido",
+                )
+            )
+
+
 # ============================================================
 # RENDER PRINCIPAL
 # ============================================================
@@ -1395,6 +1465,8 @@ def render(
         '</div>'
     )
     st.markdown(header_html, unsafe_allow_html=True)
+
+    _render_database_test()
 
     if sales_df.empty:
         st.warning(
