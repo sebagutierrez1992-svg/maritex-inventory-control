@@ -7,12 +7,13 @@ import pandas as pd
 import streamlit as st
 
 from services.crm_service import (
+    create_followup,
     create_opportunity,
     get_crm_summary,
     get_pipeline_summary,
-    init_crm_database,
+    list_followups,
     list_opportunities,
-    test_connection,
+    update_followup,
     update_opportunity,
 )
 
@@ -51,6 +52,16 @@ CRM_STAGE_PROBABILITY = {
     "Negociación": 75,
     "Cierre": 90,
 }
+
+
+CRM_FOLLOWUP_TYPES = (
+    "Llamada",
+    "Correo",
+    "Reunión",
+    "WhatsApp",
+    "Tarea",
+    "Nota",
+)
 
 
 # ============================================================
@@ -481,6 +492,74 @@ def _opportunity_display_frame(
     return display
 
 
+
+
+def _followup_display_frame(
+    rows: list[dict[str, Any]],
+) -> pd.DataFrame:
+    if not rows:
+        return pd.DataFrame(
+            columns=[
+                "ID",
+                "Fecha",
+                "Cliente",
+                "RUT",
+                "Oportunidad",
+                "Tipo",
+                "Asunto",
+                "Responsable",
+                "Detalle",
+                "Próximo seguimiento",
+                "Estado",
+            ]
+        )
+
+    frame = pd.DataFrame(rows)
+
+    display = pd.DataFrame(
+        {
+            "ID": frame["id"],
+            "Fecha": frame["followup_date"],
+            "Cliente": frame["client_name"].fillna("-"),
+            "RUT": frame["client_rut"].fillna("-"),
+            "Oportunidad": frame["opportunity_id"].fillna("-"),
+            "Tipo": frame["followup_type"].fillna("-"),
+            "Asunto": frame["subject"].fillna("-"),
+            "Responsable": frame["seller"].fillna("-"),
+            "Detalle": frame["notes"].fillna("-"),
+            "Próximo seguimiento": frame["next_followup_date"],
+            "Estado": frame["completed"].map(
+                {
+                    True: "Completado",
+                    False: "Pendiente",
+                }
+            ),
+        }
+    )
+
+    display["Fecha"] = pd.to_datetime(
+        display["Fecha"],
+        errors="coerce",
+    ).dt.strftime("%d-%m-%Y %H:%M")
+
+    display["Próximo seguimiento"] = pd.to_datetime(
+        display["Próximo seguimiento"],
+        errors="coerce",
+    ).dt.strftime("%d-%m-%Y")
+
+    return display
+
+
+def _followup_opportunity_label(
+    opportunity: dict[str, Any],
+) -> str:
+    return (
+        f"#{opportunity.get('id')} · "
+        f"{_safe_text(opportunity.get('client_name'))} · "
+        f"{_safe_text(opportunity.get('title'))}"
+    )
+
+
 # ============================================================
 # DETECCIÓN DE COLUMNAS ERP VENTAS
 # ============================================================
@@ -874,6 +953,21 @@ def _render_summary(
         else 0
     )
 
+    try:
+        crm_summary = get_crm_summary()
+        upcoming_followups = list_followups(
+            pending_only=True,
+            limit=6,
+        )
+        open_opportunities = list_opportunities(
+            status="Abierta",
+            limit=6,
+        )
+    except Exception:
+        crm_summary = {}
+        upcoming_followups = []
+        open_opportunities = []
+
     # KPIs
     # Importante: no dejamos líneas en blanco entre tarjetas HTML.
     # Streamlit/Markdown puede interpretar los bloques posteriores como código.
@@ -915,6 +1009,26 @@ def _render_summary(
     ).replace(",", ".")
 
     st.markdown(kpi_html, unsafe_allow_html=True)
+
+    s1, s2, s3 = st.columns(3, gap="small")
+
+    with s1:
+        st.metric(
+            "Seguimientos pendientes",
+            int(crm_summary.get("pending_followups") or 0),
+        )
+
+    with s2:
+        st.metric(
+            "Vencidos",
+            int(crm_summary.get("overdue_followups") or 0),
+        )
+
+    with s3:
+        st.metric(
+            "Para hoy",
+            int(crm_summary.get("today_followups") or 0),
+        )
 
     # Primera fila: ranking / concentración / actividad
     left, middle, right = st.columns([1.48, 1.0, .92], gap="medium")
@@ -987,15 +1101,53 @@ def _render_summary(
                 unsafe_allow_html=True,
             )
 
-            st.markdown(
-                """
+            if not upcoming_followups:
+                st.markdown(
+                    """
 <div class="crm-empty">
-    <strong>Sin actividades registradas</strong>
-    <span>Cuando conectemos la base persistente del CRM, aquí aparecerán llamadas, correos, reuniones y tareas próximas.</span>
+    <strong>Sin actividades pendientes</strong>
+    <span>No existen seguimientos comerciales pendientes registrados.</span>
 </div>
-                """,
-                unsafe_allow_html=True,
-            )
+                    """,
+                    unsafe_allow_html=True,
+                )
+            else:
+                activity_rows = []
+
+                for item in upcoming_followups:
+                    next_date = pd.to_datetime(
+                        item.get("next_followup_date"),
+                        errors="coerce",
+                    )
+
+                    next_label = (
+                        next_date.strftime("%d-%m")
+                        if not pd.isna(next_date)
+                        else "-"
+                    )
+
+                    activity_rows.append(
+                        {
+                            "Fecha": next_label,
+                            "Cliente": _safe_text(
+                                item.get("client_name")
+                            ),
+                            "Tipo": _safe_text(
+                                item.get("followup_type")
+                            ),
+                            "Acción": _safe_text(
+                                item.get("subject")
+                                or item.get("notes")
+                            ),
+                        }
+                    )
+
+                st.dataframe(
+                    pd.DataFrame(activity_rows),
+                    hide_index=True,
+                    use_container_width=True,
+                    height=285,
+                )
 
     # Segunda fila: clientes recientes / vendedor / oportunidades
     left2, middle2, right2 = st.columns([1.48, 1.0, .92], gap="medium")
@@ -1080,15 +1232,47 @@ def _render_summary(
                 """,
                 unsafe_allow_html=True,
             )
-            st.markdown(
-                """
+            if not open_opportunities:
+                st.markdown(
+                    """
 <div class="crm-empty">
-    <strong>Sin oportunidades registradas</strong>
-    <span>Esta tarjeta quedará activa cuando agreguemos el almacenamiento persistente para oportunidades y pipeline.</span>
+    <strong>Sin oportunidades abiertas</strong>
+    <span>No existen negocios abiertos registrados actualmente.</span>
 </div>
-                """,
-                unsafe_allow_html=True,
-            )
+                    """,
+                    unsafe_allow_html=True,
+                )
+            else:
+                opp_rows = []
+
+                for item in open_opportunities:
+                    opp_rows.append(
+                        {
+                            "Cliente": _safe_text(
+                                item.get("client_name")
+                            ),
+                            "Etapa": _safe_text(
+                                item.get("stage")
+                            ),
+                            "Monto": float(
+                                item.get("estimated_amount")
+                                or 0
+                            ),
+                        }
+                    )
+
+                st.dataframe(
+                    pd.DataFrame(opp_rows),
+                    hide_index=True,
+                    use_container_width=True,
+                    height=285,
+                    column_config={
+                        "Monto": st.column_config.NumberColumn(
+                            "Monto",
+                            format="$ %.0f",
+                        )
+                    },
+                )
 
 
 # ============================================================
@@ -1951,20 +2135,511 @@ def _render_opportunities(
 # SEGUIMIENTOS
 # ============================================================
 
-def _render_followups() -> None:
+def _render_followups(
+    clients: pd.DataFrame,
+) -> None:
+    st.markdown(
+        """
+<div class="crm-section-kicker">SEGUIMIENTOS</div>
+<div class="crm-section-title">Próximas acciones</div>
+<div class="crm-section-sub">Llamadas, correos, reuniones, WhatsApp, tareas y notas comerciales persistentes.</div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    try:
+        followups = list_followups(
+            limit=1000,
+        )
+        opportunities = list_opportunities(
+            limit=1000,
+        )
+        summary = get_crm_summary()
+    except Exception as exc:
+        st.error(
+            f"No fue posible cargar los seguimientos: {exc}"
+        )
+        return
+
+    # --------------------------------------------------------
+    # KPIs
+    # --------------------------------------------------------
+    k1, k2, k3 = st.columns(
+        3,
+        gap="small",
+    )
+
+    with k1:
+        st.metric(
+            "Pendientes",
+            int(summary.get("pending_followups") or 0),
+        )
+
+    with k2:
+        st.metric(
+            "Vencidos",
+            int(summary.get("overdue_followups") or 0),
+        )
+
+    with k3:
+        st.metric(
+            "Para hoy",
+            int(summary.get("today_followups") or 0),
+        )
+
+    # --------------------------------------------------------
+    # NUEVO SEGUIMIENTO
+    # --------------------------------------------------------
+    with st.expander(
+        "Nuevo seguimiento",
+        expanded=not bool(followups),
+    ):
+        mode = st.radio(
+            "Asociar seguimiento a",
+            options=[
+                "Oportunidad",
+                "Cliente",
+            ],
+            horizontal=True,
+            key="crm_followup_mode",
+        )
+
+        opportunity_map: dict[str, dict[str, Any]] = {}
+        client_map: dict[str, dict[str, Any]] = {}
+
+        for opportunity in opportunities:
+            label = _followup_opportunity_label(
+                opportunity
+            )
+            opportunity_map[label] = opportunity
+
+        if not clients.empty:
+            for _, row in clients.iterrows():
+                client_name = _safe_text(
+                    row.get("Cliente"),
+                    "",
+                )
+                client_rut = _safe_text(
+                    row.get("RUT"),
+                    "",
+                )
+
+                if not client_name:
+                    continue
+
+                label = (
+                    f"{client_name} · {client_rut}"
+                    if client_rut
+                    else client_name
+                )
+
+                if label in client_map:
+                    continue
+
+                client_map[label] = {
+                    "Cliente": client_name,
+                    "RUT": client_rut,
+                    "Vendedor": _safe_text(
+                        row.get("Vendedor"),
+                        "",
+                    ),
+                }
+
+        selected_opportunity = None
+        selected_client = None
+
+        if mode == "Oportunidad":
+            if not opportunity_map:
+                st.info(
+                    "No existen oportunidades disponibles. "
+                    "Puedes registrar el seguimiento directamente por cliente."
+                )
+            else:
+                opportunity_label = st.selectbox(
+                    "Oportunidad",
+                    list(opportunity_map.keys()),
+                    key="crm_followup_opportunity",
+                )
+                selected_opportunity = opportunity_map.get(
+                    opportunity_label
+                )
+
+        if mode == "Cliente" or (
+            mode == "Oportunidad"
+            and not opportunity_map
+        ):
+            if not client_map:
+                st.warning(
+                    "No existen clientes ERP disponibles."
+                )
+            else:
+                client_label = st.selectbox(
+                    "Cliente",
+                    list(client_map.keys()),
+                    key="crm_followup_client",
+                )
+                selected_client = client_map.get(
+                    client_label
+                )
+
+        if selected_opportunity:
+            default_client_name = _safe_text(
+                selected_opportunity.get("client_name"),
+                "",
+            )
+            default_client_rut = _safe_text(
+                selected_opportunity.get("client_rut"),
+                "",
+            )
+            default_seller = _safe_text(
+                selected_opportunity.get("seller"),
+                "",
+            )
+            default_opportunity_id = int(
+                selected_opportunity["id"]
+            )
+        elif selected_client:
+            default_client_name = selected_client.get(
+                "Cliente",
+                "",
+            )
+            default_client_rut = selected_client.get(
+                "RUT",
+                "",
+            )
+            default_seller = selected_client.get(
+                "Vendedor",
+                "",
+            )
+            default_opportunity_id = None
+        else:
+            default_client_name = ""
+            default_client_rut = ""
+            default_seller = ""
+            default_opportunity_id = None
+
+        if default_client_name:
+            with st.form(
+                "crm_new_followup_form",
+                clear_on_submit=True,
+            ):
+                f1, f2, f3 = st.columns(
+                    [1, 1.15, 1],
+                    gap="small",
+                )
+
+                with f1:
+                    followup_type = st.selectbox(
+                        "Tipo",
+                        CRM_FOLLOWUP_TYPES,
+                    )
+
+                with f2:
+                    subject = st.text_input(
+                        "Asunto",
+                        placeholder="Ej: Confirmar recepción de cotización",
+                    )
+
+                with f3:
+                    seller = st.text_input(
+                        "Responsable",
+                        value=default_seller,
+                    )
+
+                st.caption(
+                    f"Cliente: {default_client_name} · "
+                    f"RUT: {default_client_rut or '-'}"
+                )
+
+                notes = st.text_area(
+                    "Detalle",
+                    placeholder="Resumen de llamada, correo, reunión o tarea...",
+                    height=110,
+                )
+
+                next_followup_date = st.date_input(
+                    "Próximo seguimiento",
+                    key="crm_new_followup_date",
+                )
+
+                submitted = st.form_submit_button(
+                    "Guardar seguimiento",
+                    type="primary",
+                    use_container_width=True,
+                )
+
+                if submitted:
+                    if not subject.strip() and not notes.strip():
+                        st.error(
+                            "Ingresa un asunto o detalle para el seguimiento."
+                        )
+                    else:
+                        try:
+                            create_followup(
+                                opportunity_id=default_opportunity_id,
+                                client_rut=default_client_rut,
+                                client_name=default_client_name,
+                                seller=seller,
+                                followup_type=followup_type,
+                                subject=subject,
+                                notes=notes,
+                                next_followup_date=next_followup_date,
+                                completed=False,
+                            )
+
+                            st.success(
+                                "Seguimiento guardado correctamente."
+                            )
+                            st.rerun()
+
+                        except Exception as exc:
+                            st.error(
+                                f"No fue posible guardar el seguimiento: {exc}"
+                            )
+
+    st.markdown("")
+
+    # --------------------------------------------------------
+    # LISTADO
+    # --------------------------------------------------------
+    if not followups:
+        st.info(
+            "Todavía no existen seguimientos registrados."
+        )
+        return
+
+    display = _followup_display_frame(
+        followups
+    )
+
     with st.container(border=True):
         st.markdown(
             """
-<div class="crm-section-kicker">SEGUIMIENTOS</div>
-<div class="crm-section-title">Próximas acciones</div>
-<div class="crm-section-sub">Llamadas, correos, reuniones y tareas comerciales.</div>
-<div class="crm-empty">
-    <strong>Siguiente módulo</strong>
-    <span>PostgreSQL ya está preparado para guardar seguimientos. Lo activaremos después de validar Oportunidades y Pipeline.</span>
-</div>
+<div class="crm-section-kicker">AGENDA COMERCIAL</div>
+<div class="crm-section-title">Seguimientos registrados</div>
+<div class="crm-section-sub">Historial y próximas acciones guardadas en PostgreSQL.</div>
             """,
             unsafe_allow_html=True,
         )
+
+        f1, f2, f3 = st.columns(
+            [1.4, 1, 1],
+            gap="small",
+        )
+
+        with f1:
+            search = st.text_input(
+                "Buscar",
+                placeholder="Cliente, RUT, asunto o responsable...",
+                key="crm_followup_search",
+            )
+
+        with f2:
+            type_filter = st.selectbox(
+                "Tipo",
+                ["Todos"] + list(CRM_FOLLOWUP_TYPES),
+                key="crm_followup_type_filter",
+            )
+
+        with f3:
+            state_filter = st.selectbox(
+                "Estado",
+                [
+                    "Todos",
+                    "Pendiente",
+                    "Completado",
+                ],
+                key="crm_followup_state_filter",
+            )
+
+        filtered = display.copy()
+
+        if search:
+            query = search.strip().lower()
+
+            mask = pd.Series(
+                False,
+                index=filtered.index,
+            )
+
+            for column in (
+                "Cliente",
+                "RUT",
+                "Asunto",
+                "Responsable",
+                "Detalle",
+            ):
+                mask = (
+                    mask
+                    | filtered[column]
+                    .fillna("")
+                    .astype(str)
+                    .str.lower()
+                    .str.contains(
+                        query,
+                        regex=False,
+                    )
+                )
+
+            filtered = filtered[
+                mask
+            ]
+
+        if type_filter != "Todos":
+            filtered = filtered[
+                filtered["Tipo"] == type_filter
+            ]
+
+        if state_filter != "Todos":
+            filtered = filtered[
+                filtered["Estado"] == state_filter
+            ]
+
+        st.dataframe(
+            filtered,
+            hide_index=True,
+            use_container_width=True,
+            height=min(
+                520,
+                70 + max(len(filtered), 1) * 35,
+            ),
+        )
+
+    # --------------------------------------------------------
+    # CAMBIAR ESTADO / EDITAR
+    # --------------------------------------------------------
+    followup_map: dict[str, dict[str, Any]] = {}
+
+    for row in followups:
+        label = (
+            f"#{row.get('id')} · "
+            f"{_safe_text(row.get('client_name'))} · "
+            f"{_safe_text(row.get('subject') or row.get('followup_type'))}"
+        )
+        followup_map[label] = row
+
+    with st.expander(
+        "Editar seguimiento",
+        expanded=False,
+    ):
+        selected_label = st.selectbox(
+            "Seleccionar seguimiento",
+            list(followup_map.keys()),
+            key="crm_edit_followup_select",
+        )
+
+        selected = followup_map[
+            selected_label
+        ]
+
+        selected_type = _safe_text(
+            selected.get("followup_type"),
+            "Nota",
+        )
+
+        type_index = (
+            CRM_FOLLOWUP_TYPES.index(selected_type)
+            if selected_type in CRM_FOLLOWUP_TYPES
+            else len(CRM_FOLLOWUP_TYPES) - 1
+        )
+
+        next_date = pd.to_datetime(
+            selected.get("next_followup_date"),
+            errors="coerce",
+        )
+
+        with st.form(
+            f"crm_edit_followup_{selected.get('id')}"
+        ):
+            e1, e2, e3 = st.columns(
+                [1, 1.2, 1],
+                gap="small",
+            )
+
+            with e1:
+                edit_type = st.selectbox(
+                    "Tipo",
+                    CRM_FOLLOWUP_TYPES,
+                    index=type_index,
+                )
+
+            with e2:
+                edit_subject = st.text_input(
+                    "Asunto",
+                    value=_safe_text(
+                        selected.get("subject"),
+                        "",
+                    ),
+                )
+
+            with e3:
+                edit_seller = st.text_input(
+                    "Responsable",
+                    value=_safe_text(
+                        selected.get("seller"),
+                        "",
+                    ),
+                )
+
+            edit_notes = st.text_area(
+                "Detalle",
+                value=_safe_text(
+                    selected.get("notes"),
+                    "",
+                ),
+                height=110,
+            )
+
+            e4, e5 = st.columns(
+                2,
+                gap="small",
+            )
+
+            with e4:
+                edit_next_date = st.date_input(
+                    "Próximo seguimiento",
+                    value=(
+                        next_date.date()
+                        if not pd.isna(next_date)
+                        else datetime.now().date()
+                    ),
+                )
+
+            with e5:
+                edit_completed = st.checkbox(
+                    "Marcar como completado",
+                    value=bool(
+                        selected.get("completed")
+                    ),
+                )
+
+            update_submitted = st.form_submit_button(
+                "Guardar cambios",
+                type="primary",
+                use_container_width=True,
+            )
+
+            if update_submitted:
+                try:
+                    update_followup(
+                        int(selected["id"]),
+                        followup_type=edit_type,
+                        subject=edit_subject,
+                        seller=edit_seller,
+                        notes=edit_notes,
+                        next_followup_date=edit_next_date,
+                        completed=edit_completed,
+                    )
+
+                    st.success(
+                        "Seguimiento actualizado correctamente."
+                    )
+                    st.rerun()
+
+                except Exception as exc:
+                    st.error(
+                        f"No fue posible actualizar el seguimiento: {exc}"
+                    )
 
 
 # ============================================================
@@ -2143,73 +2818,6 @@ def _render_source_info(
 
 
 # ============================================================
-# DIAGNÓSTICO POSTGRESQL
-# ============================================================
-
-def _render_database_test() -> None:
-    """
-    Prueba temporal de conexión a PostgreSQL.
-
-    Permite verificar que DATABASE_URL funciona en Render
-    y crear las tablas del CRM una sola vez.
-    """
-    with st.expander(
-        "Base de datos CRM",
-        expanded=False,
-    ):
-        st.caption(
-            "Prueba de conexión PostgreSQL y creación inicial de tablas."
-        )
-
-        result = test_connection()
-
-        if result.get("ok"):
-            st.success("PostgreSQL conectado correctamente.")
-
-            info = {
-                "Base de datos": result.get("database_name", "-"),
-                "Usuario": result.get("database_user", "-"),
-            }
-
-            st.dataframe(
-                pd.DataFrame(
-                    [
-                        {"Dato": key, "Valor": value}
-                        for key, value in info.items()
-                    ]
-                ),
-                hide_index=True,
-                use_container_width=True,
-            )
-
-            if st.button(
-                "Crear tablas CRM",
-                key="crm_create_tables",
-                type="primary",
-            ):
-                try:
-                    init_crm_database()
-                    st.success(
-                        "Tablas CRM creadas correctamente."
-                    )
-                except Exception as exc:
-                    st.error(
-                        f"Error creando tablas CRM: {exc}"
-                    )
-
-        else:
-            st.error(
-                "No se pudo conectar con PostgreSQL."
-            )
-            st.code(
-                result.get(
-                    "message",
-                    "Error desconocido",
-                )
-            )
-
-
-# ============================================================
 # RENDER PRINCIPAL
 # ============================================================
 
@@ -2239,8 +2847,6 @@ def render(
         '</div>'
     )
     st.markdown(header_html, unsafe_allow_html=True)
-
-    _render_database_test()
 
     if sales_df.empty:
         st.warning(
@@ -2306,7 +2912,9 @@ def render(
         )
 
     elif section == "Seguimientos":
-        _render_followups()
+        _render_followups(
+            clients
+        )
 
     elif section == "Pipeline":
         _render_pipeline()
