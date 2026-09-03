@@ -1270,6 +1270,41 @@ div[data-testid="stDataFrame"]{
         grid-template-columns:1fr;
     }
 }
+
+/* ACCESOS RÁPIDOS COMO EL MOCKUP OBJETIVO */
+.quick-icon{
+    height:44px;
+    margin:12px 0 -51px 0;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    color:#FFC400;
+    font-size:30px;
+    font-weight:800;
+    pointer-events:none;
+    position:relative;
+    z-index:5;
+}
+.quick-icon + div[data-testid="stButton"] > button{
+    min-height:126px !important;
+    padding:62px 7px 13px !important;
+    justify-content:center !important;
+    align-items:flex-end !important;
+    text-align:center !important;
+    white-space:normal !important;
+    line-height:1.2 !important;
+    font-size:10px !important;
+    font-weight:650 !important;
+    background:linear-gradient(180deg,#101B23,#0B151C) !important;
+    border:1px solid #30414C !important;
+    border-radius:8px !important;
+}
+.quick-icon + div[data-testid="stButton"] > button:hover{
+    border-color:#FFC400 !important;
+    color:#FFFFFF !important;
+    background:#111D25 !important;
+}
+
 </style>
         """,
         unsafe_allow_html=True,
@@ -1357,41 +1392,17 @@ def render(ctx):
     # --------------------------------------------------------
     # FILTROS
     # --------------------------------------------------------
-    seller_options = _seller_options(
-        sales_all
-    )
-
     with st.container(border=True):
-        f1, f2 = st.columns(
-            [1.15, 1.15],
-            gap="large",
+        selected_period = st.date_input(
+            "Período",
+            value=(period_start, period_end),
+            min_value=period_start,
+            max_value=period_end,
+            key="home_dash_period_v2",
         )
 
-        with f1:
-            selected_period = st.date_input(
-                "Período",
-                value=(
-                    period_start,
-                    period_end,
-                ),
-                min_value=period_start,
-                max_value=period_end,
-                key="home_dash_period_v1",
-            )
-
-        with f2:
-            selected_seller = st.selectbox(
-                "Módulo",
-                options=["Todos"] + seller_options,
-                format_func=lambda value: (
-                    "Todos los vendedores"
-                    if value == "Todos"
-                    else _seller_display(
-                        value
-                    )
-                ),
-                key="home_dash_seller_v1",
-            )
+    # Inicio siempre consolidado: sin filtro por vendedor.
+    selected_seller = "Todos"
 
     if (
         isinstance(
@@ -1908,79 +1919,30 @@ def render(ctx):
                 """
             )
 
-            q1, q2, q3 = st.columns(
-                3,
-                gap="small",
-            )
+            q1, q2, q3, q4, q5, q6 = st.columns(6, gap="small")
 
-            with q1:
-                st.button(
-                    "Resumen Ejecutivo",
-                    key="dash_quick_exec",
-                    use_container_width=True,
-                    icon=":material/dashboard:",
-                    on_click=_go_to,
-                    args=(
-                        "Resumen Ejecutivo",
-                    ),
-                )
+            quick_items = [
+                (q1, "▥", "Resumen Ejecutivo", "dash_quick_exec", "Resumen Ejecutivo"),
+                (q2, "♙", "Clientes", "dash_quick_clients", "CRM"),
+                (q3, "□", "Oportunidades", "dash_quick_opps", "CRM"),
+                (q4, "○", "CRM", "dash_quick_crm", "CRM"),
+                (q5, "⌁", "Métricas Vendedores", "dash_quick_sellers", "Métricas Vendedores"),
+                (q6, "▤", "Plantillas", "dash_quick_templates", "Plantillas"),
+            ]
 
-            with q2:
-                st.button(
-                    "CRM",
-                    key="dash_quick_crm",
-                    use_container_width=True,
-                    icon=":material/groups:",
-                    on_click=_go_to,
-                    args=("CRM",),
-                )
-
-            with q3:
-                st.button(
-                    "Stock General",
-                    key="dash_quick_stock",
-                    use_container_width=True,
-                    icon=":material/inventory_2:",
-                    on_click=_go_to,
-                    args=(
-                        "Stock General",
-                    ),
-                )
-
-            q4, q5, q6 = st.columns(
-                3,
-                gap="small",
-            )
-
-            with q4:
-                st.button(
-                    "Métricas Vendedores",
-                    key="dash_quick_sellers",
-                    use_container_width=True,
-                    icon=":material/monitoring:",
-                    on_click=_go_to,
-                    args=("Métricas Vendedores",),
-                )
-
-            with q5:
-                st.button(
-                    "Marketplace",
-                    key="dash_quick_market",
-                    use_container_width=True,
-                    icon=":material/storefront:",
-                    on_click=_go_to,
-                    args=("Marketplace",),
-                )
-
-            with q6:
-                st.button(
-                    "Plantillas",
-                    key="dash_quick_templates",
-                    use_container_width=True,
-                    icon=":material/description:",
-                    on_click=_go_to,
-                    args=("Plantillas",),
-                )
+            for col, icon, label, key, page in quick_items:
+                with col:
+                    st.markdown(
+                        f'<div class="quick-icon">{icon}</div>',
+                        unsafe_allow_html=True,
+                    )
+                    st.button(
+                        label,
+                        key=key,
+                        use_container_width=True,
+                        on_click=_go_to,
+                        args=(page,),
+                    )
 
     # Fin del dashboard
     return None
