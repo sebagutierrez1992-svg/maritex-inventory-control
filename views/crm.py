@@ -1,4 +1,4 @@
-
+from __future__ import annotations
 
 from datetime import datetime, timedelta
 from typing import Any
@@ -15,6 +15,14 @@ from services.crm_service import (
     list_opportunities,
     update_followup,
     update_opportunity,
+)
+
+from services.commercial_dashboard_service import (
+    commercial_metrics,
+    filter_commercial_view,
+    prepare_commercial_base,
+    signed_amount,
+    seller_name as shared_seller_name,
 )
 
 
@@ -1743,38 +1751,19 @@ def _prepare_clients(
         work["_crm_fecha"] = pd.NaT
 
     # --------------------------------------------------------
-    # Venta comercial REAL
+    # Venta comercial OFICIAL
     # --------------------------------------------------------
-    # IMPORTANTE:
-    # El CRM debe usar la misma base que Resumen Ejecutivo.
-    # services/erp_sales ya entrega VentaMonto_num y Grupo comercial.
-    # TotalIngreso NO se usa para el KPI comercial porque puede venir
-    # repetido en líneas de detalle/SKU y sobrestimar la venta.
-    if "VentaMonto_num" in work.columns:
-        base_amount = pd.to_numeric(
-            work["VentaMonto_num"],
-            errors="coerce",
-        ).fillna(0).abs()
-
-        if "Grupo comercial" in work.columns:
-            sign = (
-                work["Grupo comercial"]
-                .map(
-                    {
-                        "Factura": 1,
-                        "Boleta": 1,
-                        "Nota de crédito": -1,
-                    }
-                )
-                .fillna(0)
-            )
-            work["_crm_venta"] = (
-                base_amount * sign
-            )
-        else:
-            work["_crm_venta"] = base_amount
+    # Usa exactamente el mismo signed_amount() compartido por
+    # Inicio y Resumen Ejecutivo.
+    if (
+        "VentaMonto_num" in work.columns
+        and "Grupo comercial" in work.columns
+    ):
+        work["_crm_venta"] = signed_amount(
+            work,
+            no_vat=False,
+        )
     elif amount_col:
-        # Fallback sólo para fuentes antiguas que no fueron normalizadas.
         work["_crm_venta"] = pd.to_numeric(
             work[amount_col],
             errors="coerce",
@@ -1942,6 +1931,7 @@ def _prepare_clients(
 
 def _render_summary(
     clients: pd.DataFrame,
+    sales_view: pd.DataFrame,
 ) -> None:
     if clients.empty:
         st.info("No existen datos de clientes disponibles.")
@@ -1955,12 +1945,21 @@ def _render_summary(
     )
 
     # --------------------------------------------------------
-    # Datos base ERP
+    # Datos base ERP · SERVICIO COMERCIAL ÚNICO
     # --------------------------------------------------------
-    total_clients = len(clients)
-    total_sales = float(clients["Ventas del período"].sum() or 0)
+    official = commercial_metrics(
+        sales_view,
+        no_vat=False,
+    )
+
+    total_clients = int(
+        official.get("clients") or 0
+    )
+    total_sales = float(
+        official.get("net") or 0
+    )
     average_sales = (
-        float(clients["Ventas del período"].mean() or 0)
+        total_sales / total_clients
         if total_clients
         else 0
     )
@@ -5068,18 +5067,43 @@ def render(
         )
         return
 
-    # Detectar estructura del ERP antes de agrupar.
-    detected_columns = _detect_sales_columns(
+    # ========================================================
+    # BASE COMERCIAL OFICIAL COMPARTIDA
+    # ========================================================
+    # Inicio, Resumen Ejecutivo y CRM parten ahora de la misma
+    # función. Esto elimina diferencias de ventas, documentos y
+    # clientes entre módulos.
+    commercial_base = prepare_commercial_base(
         sales_df
+    )
+
+    if commercial_base.empty:
+        st.warning(
+            "No existen movimientos comerciales reconocidos "
+            "para construir el CRM."
+        )
+        return
+
+    detected_columns = _detect_sales_columns(
+        commercial_base
     )
 
     seller_col = detected_columns.get(
         "seller"
     )
 
-    seller_options = _seller_options_from_sales(
-        sales_df,
-        seller_col,
+    seller_options = sorted(
+        commercial_base[
+            "_VendedorCodigo"
+        ]
+        .dropna()
+        .astype(str)
+        .unique()
+        .tolist(),
+        key=lambda code: (
+            shared_seller_name(code).upper(),
+            code,
+        ),
     )
 
     active_seller = st.selectbox(
@@ -5102,7 +5126,7 @@ def render(
             lambda value:
             "Todos los vendedores"
             if value == "Todos"
-            else _seller_label(value)
+            else shared_seller_name(value)
         ),
         key="crm_active_seller",
         help=(
@@ -5111,26 +5135,30 @@ def render(
         ),
     )
 
-    # CLAVE:
-    # El vendedor debe filtrarse ANTES de agrupar por cliente.
-    # Antes se agrupaban todos los vendedores por cliente y luego
-    # se asignaba el primer vendedor encontrado, provocando totales
-    # incorrectos para vendedores específicos.
-    sales_for_module = _filter_sales_by_seller(
-        sales_df,
-        seller_col,
-        active_seller,
+    # Rango real del archivo ERP.
+    period_start = commercial_base[
+        "Fecha_dt"
+    ].min().date()
+    period_end = commercial_base[
+        "Fecha_dt"
+    ].max().date()
+
+    # Misma función compartida que usa Resumen Ejecutivo.
+    sales_for_module = filter_commercial_view(
+        commercial_base,
+        period_start,
+        period_end,
+        seller_code=(
+            active_seller
+            if active_seller != "Todos"
+            else None
+        ),
     )
 
     clients, detected_columns = (
         _prepare_clients(
             sales_for_module
         )
-    )
-
-    period_start, period_end = _sales_period_from_df(
-        sales_for_module,
-        detected_columns,
     )
     st.session_state["crm_sales_period_start"] = period_start
     st.session_state["crm_sales_period_end"] = period_end
@@ -5177,7 +5205,8 @@ def render(
 
     if section == "Resumen Ejecutivo":
         _render_summary(
-            clients
+            clients,
+            sales_for_module,
         )
 
     elif section == "Clientes":
