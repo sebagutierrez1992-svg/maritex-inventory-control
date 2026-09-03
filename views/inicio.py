@@ -1,4 +1,4 @@
-
+from __future__ import annotations
 
 from datetime import datetime
 from html import escape
@@ -789,65 +789,73 @@ def _inject_css() -> None:
         """
 <style>
 :root{
-    --mx-bg:#091117;
-    --mx-panel:#101A21;
-    --mx-panel-2:#0D161D;
-    --mx-line:#2A3944;
-    --mx-line-soft:#21313B;
-    --mx-text:#F5F7F9;
-    --mx-muted:#97A7B3;
-    --mx-yellow:#FFC400;
-    --mx-green:#28CC74;
-    --mx-red:#FF4F4F;
-    --mx-blue:#408CFF;
+    --bg:#071017;
+    --panel:#0D171E;
+    --panel2:#101B23;
+    --line:#263640;
+    --line2:#31434F;
+    --text:#F6F8FA;
+    --muted:#93A4B0;
+    --yellow:#FFC400;
+    --green:#27D17C;
+    --red:#FF544D;
+    --blue:#4093FF;
 }
 
+/* ============================================================
+   BASE
+   ============================================================ */
 .block-container{
-    max-width:1700px;
-    padding-top:.8rem;
-    padding-bottom:2rem;
+    max-width:1680px !important;
+    padding-top:.45rem !important;
+    padding-bottom:1.6rem !important;
 }
 
 div[data-testid="stAppViewContainer"]{
-    background:var(--mx-bg);
+    background:var(--bg) !important;
 }
 
 div[data-testid="stVerticalBlock"]{
-    gap:.65rem;
+    gap:.42rem !important;
 }
 
-/* HEADER */
+/* ============================================================
+   HEADER · MÁS CERCA DEL MOCKUP
+   ============================================================ */
 .dash-head{
     display:flex;
     align-items:flex-start;
     justify-content:space-between;
-    gap:20px;
-    padding:6px 2px 3px;
+    gap:18px;
+    padding:2px 2px 11px;
+    margin-bottom:1px;
+    border-bottom:1px solid #1D2A33;
 }
 
 .dash-title-line{
     display:flex;
     align-items:center;
-    gap:10px;
+    gap:9px;
 }
 
 .dash-title-mark{
     width:4px;
-    height:35px;
-    border-radius:4px;
-    background:var(--mx-yellow);
+    height:31px;
+    border-radius:3px;
+    background:var(--yellow);
 }
 
 .dash-title{
     color:#fff;
-    font-size:30px;
+    font-size:25px;
     font-weight:850;
-    letter-spacing:-.6px;
+    letter-spacing:-.45px;
+    line-height:1;
 }
 
 .dash-sub{
-    color:var(--mx-muted);
-    font-size:11px;
+    color:var(--muted);
+    font-size:10px;
     margin-top:4px;
 }
 
@@ -855,65 +863,80 @@ div[data-testid="stVerticalBlock"]{
     display:flex;
     align-items:center;
     gap:8px;
-    color:#DFE6EA;
-    background:#101A21;
+    color:#DCE4E8;
+    background:#0C151C;
     border:1px solid #2A3944;
-    border-radius:9px;
-    padding:9px 12px;
-    font-size:10px;
+    border-radius:8px;
+    padding:8px 11px;
+    font-size:9px;
 }
 
 .dash-live i{
     width:8px;
     height:8px;
-    display:block;
     border-radius:50%;
-    background:var(--mx-green);
-    box-shadow:0 0 0 4px rgba(40,204,116,.10);
+    background:var(--green);
+    box-shadow:0 0 0 4px rgba(39,209,124,.10);
 }
 
-/* FILTROS */
-.dash-filter-box{
-    background:linear-gradient(180deg,#101A21,#0E171D);
-    border:1px solid var(--mx-line);
-    border-radius:10px;
-    padding:11px 13px 3px;
+/* ============================================================
+   FILTROS
+   ============================================================ */
+div[data-testid="stVerticalBlockBorderWrapper"]{
+    background:linear-gradient(180deg,#0E1820,#0B141B) !important;
+    border:1px solid var(--line) !important;
+    border-radius:9px !important;
+    box-shadow:none !important;
+}
+
+div[data-testid="stVerticalBlockBorderWrapper"] > div{
+    padding:.52rem .66rem !important;
+}
+
+div[data-testid="stSelectbox"] label,
+div[data-testid="stDateInput"] label{
+    color:#B7C3CB !important;
+    font-size:8.5px !important;
+    font-weight:750 !important;
 }
 
 div[data-testid="stSelectbox"] > div > div,
 div[data-testid="stDateInput"] > div > div{
-    background:#0D171E !important;
-    border-color:#31414C !important;
-    border-radius:8px !important;
+    min-height:39px !important;
+    background:#0A141B !important;
+    border:1px solid #2C3D48 !important;
+    border-radius:7px !important;
 }
 
-/* KPI */
+/* ============================================================
+   KPI
+   ============================================================ */
 .dash-kpis{
     display:grid;
     grid-template-columns:repeat(5,minmax(0,1fr));
-    gap:11px;
-    margin:4px 0 2px;
+    gap:9px;
+    margin:3px 0 0;
 }
 
 .dash-kpi{
     position:relative;
-    min-height:133px;
+    min-height:121px;
+    padding:13px 13px 11px 15px;
+    background:linear-gradient(145deg,#132029,#0E171E);
+    border:1px solid #2C3D48;
+    border-radius:9px;
     overflow:visible;
-    padding:16px 16px 13px 18px;
-    background:linear-gradient(145deg,#15222B,#101A21);
-    border:1px solid #2E3D47;
-    border-radius:10px;
 }
 
-.dash-kpi::before{
+.dash-kpi:before{
     content:"";
     position:absolute;
     left:-1px;
     top:-1px;
     bottom:-1px;
     width:3px;
-    border-radius:10px 0 0 10px;
-    background:var(--mx-yellow);
+    border-radius:9px 0 0 9px;
+    background:var(--yellow);
 }
 
 .dash-kpi-top{
@@ -923,86 +946,69 @@ div[data-testid="stDateInput"] > div > div{
 }
 
 .dash-kpi-icon{
-    width:39px;
-    height:39px;
+    width:35px;
+    height:35px;
     border-radius:50%;
     display:flex;
     align-items:center;
     justify-content:center;
-    font-size:18px;
+    font-size:16px;
     font-weight:900;
     flex:0 0 auto;
 }
 
-.dash-kpi-icon.green{
-    color:#2EE782;
-    background:#083C25;
-}
-
-.dash-kpi-icon.blue{
-    color:#64A8FF;
-    background:#11345E;
-}
-
-.dash-kpi-icon.purple{
-    color:#C36CFF;
-    background:#3B1C58;
-}
-
-.dash-kpi-icon.yellow{
-    color:#FFD337;
-    background:#4A3B00;
-}
-
-.dash-kpi-icon.red{
-    color:#FF6A62;
-    background:#5A2220;
-}
+.dash-kpi-icon.green{color:#31E78A;background:#07391F;}
+.dash-kpi-icon.blue{color:#67A9FF;background:#10335B;}
+.dash-kpi-icon.purple{color:#C072FF;background:#3A1D56;}
+.dash-kpi-icon.yellow{color:#FFD33E;background:#493A00;}
+.dash-kpi-icon.red{color:#FF746D;background:#54211F;}
 
 .dash-kpi-label{
     display:flex;
     align-items:center;
     gap:5px;
-    color:#DDE4E8;
-    font-size:8.4px;
+    color:#DBE3E8;
+    font-size:7.8px;
     font-weight:850;
     letter-spacing:.05em;
     text-transform:uppercase;
 }
 
 .dash-kpi-value{
+    margin:9px 0 5px 43px;
     color:#fff;
-    font-size:23px;
+    font-size:20px;
     line-height:1;
     font-weight:850;
-    margin:11px 0 7px 47px;
 }
 
 .dash-kpi-sub{
-    color:#A4B1BA;
-    font-size:8.5px;
-    margin-left:47px;
+    margin-left:43px;
+    color:#A2B0BA;
+    font-size:7.7px;
 }
 
 .dash-kpi-foot{
-    color:#728591;
-    font-size:8px;
-    margin:10px 0 0 47px;
+    margin:7px 0 0 43px;
+    color:#6F8390;
+    font-size:7.3px;
 }
 
-/* HELP */
+/* ============================================================
+   HELPERS
+   ============================================================ */
 .dash-help{
     position:relative;
     display:inline-flex;
-    width:15px;
-    height:15px;
+    width:14px;
+    height:14px;
     align-items:center;
     justify-content:center;
-    border:1px solid #6C7B85;
+    border:1px solid #697A86;
     border-radius:50%;
-    color:var(--mx-yellow);
-    background:#111A21;
-    font-size:9px;
+    color:var(--yellow);
+    background:#101A21;
+    font-size:8px;
     font-weight:900;
     cursor:help;
     z-index:30;
@@ -1013,16 +1019,16 @@ div[data-testid="stDateInput"] > div > div{
     opacity:0;
     position:absolute;
     z-index:10000;
-    top:21px;
+    top:20px;
     left:0;
-    width:230px;
+    width:220px;
     max-width:calc(100vw - 50px);
-    padding:9px 11px;
+    padding:9px 10px;
     border:1px solid #3B4A55;
     border-radius:8px;
     background:#080D11;
     color:#E9EEF1;
-    font-size:9px;
+    font-size:8.5px;
     line-height:1.45;
     font-weight:500;
     letter-spacing:0;
@@ -1036,50 +1042,48 @@ div[data-testid="stDateInput"] > div > div{
     opacity:1;
 }
 
-/* Cards nativos */
-div[data-testid="stVerticalBlockBorderWrapper"]{
-    background:linear-gradient(180deg,#101A21,#0D161D) !important;
-    border:1px solid var(--mx-line) !important;
-    border-radius:10px !important;
-    box-shadow:none !important;
-}
-
-/* Títulos */
-.card-kicker{
-    color:var(--mx-yellow);
-    font-size:9px;
-    font-weight:850;
-    text-transform:uppercase;
-    letter-spacing:.04em;
-}
-
+/* ============================================================
+   CARD TITLES
+   ============================================================ */
 .card-title{
     display:flex;
     align-items:center;
-    gap:6px;
-    color:#F1F5F7;
-    font-size:12px;
+    gap:5px;
+    color:#F2F5F7;
+    font-size:10px;
     font-weight:850;
-    margin-bottom:2px;
+    text-transform:uppercase;
+    letter-spacing:.02em;
 }
 
 .card-sub{
-    color:#768995;
-    font-size:8.5px;
-    margin-bottom:8px;
+    color:#758894;
+    font-size:7.6px;
+    margin-top:2px;
+    margin-bottom:7px;
 }
 
-/* Resumen comercial */
+.card-kicker{
+    color:var(--yellow);
+    font-size:8px;
+    font-weight:850;
+    text-transform:uppercase;
+    letter-spacing:.05em;
+}
+
+/* ============================================================
+   RESUMEN COMERCIAL
+   ============================================================ */
 .summary-table{
     width:100%;
     border-collapse:collapse;
-    font-size:9px;
+    font-size:8.5px;
 }
 
 .summary-table td{
-    padding:8px 2px;
-    border-bottom:1px solid #24343E;
-    color:#DDE5E9;
+    padding:6px 2px;
+    border-bottom:1px solid #23323C;
+    color:#DCE4E8;
 }
 
 .summary-table td:nth-child(2){
@@ -1092,49 +1096,53 @@ div[data-testid="stVerticalBlockBorderWrapper"]{
     border-bottom:none;
 }
 
-/* Inventario */
+/* ============================================================
+   INVENTARIO
+   ============================================================ */
 .inventory-grid{
     display:grid;
     grid-template-columns:1fr 1fr;
-    gap:9px;
-    margin-top:8px;
+    gap:8px;
+    margin-top:7px;
 }
 
 .inv-card{
     display:flex;
     align-items:center;
     justify-content:space-between;
-    min-height:67px;
+    min-height:61px;
     border:1px solid #2B3B46;
     border-radius:8px;
-    padding:10px 12px;
-    background:#0C151B;
+    padding:9px 10px;
+    background:#0B141A;
 }
 
 .inv-card strong{
     color:#fff;
-    font-size:20px;
+    font-size:18px;
 }
 
 .inv-card span{
     display:block;
     color:#9EADB7;
-    font-size:8px;
+    font-size:7.5px;
 }
 
-/* Alertas */
+/* ============================================================
+   ALERTAS
+   ============================================================ */
 .alert-list{
     display:flex;
     flex-direction:column;
-    gap:5px;
+    gap:3px;
 }
 
 .alert-row{
     display:flex;
     align-items:center;
     justify-content:space-between;
-    gap:12px;
-    padding:8px 2px;
+    gap:10px;
+    padding:7px 1px;
     border-bottom:1px solid #23333D;
 }
 
@@ -1145,68 +1153,76 @@ div[data-testid="stVerticalBlockBorderWrapper"]{
 .alert-copy{
     display:flex;
     align-items:center;
-    gap:9px;
+    gap:8px;
 }
 
 .alert-icon{
-    width:28px;
-    height:28px;
+    width:25px;
+    height:25px;
     border-radius:50%;
     display:flex;
     align-items:center;
     justify-content:center;
-    color:var(--mx-yellow);
+    color:var(--yellow);
     background:#332B08;
     border:1px solid #4B3D0A;
     font-weight:900;
+    font-size:11px;
 }
 
 .alert-row strong{
     display:block;
     color:#F3F6F8;
-    font-size:9px;
+    font-size:8.3px;
 }
 
 .alert-row small{
     color:#7E909C;
-    font-size:8px;
+    font-size:7.3px;
 }
 
 .alert-value{
-    color:var(--mx-yellow);
+    color:var(--yellow);
     font-weight:850;
-    font-size:12px;
+    font-size:11px;
 }
 
-/* Botones */
+/* ============================================================
+   BOTONES
+   ============================================================ */
 div[data-testid="stButton"] > button{
-    min-height:45px;
+    min-height:42px;
     border-radius:8px !important;
-    background:#101A21 !important;
+    background:#0F1920 !important;
     border:1px solid #30414C !important;
     color:#E8EEF1 !important;
     box-shadow:none !important;
-    font-weight:750 !important;
+    font-weight:700 !important;
+    font-size:9px !important;
 }
 
 div[data-testid="stButton"] > button:hover{
-    border-color:var(--mx-yellow) !important;
-    color:var(--mx-yellow) !important;
+    border-color:var(--yellow) !important;
+    color:var(--yellow) !important;
 }
 
-/* dataframe */
+/* ============================================================
+   DATAFRAMES / CHARTS
+   ============================================================ */
 div[data-testid="stDataFrame"]{
     border:1px solid #273741;
     border-radius:8px;
     overflow:hidden;
 }
 
-/* gráficas */
 .vega-embed,
 .vega-embed > div{
     background:transparent !important;
 }
 
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
 @media(max-width:1100px){
     .dash-kpis{
         grid-template-columns:repeat(2,minmax(0,1fr));
@@ -1464,7 +1480,7 @@ def render(ctx):
     # FILA 1
     # --------------------------------------------------------
     left, center, right = st.columns(
-        [1.0, 1.25, 1.15],
+        [1.05, 1.15, 1.05],
         gap="medium",
     )
 
@@ -1555,7 +1571,7 @@ def render(ctx):
                         ],
                     )
                     .properties(
-                        height=255
+                        height=220
                     )
                     .configure_view(
                         stroke=None
@@ -1627,7 +1643,7 @@ def render(ctx):
                         ],
                     )
                     .properties(
-                        height=255
+                        height=220
                     )
                     .configure_view(
                         stroke=None
@@ -1646,7 +1662,7 @@ def render(ctx):
     # FILA 2
     # --------------------------------------------------------
     left2, center2, right2 = st.columns(
-        [1.0, 1.25, 1.05],
+        [1.05, 1.20, 1.05],
         gap="medium",
     )
 
@@ -1676,7 +1692,7 @@ def render(ctx):
                     ranking,
                     hide_index=True,
                     use_container_width=True,
-                    height=245,
+                    height=215,
                     column_config={
                         "Ventas del período":
                         st.column_config.NumberColumn(
@@ -1717,7 +1733,7 @@ def render(ctx):
                     clients,
                     hide_index=True,
                     use_container_width=True,
-                    height=245,
+                    height=215,
                     column_config={
                         "Ventas del período":
                         st.column_config.NumberColumn(
@@ -1797,7 +1813,7 @@ def render(ctx):
     # FILA 3
     # --------------------------------------------------------
     alerts_col, quick_col = st.columns(
-        [1.0, 1.55],
+        [1.0, 1.45],
         gap="medium",
     )
 
