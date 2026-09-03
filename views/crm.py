@@ -2164,28 +2164,40 @@ def _render_followups(
     # --------------------------------------------------------
     # KPIs
     # --------------------------------------------------------
-    k1, k2, k3 = st.columns(
-        3,
-        gap="small",
+    pending_count = int(
+        summary.get("pending_followups") or 0
+    )
+    overdue_count = int(
+        summary.get("overdue_followups") or 0
+    )
+    today_count = int(
+        summary.get("today_followups") or 0
     )
 
-    with k1:
-        st.metric(
-            "Pendientes",
-            int(summary.get("pending_followups") or 0),
-        )
+    followup_kpis_html = (
+        '<div class="crm-kpis" style="grid-template-columns:repeat(3,minmax(0,1fr));">'
+        '<div class="crm-kpi yellow">'
+        '<div class="crm-kpi-label">Pendientes</div>'
+        f'<div class="crm-kpi-value">{pending_count}</div>'
+        '<div class="crm-kpi-help">Seguimientos por realizar</div>'
+        '</div>'
+        '<div class="crm-kpi orange">'
+        '<div class="crm-kpi-label">Vencidos</div>'
+        f'<div class="crm-kpi-value">{overdue_count}</div>'
+        '<div class="crm-kpi-help orange">Requieren atención</div>'
+        '</div>'
+        '<div class="crm-kpi green">'
+        '<div class="crm-kpi-label">Para hoy</div>'
+        f'<div class="crm-kpi-value">{today_count}</div>'
+        '<div class="crm-kpi-help green">Agenda del día</div>'
+        '</div>'
+        '</div>'
+    )
 
-    with k2:
-        st.metric(
-            "Vencidos",
-            int(summary.get("overdue_followups") or 0),
-        )
-
-    with k3:
-        st.metric(
-            "Para hoy",
-            int(summary.get("today_followups") or 0),
-        )
+    st.markdown(
+        followup_kpis_html,
+        unsafe_allow_html=True,
+    )
 
     # --------------------------------------------------------
     # NUEVO SEGUIMIENTO
@@ -2649,30 +2661,79 @@ def _render_followups(
 def _render_pipeline() -> None:
     st.markdown(
         """
-<div class="crm-section-kicker">PIPELINE</div>
-<div class="crm-section-title">Embudo comercial</div>
-<div class="crm-section-sub">Oportunidades abiertas agrupadas por etapa comercial.</div>
+<div class="crm-section-kicker">TUBERÍA</div>
+<div class="crm-section-title">Pipeline comercial</div>
+<div class="crm-section-sub">Vista Kanban de oportunidades abiertas por etapa comercial.</div>
         """,
         unsafe_allow_html=True,
     )
 
     try:
-        pipeline = get_pipeline_summary()
-        rows = list_opportunities(
+        open_rows = list_opportunities(
             status="Abierta",
             limit=1000,
         )
+        summary = get_crm_summary()
     except Exception as exc:
         st.error(
-            f"No fue posible cargar el pipeline: {exc}"
+            f"No fue posible cargar la tubería comercial: {exc}"
         )
         return
 
-    summary_map = {
-        _safe_text(row.get("stage"), ""): row
-        for row in pipeline
-    }
+    open_amount = float(
+        summary.get("open_amount") or 0
+    )
+    weighted_amount = float(
+        summary.get("weighted_amount") or 0
+    )
+    open_count = int(
+        summary.get("open_opportunities") or 0
+    )
+    won_count = int(
+        summary.get("won_opportunities") or 0
+    )
 
+    pipeline_kpis_html = (
+        '<div class="crm-kpis">'
+        '<div class="crm-kpi yellow">'
+        '<div class="crm-kpi-label">Pipeline total</div>'
+        f'<div class="crm-kpi-value">{_money(open_amount)}</div>'
+        '<div class="crm-kpi-help">Valor de oportunidades abiertas</div>'
+        '</div>'
+        '<div class="crm-kpi purple">'
+        '<div class="crm-kpi-label">Pipeline ponderado</div>'
+        f'<div class="crm-kpi-value">{_money(weighted_amount)}</div>'
+        '<div class="crm-kpi-help">Monto ajustado por probabilidad</div>'
+        '</div>'
+        '<div class="crm-kpi green">'
+        '<div class="crm-kpi-label">Oportunidades abiertas</div>'
+        f'<div class="crm-kpi-value">{open_count}</div>'
+        '<div class="crm-kpi-help green">Negocios activos</div>'
+        '</div>'
+        '<div class="crm-kpi orange">'
+        '<div class="crm-kpi-label">Ganadas</div>'
+        f'<div class="crm-kpi-value">{won_count}</div>'
+        '<div class="crm-kpi-help">Oportunidades cerradas con éxito</div>'
+        '</div>'
+        '</div>'
+    )
+
+    st.markdown(
+        pipeline_kpis_html,
+        unsafe_allow_html=True,
+    )
+
+    st.markdown("")
+
+    if not open_rows:
+        st.info(
+            "No existen oportunidades abiertas en la tubería."
+        )
+        return
+
+    # --------------------------------------------------------
+    # KANBAN
+    # --------------------------------------------------------
     stage_columns = st.columns(
         len(CRM_STAGES),
         gap="small",
@@ -2682,90 +2743,171 @@ def _render_pipeline() -> None:
         stage_columns,
         CRM_STAGES,
     ):
-        item = summary_map.get(
-            stage,
-            {},
-        )
-
-        count = int(
-            item.get("opportunities")
-            or 0
-        )
-        total = item.get(
-            "total_amount"
-        ) or 0
-
-        with column:
-            with st.container(border=True):
-                st.markdown(
-                    f"**{stage}**"
-                )
-                st.metric(
-                    "Oportunidades",
-                    count,
-                )
-                st.caption(
-                    f"Valor: {_money(total)}"
-                )
-
-    st.markdown("")
-
-    if not rows:
-        st.info(
-            "No existen oportunidades abiertas en el pipeline."
-        )
-        return
-
-    for stage in CRM_STAGES:
         stage_rows = [
             row
-            for row in rows
+            for row in open_rows
             if _safe_text(
                 row.get("stage"),
                 "",
             ) == stage
         ]
 
-        with st.expander(
-            f"{stage} · {len(stage_rows)} oportunidad(es)",
-            expanded=bool(stage_rows),
-        ):
+        stage_total = sum(
+            float(
+                row.get("estimated_amount")
+                or 0
+            )
+            for row in stage_rows
+        )
+
+        with column:
+            st.markdown(
+                (
+                    '<div style="'
+                    'border:1px solid #33434F;'
+                    'border-radius:11px;'
+                    'padding:12px;'
+                    'background:#121C25;'
+                    'margin-bottom:10px;'
+                    '">'
+                    f'<div style="color:#FFC400;font-size:11px;font-weight:850;">{stage}</div>'
+                    f'<div style="color:#F7F9FB;font-size:20px;font-weight:850;margin-top:4px;">{len(stage_rows)}</div>'
+                    f'<div style="color:#8F9DA8;font-size:9px;">{_money(stage_total)}</div>'
+                    '</div>'
+                ),
+                unsafe_allow_html=True,
+            )
+
             if not stage_rows:
-                st.caption(
-                    "Sin oportunidades en esta etapa."
+                st.markdown(
+                    """
+<div style="
+    border:1px dashed #33434F;
+    border-radius:10px;
+    padding:18px 10px;
+    color:#778692;
+    text-align:center;
+    font-size:9px;
+">
+    Sin oportunidades
+</div>
+                    """,
+                    unsafe_allow_html=True,
                 )
                 continue
 
-            stage_display = _opportunity_display_frame(
-                stage_rows
-            )
+            for item in stage_rows:
+                amount = float(
+                    item.get("estimated_amount")
+                    or 0
+                )
+                probability = int(
+                    item.get("probability")
+                    or 0
+                )
 
-            st.dataframe(
-                stage_display[
-                    [
-                        "Cliente",
-                        "Oportunidad",
-                        "Monto",
-                        "Probabilidad",
-                        "Vendedor",
-                        "Cierre estimado",
-                        "Próxima acción",
-                        "Fecha próxima acción",
-                    ]
-                ],
-                hide_index=True,
-                use_container_width=True,
-                column_config={
-                    "Monto": st.column_config.NumberColumn(
-                        "Monto",
-                        format="$ %.0f",
-                    ),
-                    "Probabilidad": st.column_config.NumberColumn(
-                        "Probabilidad",
-                        format="%d %%",
-                    ),
-                },
-            )
+                next_date = pd.to_datetime(
+                    item.get("next_action_date"),
+                    errors="coerce",
+                )
+                next_date_label = (
+                    next_date.strftime("%d-%m-%Y")
+                    if not pd.isna(next_date)
+                    else "-"
+                )
+
+                close_date = pd.to_datetime(
+                    item.get("expected_close_date"),
+                    errors="coerce",
+                )
+                close_date_label = (
+                    close_date.strftime("%d-%m-%Y")
+                    if not pd.isna(close_date)
+                    else "-"
+                )
+
+                client_name = _safe_text(
+                    item.get("client_name")
+                )
+                title = _safe_text(
+                    item.get("title")
+                )
+                seller = _safe_text(
+                    item.get("seller")
+                )
+                next_action = _safe_text(
+                    item.get("next_action"),
+                    "Sin próxima acción",
+                )
+
+                card_html = (
+                    '<div style="'
+                    'border:1px solid #33434F;'
+                    'border-radius:10px;'
+                    'padding:12px;'
+                    'margin-bottom:10px;'
+                    'background:linear-gradient(145deg,#18242E,#111A22);'
+                    '">'
+                    f'<div style="font-size:8px;color:#7F8D98;margin-bottom:4px;">#{item.get("id")} · {seller}</div>'
+                    f'<div style="font-size:11px;color:#F4F7F9;font-weight:800;line-height:1.25;">{client_name}</div>'
+                    f'<div style="font-size:9px;color:#AAB6C0;margin-top:4px;">{title}</div>'
+                    '<div style="border-top:1px solid #2E3D49;margin:9px 0;"></div>'
+                    f'<div style="font-size:13px;color:#FFC400;font-weight:850;">{_money(amount)}</div>'
+                    f'<div style="font-size:8px;color:#8F9DA8;margin-top:2px;">Probabilidad {probability}%</div>'
+                    '<div style="margin-top:9px;font-size:8px;color:#8997A3;">Próxima acción</div>'
+                    f'<div style="font-size:9px;color:#E4E9ED;margin-top:2px;">{next_action}</div>'
+                    f'<div style="font-size:8px;color:#8F9DA8;margin-top:3px;">{next_date_label}</div>'
+                    f'<div style="font-size:8px;color:#6F7D88;margin-top:7px;">Cierre estimado: {close_date_label}</div>'
+                    '</div>'
+                )
+
+                st.markdown(
+                    card_html,
+                    unsafe_allow_html=True,
+                )
+
+    st.markdown("")
+
+    # --------------------------------------------------------
+    # VISTA RESUMIDA
+    # --------------------------------------------------------
+    with st.expander(
+        "Ver detalle completo de la tubería",
+        expanded=False,
+    ):
+        display = _opportunity_display_frame(
+            open_rows
+        )
+
+        st.dataframe(
+            display[
+                [
+                    "ID",
+                    "Cliente",
+                    "RUT",
+                    "Oportunidad",
+                    "Monto",
+                    "Etapa",
+                    "Probabilidad",
+                    "Vendedor",
+                    "Cierre estimado",
+                    "Próxima acción",
+                    "Fecha próxima acción",
+                ]
+            ],
+            hide_index=True,
+            use_container_width=True,
+            column_config={
+                "Monto": st.column_config.NumberColumn(
+                    "Monto",
+                    format="$ %.0f",
+                ),
+                "Probabilidad": st.column_config.NumberColumn(
+                    "Probabilidad",
+                    format="%d %%",
+                ),
+            },
+        )
 
 
 # ============================================================
