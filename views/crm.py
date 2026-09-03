@@ -6,7 +6,15 @@ from typing import Any
 import pandas as pd
 import streamlit as st
 
-from services.crm_service import init_crm_database, test_connection
+from services.crm_service import (
+    create_opportunity,
+    get_crm_summary,
+    get_pipeline_summary,
+    init_crm_database,
+    list_opportunities,
+    test_connection,
+    update_opportunity,
+)
 
 
 # ============================================================
@@ -20,6 +28,29 @@ CRM_TABS = (
     "Seguimientos",
     "Pipeline",
 )
+
+
+CRM_STAGES = (
+    "Prospección",
+    "Contacto",
+    "Cotización",
+    "Negociación",
+    "Cierre",
+)
+
+CRM_STATUSES = (
+    "Abierta",
+    "Ganada",
+    "Perdida",
+)
+
+CRM_STAGE_PROBABILITY = {
+    "Prospección": 10,
+    "Contacto": 25,
+    "Cotización": 50,
+    "Negociación": 75,
+    "Cierre": 90,
+}
 
 
 # ============================================================
@@ -375,6 +406,79 @@ def _find_column(
                 return original_column
 
     return None
+
+
+def _db_rows_to_frame(
+    rows: list[dict[str, Any]],
+) -> pd.DataFrame:
+    if not rows:
+        return pd.DataFrame()
+
+    frame = pd.DataFrame(rows)
+
+    for column in (
+        "estimated_amount",
+        "probability",
+    ):
+        if column in frame.columns:
+            frame[column] = pd.to_numeric(
+                frame[column],
+                errors="coerce",
+            ).fillna(0)
+
+    return frame
+
+
+def _opportunity_display_frame(
+    rows: list[dict[str, Any]],
+) -> pd.DataFrame:
+    frame = _db_rows_to_frame(rows)
+
+    if frame.empty:
+        return pd.DataFrame(
+            columns=[
+                "ID",
+                "Cliente",
+                "RUT",
+                "Oportunidad",
+                "Monto",
+                "Etapa",
+                "Probabilidad",
+                "Estado",
+                "Vendedor",
+                "Cierre estimado",
+                "Próxima acción",
+                "Fecha próxima acción",
+            ]
+        )
+
+    display = pd.DataFrame(
+        {
+            "ID": frame["id"],
+            "Cliente": frame["client_name"],
+            "RUT": frame["client_rut"].fillna("-"),
+            "Oportunidad": frame["title"],
+            "Monto": frame["estimated_amount"],
+            "Etapa": frame["stage"],
+            "Probabilidad": frame["probability"],
+            "Estado": frame["status"],
+            "Vendedor": frame["seller"].fillna("-"),
+            "Cierre estimado": frame["expected_close_date"],
+            "Próxima acción": frame["next_action"].fillna("-"),
+            "Fecha próxima acción": frame["next_action_date"],
+        }
+    )
+
+    for column in (
+        "Cierre estimado",
+        "Fecha próxima acción",
+    ):
+        display[column] = pd.to_datetime(
+            display[column],
+            errors="coerce",
+        ).dt.strftime("%d-%m-%Y")
+
+    return display
 
 
 # ============================================================
@@ -1277,20 +1381,571 @@ def _render_clients(
 # OPORTUNIDADES
 # ============================================================
 
-def _render_opportunities() -> None:
+def _render_opportunities(
+    clients: pd.DataFrame,
+) -> None:
+    st.markdown(
+        """
+<div class="crm-section-kicker">OPORTUNIDADES</div>
+<div class="crm-section-title">Gestión comercial</div>
+<div class="crm-section-sub">Crea, administra y actualiza negocios comerciales guardados en PostgreSQL.</div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    try:
+        rows = list_opportunities(limit=1000)
+    except Exception as exc:
+        st.error(f"No fue posible cargar las oportunidades: {exc}")
+        return
+
+    # --------------------------------------------------------
+    # KPIs
+    # --------------------------------------------------------
+    try:
+        summary = get_crm_summary()
+    except Exception:
+        summary = {}
+
+    k1, k2, k3, k4 = st.columns(4, gap="small")
+
+    with k1:
+        st.metric(
+            "Oportunidades abiertas",
+            int(summary.get("open_opportunities") or 0),
+        )
+
+    with k2:
+        st.metric(
+            "Monto abierto",
+            _money(summary.get("open_amount") or 0),
+        )
+
+    with k3:
+        st.metric(
+            "Monto ponderado",
+            _money(summary.get("weighted_amount") or 0),
+        )
+
+    with k4:
+        st.metric(
+            "Ganadas",
+            int(summary.get("won_opportunities") or 0),
+        )
+
+    # --------------------------------------------------------
+    # CREAR OPORTUNIDAD
+    # --------------------------------------------------------
+    with st.expander(
+        "Nueva oportunidad",
+        expanded=not bool(rows),
+    ):
+        if clients.empty:
+            st.warning(
+                "No hay clientes ERP disponibles para crear oportunidades."
+            )
+        else:
+            client_records = clients[
+                ["Cliente", "RUT", "Vendedor"]
+            ].copy()
+
+            client_records["Cliente"] = (
+                client_records["Cliente"]
+                .fillna("")
+                .astype(str)
+                .str.strip()
+            )
+            client_records["RUT"] = (
+                client_records["RUT"]
+                .fillna("")
+                .astype(str)
+                .str.strip()
+            )
+
+            client_records = client_records[
+                client_records["Cliente"].ne("")
+            ].reset_index(drop=True)
+
+            labels: list[str] = []
+            client_map: dict[str, dict[str, Any]] = {}
+
+            for _, row in client_records.iterrows():
+                client_name = _safe_text(
+                    row.get("Cliente"),
+                    "",
+                )
+                client_rut = _safe_text(
+                    row.get("RUT"),
+                    "",
+                )
+
+                label = (
+                    f"{client_name} · {client_rut}"
+                    if client_rut
+                    else client_name
+                )
+
+                if label in client_map:
+                    continue
+
+                labels.append(label)
+                client_map[label] = {
+                    "Cliente": client_name,
+                    "RUT": client_rut,
+                    "Vendedor": _safe_text(
+                        row.get("Vendedor"),
+                        "",
+                    ),
+                }
+
+            with st.form(
+                "crm_new_opportunity_form",
+                clear_on_submit=True,
+            ):
+                selected_client_label = st.selectbox(
+                    "Cliente",
+                    labels,
+                    key="crm_new_opportunity_client",
+                )
+
+                selected_client = client_map.get(
+                    selected_client_label,
+                    {},
+                )
+
+                f1, f2 = st.columns(
+                    [1.35, 1],
+                    gap="small",
+                )
+
+                with f1:
+                    title = st.text_input(
+                        "Nombre de oportunidad",
+                        placeholder="Ej: Renovación uniformes temporada 2027",
+                    )
+
+                with f2:
+                    seller = st.text_input(
+                        "Vendedor",
+                        value=selected_client.get(
+                            "Vendedor",
+                            "",
+                        ),
+                    )
+
+                f3, f4, f5 = st.columns(
+                    [1, 1, 1],
+                    gap="small",
+                )
+
+                with f3:
+                    estimated_amount = st.number_input(
+                        "Monto estimado",
+                        min_value=0.0,
+                        step=10000.0,
+                        format="%.0f",
+                    )
+
+                with f4:
+                    stage = st.selectbox(
+                        "Etapa",
+                        CRM_STAGES,
+                        index=0,
+                    )
+
+                with f5:
+                    probability = st.number_input(
+                        "Probabilidad (%)",
+                        min_value=0,
+                        max_value=100,
+                        value=CRM_STAGE_PROBABILITY.get(
+                            stage,
+                            10,
+                        ),
+                        step=5,
+                    )
+
+                f6, f7 = st.columns(
+                    2,
+                    gap="small",
+                )
+
+                with f6:
+                    expected_close_date = st.date_input(
+                        "Fecha estimada de cierre",
+                    )
+
+                with f7:
+                    next_action_date = st.date_input(
+                        "Fecha próxima acción",
+                    )
+
+                next_action = st.text_input(
+                    "Próxima acción",
+                    placeholder="Ej: Enviar cotización actualizada",
+                )
+
+                description = st.text_area(
+                    "Observaciones",
+                    placeholder="Antecedentes, requerimientos y notas comerciales...",
+                    height=100,
+                )
+
+                submitted = st.form_submit_button(
+                    "Guardar oportunidad",
+                    type="primary",
+                    use_container_width=True,
+                )
+
+                if submitted:
+                    if not title.strip():
+                        st.error(
+                            "Debes ingresar un nombre para la oportunidad."
+                        )
+                    else:
+                        try:
+                            create_opportunity(
+                                client_name=selected_client.get(
+                                    "Cliente",
+                                    "",
+                                ),
+                                client_rut=selected_client.get(
+                                    "RUT",
+                                    "",
+                                ),
+                                seller=seller,
+                                title=title,
+                                description=description,
+                                estimated_amount=estimated_amount,
+                                stage=stage,
+                                probability=int(probability),
+                                expected_close_date=expected_close_date,
+                                next_action_date=next_action_date,
+                                next_action=next_action,
+                                status="Abierta",
+                            )
+
+                            st.success(
+                                "Oportunidad guardada correctamente."
+                            )
+                            st.rerun()
+
+                        except Exception as exc:
+                            st.error(
+                                f"No fue posible guardar la oportunidad: {exc}"
+                            )
+
+    st.markdown("")
+
+    # --------------------------------------------------------
+    # LISTADO
+    # --------------------------------------------------------
+    if not rows:
+        st.info(
+            "Todavía no existen oportunidades registradas."
+        )
+        return
+
+    display = _opportunity_display_frame(rows)
+
     with st.container(border=True):
         st.markdown(
             """
-<div class="crm-section-kicker">OPORTUNIDADES</div>
-<div class="crm-section-title">Gestión comercial</div>
-<div class="crm-section-sub">Cotizaciones y negocios comerciales abiertos.</div>
-<div class="crm-empty">
-    <strong>Módulo listo para persistencia</strong>
-    <span>La visual ya está preparada. El siguiente paso es conectar PostgreSQL para crear, editar y conservar oportunidades en Render.</span>
-</div>
+<div class="crm-section-kicker">CARTERA COMERCIAL</div>
+<div class="crm-section-title">Oportunidades registradas</div>
+<div class="crm-section-sub">Negocios almacenados de forma persistente en PostgreSQL.</div>
             """,
             unsafe_allow_html=True,
         )
+
+        filter1, filter2, filter3 = st.columns(
+            [1.3, 1, 1],
+            gap="small",
+        )
+
+        with filter1:
+            search = st.text_input(
+                "Buscar",
+                placeholder="Cliente, RUT u oportunidad...",
+                key="crm_opp_search",
+            )
+
+        with filter2:
+            stage_filter = st.selectbox(
+                "Etapa",
+                ["Todas"] + list(CRM_STAGES),
+                key="crm_opp_stage_filter",
+            )
+
+        with filter3:
+            status_filter = st.selectbox(
+                "Estado",
+                ["Todos"] + list(CRM_STATUSES),
+                key="crm_opp_status_filter",
+            )
+
+        filtered = display.copy()
+
+        if search:
+            query = search.strip().lower()
+            mask = pd.Series(
+                False,
+                index=filtered.index,
+            )
+
+            for column in (
+                "Cliente",
+                "RUT",
+                "Oportunidad",
+                "Vendedor",
+            ):
+                mask = (
+                    mask
+                    | filtered[column]
+                    .fillna("")
+                    .astype(str)
+                    .str.lower()
+                    .str.contains(
+                        query,
+                        regex=False,
+                    )
+                )
+
+            filtered = filtered[mask]
+
+        if stage_filter != "Todas":
+            filtered = filtered[
+                filtered["Etapa"] == stage_filter
+            ]
+
+        if status_filter != "Todos":
+            filtered = filtered[
+                filtered["Estado"] == status_filter
+            ]
+
+        st.dataframe(
+            filtered,
+            hide_index=True,
+            use_container_width=True,
+            height=min(
+                500,
+                70 + max(len(filtered), 1) * 35,
+            ),
+            column_config={
+                "Monto": st.column_config.NumberColumn(
+                    "Monto",
+                    format="$ %.0f",
+                ),
+                "Probabilidad": st.column_config.NumberColumn(
+                    "Probabilidad",
+                    format="%d %%",
+                ),
+            },
+        )
+
+    # --------------------------------------------------------
+    # EDITAR
+    # --------------------------------------------------------
+    opportunity_map: dict[str, dict[str, Any]] = {}
+
+    for row in rows:
+        label = (
+            f"#{row.get('id')} · "
+            f"{_safe_text(row.get('client_name'))} · "
+            f"{_safe_text(row.get('title'))}"
+        )
+        opportunity_map[label] = row
+
+    with st.expander(
+        "Editar oportunidad",
+        expanded=False,
+    ):
+        selected_label = st.selectbox(
+            "Seleccionar oportunidad",
+            list(opportunity_map.keys()),
+            key="crm_edit_opportunity_select",
+        )
+
+        selected = opportunity_map[selected_label]
+
+        stage_value = _safe_text(
+            selected.get("stage"),
+            "Prospección",
+        )
+        status_value = _safe_text(
+            selected.get("status"),
+            "Abierta",
+        )
+
+        stage_index = (
+            CRM_STAGES.index(stage_value)
+            if stage_value in CRM_STAGES
+            else 0
+        )
+
+        status_index = (
+            CRM_STATUSES.index(status_value)
+            if status_value in CRM_STATUSES
+            else 0
+        )
+
+        expected_date = pd.to_datetime(
+            selected.get("expected_close_date"),
+            errors="coerce",
+        )
+        next_date = pd.to_datetime(
+            selected.get("next_action_date"),
+            errors="coerce",
+        )
+
+        with st.form(
+            f"crm_edit_opportunity_form_{selected.get('id')}",
+        ):
+            e1, e2 = st.columns(
+                [1.4, 1],
+                gap="small",
+            )
+
+            with e1:
+                edit_title = st.text_input(
+                    "Oportunidad",
+                    value=_safe_text(
+                        selected.get("title"),
+                        "",
+                    ),
+                )
+
+            with e2:
+                edit_seller = st.text_input(
+                    "Vendedor",
+                    value=_safe_text(
+                        selected.get("seller"),
+                        "",
+                    ),
+                )
+
+            e3, e4, e5, e6 = st.columns(
+                4,
+                gap="small",
+            )
+
+            with e3:
+                edit_amount = st.number_input(
+                    "Monto estimado",
+                    min_value=0.0,
+                    value=float(
+                        selected.get("estimated_amount")
+                        or 0
+                    ),
+                    step=10000.0,
+                    format="%.0f",
+                )
+
+            with e4:
+                edit_stage = st.selectbox(
+                    "Etapa",
+                    CRM_STAGES,
+                    index=stage_index,
+                )
+
+            with e5:
+                edit_probability = st.number_input(
+                    "Probabilidad (%)",
+                    min_value=0,
+                    max_value=100,
+                    value=int(
+                        selected.get("probability")
+                        or 0
+                    ),
+                    step=5,
+                )
+
+            with e6:
+                edit_status = st.selectbox(
+                    "Estado",
+                    CRM_STATUSES,
+                    index=status_index,
+                )
+
+            e7, e8 = st.columns(
+                2,
+                gap="small",
+            )
+
+            with e7:
+                edit_expected_date = st.date_input(
+                    "Fecha estimada de cierre",
+                    value=(
+                        expected_date.date()
+                        if not pd.isna(expected_date)
+                        else datetime.now().date()
+                    ),
+                )
+
+            with e8:
+                edit_next_date = st.date_input(
+                    "Fecha próxima acción",
+                    value=(
+                        next_date.date()
+                        if not pd.isna(next_date)
+                        else datetime.now().date()
+                    ),
+                )
+
+            edit_next_action = st.text_input(
+                "Próxima acción",
+                value=_safe_text(
+                    selected.get("next_action"),
+                    "",
+                ),
+            )
+
+            edit_description = st.text_area(
+                "Observaciones",
+                value=_safe_text(
+                    selected.get("description"),
+                    "",
+                ),
+                height=100,
+            )
+
+            update_submitted = st.form_submit_button(
+                "Guardar cambios",
+                type="primary",
+                use_container_width=True,
+            )
+
+            if update_submitted:
+                if not edit_title.strip():
+                    st.error(
+                        "El nombre de la oportunidad no puede quedar vacío."
+                    )
+                else:
+                    try:
+                        update_opportunity(
+                            int(selected["id"]),
+                            title=edit_title,
+                            seller=edit_seller,
+                            description=edit_description,
+                            estimated_amount=edit_amount,
+                            stage=edit_stage,
+                            probability=int(edit_probability),
+                            expected_close_date=edit_expected_date,
+                            next_action_date=edit_next_date,
+                            next_action=edit_next_action,
+                            status=edit_status,
+                        )
+
+                        st.success(
+                            "Oportunidad actualizada correctamente."
+                        )
+                        st.rerun()
+
+                    except Exception as exc:
+                        st.error(
+                            f"No fue posible actualizar la oportunidad: {exc}"
+                        )
+
 
 # ============================================================
 # SEGUIMIENTOS
@@ -1304,31 +1959,139 @@ def _render_followups() -> None:
 <div class="crm-section-title">Próximas acciones</div>
 <div class="crm-section-sub">Llamadas, correos, reuniones y tareas comerciales.</div>
 <div class="crm-empty">
-    <strong>Sin seguimientos registrados</strong>
-    <span>Cuando conectemos la base persistente, aquí aparecerán las acciones pendientes por cliente, vendedor y fecha.</span>
+    <strong>Siguiente módulo</strong>
+    <span>PostgreSQL ya está preparado para guardar seguimientos. Lo activaremos después de validar Oportunidades y Pipeline.</span>
 </div>
             """,
             unsafe_allow_html=True,
         )
+
 
 # ============================================================
 # PIPELINE
 # ============================================================
 
 def _render_pipeline() -> None:
-    with st.container(border=True):
-        st.markdown(
-            """
+    st.markdown(
+        """
 <div class="crm-section-kicker">PIPELINE</div>
 <div class="crm-section-title">Embudo comercial</div>
-<div class="crm-section-sub">Prospecto → Contactado → Cotizado → Negociación → Ganado / Perdido</div>
-<div class="crm-empty">
-    <strong>Pipeline preparado</strong>
-    <span>Las columnas y tarjetas del embudo se activarán cuando exista una tabla persistente de oportunidades.</span>
-</div>
-            """,
-            unsafe_allow_html=True,
+<div class="crm-section-sub">Oportunidades abiertas agrupadas por etapa comercial.</div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    try:
+        pipeline = get_pipeline_summary()
+        rows = list_opportunities(
+            status="Abierta",
+            limit=1000,
         )
+    except Exception as exc:
+        st.error(
+            f"No fue posible cargar el pipeline: {exc}"
+        )
+        return
+
+    summary_map = {
+        _safe_text(row.get("stage"), ""): row
+        for row in pipeline
+    }
+
+    stage_columns = st.columns(
+        len(CRM_STAGES),
+        gap="small",
+    )
+
+    for column, stage in zip(
+        stage_columns,
+        CRM_STAGES,
+    ):
+        item = summary_map.get(
+            stage,
+            {},
+        )
+
+        count = int(
+            item.get("opportunities")
+            or 0
+        )
+        total = item.get(
+            "total_amount"
+        ) or 0
+
+        with column:
+            with st.container(border=True):
+                st.markdown(
+                    f"**{stage}**"
+                )
+                st.metric(
+                    "Oportunidades",
+                    count,
+                )
+                st.caption(
+                    f"Valor: {_money(total)}"
+                )
+
+    st.markdown("")
+
+    if not rows:
+        st.info(
+            "No existen oportunidades abiertas en el pipeline."
+        )
+        return
+
+    for stage in CRM_STAGES:
+        stage_rows = [
+            row
+            for row in rows
+            if _safe_text(
+                row.get("stage"),
+                "",
+            ) == stage
+        ]
+
+        with st.expander(
+            f"{stage} · {len(stage_rows)} oportunidad(es)",
+            expanded=bool(stage_rows),
+        ):
+            if not stage_rows:
+                st.caption(
+                    "Sin oportunidades en esta etapa."
+                )
+                continue
+
+            stage_display = _opportunity_display_frame(
+                stage_rows
+            )
+
+            st.dataframe(
+                stage_display[
+                    [
+                        "Cliente",
+                        "Oportunidad",
+                        "Monto",
+                        "Probabilidad",
+                        "Vendedor",
+                        "Cierre estimado",
+                        "Próxima acción",
+                        "Fecha próxima acción",
+                    ]
+                ],
+                hide_index=True,
+                use_container_width=True,
+                column_config={
+                    "Monto": st.column_config.NumberColumn(
+                        "Monto",
+                        format="$ %.0f",
+                    ),
+                    "Probabilidad": st.column_config.NumberColumn(
+                        "Probabilidad",
+                        format="%d %%",
+                    ),
+                },
+            )
+
 
 # ============================================================
 # INFORMACIÓN FUENTE
@@ -1538,7 +2301,9 @@ def render(
         )
 
     elif section == "Oportunidades":
-        _render_opportunities()
+        _render_opportunities(
+            clients
+        )
 
     elif section == "Seguimientos":
         _render_followups()
