@@ -803,79 +803,116 @@ def _inject_css() -> None:
 }
 
 /* ============================================================
-   BASE
+   BASE GENERAL
    ============================================================ */
 .block-container{
-    max-width:1680px !important;
-    padding-top:.45rem !important;
-    padding-bottom:1.6rem !important;
+    max-width:1580px !important;
+    padding-top:1.15rem !important;
+    padding-bottom:2rem !important;
 }
 
 div[data-testid="stAppViewContainer"]{
-    background:var(--bg) !important;
+    background:
+        radial-gradient(circle at 70% 0%, rgba(27,55,74,.18), transparent 34%),
+        #071017 !important;
 }
 
 div[data-testid="stVerticalBlock"]{
-    gap:.42rem !important;
+    gap:.72rem !important;
 }
 
 /* ============================================================
-   HEADER · MÁS CERCA DEL MOCKUP
+   SIDEBAR - ESTILO SEGUNDA IMAGEN
+   ============================================================ */
+section[data-testid="stSidebar"]{
+    background:
+        linear-gradient(180deg,#071019 0%,#050A0F 100%) !important;
+    border-right:1px solid #1E2B34 !important;
+}
+
+section[data-testid="stSidebar"] > div{
+    padding-top:1rem !important;
+}
+
+section[data-testid="stSidebar"] [data-testid="stButton"] button{
+    min-height:42px !important;
+    border-radius:8px !important;
+    justify-content:flex-start !important;
+    padding-left:14px !important;
+    background:transparent !important;
+    border-color:transparent !important;
+    color:#E7EDF1 !important;
+    font-size:12px !important;
+}
+
+section[data-testid="stSidebar"] [data-testid="stButton"] button[kind="primary"]{
+    background:#111B22 !important;
+    color:#FFC400 !important;
+    border-left:3px solid #FFC400 !important;
+}
+
+section[data-testid="stSidebar"] [data-testid="stButton"] button:hover{
+    background:#0F1920 !important;
+    color:#FFC400 !important;
+}
+
+/* ============================================================
+   HEADER
    ============================================================ */
 .dash-head{
     display:flex;
     align-items:flex-start;
     justify-content:space-between;
-    gap:18px;
-    padding:2px 2px 11px;
-    margin-bottom:1px;
-    border-bottom:1px solid #1D2A33;
+    gap:24px;
+    padding:0 2px 10px;
+    margin-bottom:2px;
+    border-bottom:1px solid #1E2A33;
 }
 
 .dash-title-line{
     display:flex;
     align-items:center;
-    gap:9px;
+    gap:12px;
 }
 
 .dash-title-mark{
     width:4px;
-    height:31px;
+    height:35px;
     border-radius:3px;
     background:var(--yellow);
 }
 
 .dash-title{
     color:#fff;
-    font-size:25px;
+    font-size:32px;
     font-weight:850;
-    letter-spacing:-.45px;
+    letter-spacing:-.7px;
     line-height:1;
 }
 
 .dash-sub{
-    color:var(--muted);
-    font-size:10px;
-    margin-top:4px;
+    color:#A1AFB8;
+    font-size:12px;
+    margin-top:7px;
 }
 
 .dash-live{
     display:flex;
     align-items:center;
     gap:8px;
-    color:#DCE4E8;
-    background:#0C151C;
-    border:1px solid #2A3944;
+    color:#E4EAEE;
+    background:#0D171E;
+    border:1px solid #2C3C47;
     border-radius:8px;
-    padding:8px 11px;
-    font-size:9px;
+    padding:9px 13px;
+    font-size:10px;
 }
 
 .dash-live i{
     width:8px;
     height:8px;
     border-radius:50%;
-    background:var(--green);
+    background:#27D17C;
     box-shadow:0 0 0 4px rgba(39,209,124,.10);
 }
 
@@ -883,48 +920,48 @@ div[data-testid="stVerticalBlock"]{
    FILTROS
    ============================================================ */
 div[data-testid="stVerticalBlockBorderWrapper"]{
-    background:linear-gradient(180deg,#0E1820,#0B141B) !important;
-    border:1px solid var(--line) !important;
-    border-radius:9px !important;
+    background:linear-gradient(180deg,#0F1920,#0B141B) !important;
+    border:1px solid #2A3944 !important;
+    border-radius:10px !important;
     box-shadow:none !important;
 }
 
 div[data-testid="stVerticalBlockBorderWrapper"] > div{
-    padding:.52rem .66rem !important;
+    padding:.8rem .85rem !important;
 }
 
 div[data-testid="stSelectbox"] label,
 div[data-testid="stDateInput"] label{
-    color:#B7C3CB !important;
-    font-size:8.5px !important;
+    color:#BEC8CF !important;
+    font-size:10px !important;
     font-weight:750 !important;
 }
 
 div[data-testid="stSelectbox"] > div > div,
 div[data-testid="stDateInput"] > div > div{
-    min-height:39px !important;
+    min-height:44px !important;
     background:#0A141B !important;
-    border:1px solid #2C3D48 !important;
-    border-radius:7px !important;
+    border:1px solid #31424E !important;
+    border-radius:8px !important;
 }
 
 /* ============================================================
-   KPI
+   KPI GRANDES COMO SEGUNDA IMAGEN
    ============================================================ */
 .dash-kpis{
     display:grid;
     grid-template-columns:repeat(5,minmax(0,1fr));
-    gap:9px;
-    margin:3px 0 0;
+    gap:10px;
+    margin:5px 0 1px;
 }
 
 .dash-kpi{
     position:relative;
-    min-height:121px;
-    padding:13px 13px 11px 15px;
-    background:linear-gradient(145deg,#132029,#0E171E);
-    border:1px solid #2C3D48;
-    border-radius:9px;
+    min-height:145px;
+    padding:16px 15px 13px 17px;
+    background:linear-gradient(145deg,#15232C,#0F1920);
+    border:1px solid #2E3F4A;
+    border-radius:10px;
     overflow:visible;
 }
 
@@ -935,24 +972,24 @@ div[data-testid="stDateInput"] > div > div{
     top:-1px;
     bottom:-1px;
     width:3px;
-    border-radius:9px 0 0 9px;
-    background:var(--yellow);
+    border-radius:10px 0 0 10px;
+    background:#FFC400;
 }
 
 .dash-kpi-top{
     display:flex;
     align-items:center;
-    gap:8px;
+    gap:10px;
 }
 
 .dash-kpi-icon{
-    width:35px;
-    height:35px;
+    width:44px;
+    height:44px;
     border-radius:50%;
     display:flex;
     align-items:center;
     justify-content:center;
-    font-size:16px;
+    font-size:19px;
     font-weight:900;
     flex:0 0 auto;
 }
@@ -966,32 +1003,32 @@ div[data-testid="stDateInput"] > div > div{
 .dash-kpi-label{
     display:flex;
     align-items:center;
-    gap:5px;
-    color:#DBE3E8;
-    font-size:7.8px;
+    gap:6px;
+    color:#E0E6EA;
+    font-size:9px;
     font-weight:850;
     letter-spacing:.05em;
     text-transform:uppercase;
 }
 
 .dash-kpi-value{
-    margin:9px 0 5px 43px;
+    margin:11px 0 8px 54px;
     color:#fff;
-    font-size:20px;
+    font-size:27px;
     line-height:1;
     font-weight:850;
 }
 
 .dash-kpi-sub{
-    margin-left:43px;
-    color:#A2B0BA;
-    font-size:7.7px;
+    margin-left:54px;
+    color:#AFBAC2;
+    font-size:9px;
 }
 
 .dash-kpi-foot{
-    margin:7px 0 0 43px;
-    color:#6F8390;
-    font-size:7.3px;
+    margin:11px 0 0 54px;
+    color:#71858F;
+    font-size:8px;
 }
 
 /* ============================================================
@@ -1000,15 +1037,15 @@ div[data-testid="stDateInput"] > div > div{
 .dash-help{
     position:relative;
     display:inline-flex;
-    width:14px;
-    height:14px;
+    width:16px;
+    height:16px;
     align-items:center;
     justify-content:center;
-    border:1px solid #697A86;
+    border:1px solid #6B7B86;
     border-radius:50%;
-    color:var(--yellow);
+    color:#FFC400;
     background:#101A21;
-    font-size:8px;
+    font-size:9px;
     font-weight:900;
     cursor:help;
     z-index:30;
@@ -1019,16 +1056,16 @@ div[data-testid="stDateInput"] > div > div{
     opacity:0;
     position:absolute;
     z-index:10000;
-    top:20px;
+    top:22px;
     left:0;
-    width:220px;
+    width:230px;
     max-width:calc(100vw - 50px);
-    padding:9px 10px;
+    padding:10px 11px;
     border:1px solid #3B4A55;
     border-radius:8px;
     background:#080D11;
     color:#E9EEF1;
-    font-size:8.5px;
+    font-size:9px;
     line-height:1.45;
     font-weight:500;
     letter-spacing:0;
@@ -1043,32 +1080,24 @@ div[data-testid="stDateInput"] > div > div{
 }
 
 /* ============================================================
-   CARD TITLES
+   TÍTULOS DE CARDS
    ============================================================ */
 .card-title{
     display:flex;
     align-items:center;
-    gap:5px;
-    color:#F2F5F7;
-    font-size:10px;
+    gap:6px;
+    color:#FFC400;
+    font-size:12px;
     font-weight:850;
     text-transform:uppercase;
-    letter-spacing:.02em;
+    letter-spacing:.025em;
 }
 
 .card-sub{
-    color:#758894;
-    font-size:7.6px;
-    margin-top:2px;
-    margin-bottom:7px;
-}
-
-.card-kicker{
-    color:var(--yellow);
-    font-size:8px;
-    font-weight:850;
-    text-transform:uppercase;
-    letter-spacing:.05em;
+    color:#7F929E;
+    font-size:9px;
+    margin-top:3px;
+    margin-bottom:9px;
 }
 
 /* ============================================================
@@ -1077,12 +1106,12 @@ div[data-testid="stDateInput"] > div > div{
 .summary-table{
     width:100%;
     border-collapse:collapse;
-    font-size:8.5px;
+    font-size:10px;
 }
 
 .summary-table td{
-    padding:6px 2px;
-    border-bottom:1px solid #23323C;
+    padding:8px 3px;
+    border-bottom:1px solid #263640;
     color:#DCE4E8;
 }
 
@@ -1102,30 +1131,30 @@ div[data-testid="stDateInput"] > div > div{
 .inventory-grid{
     display:grid;
     grid-template-columns:1fr 1fr;
-    gap:8px;
-    margin-top:7px;
+    gap:10px;
+    margin-top:9px;
 }
 
 .inv-card{
     display:flex;
     align-items:center;
     justify-content:space-between;
-    min-height:61px;
+    min-height:76px;
     border:1px solid #2B3B46;
     border-radius:8px;
-    padding:9px 10px;
+    padding:11px 12px;
     background:#0B141A;
 }
 
 .inv-card strong{
     color:#fff;
-    font-size:18px;
+    font-size:22px;
 }
 
 .inv-card span{
     display:block;
     color:#9EADB7;
-    font-size:7.5px;
+    font-size:9px;
 }
 
 /* ============================================================
@@ -1134,15 +1163,15 @@ div[data-testid="stDateInput"] > div > div{
 .alert-list{
     display:flex;
     flex-direction:column;
-    gap:3px;
+    gap:4px;
 }
 
 .alert-row{
     display:flex;
     align-items:center;
     justify-content:space-between;
-    gap:10px;
-    padding:7px 1px;
+    gap:12px;
+    padding:8px 2px;
     border-bottom:1px solid #23333D;
 }
 
@@ -1153,61 +1182,61 @@ div[data-testid="stDateInput"] > div > div{
 .alert-copy{
     display:flex;
     align-items:center;
-    gap:8px;
+    gap:9px;
 }
 
 .alert-icon{
-    width:25px;
-    height:25px;
+    width:30px;
+    height:30px;
     border-radius:50%;
     display:flex;
     align-items:center;
     justify-content:center;
-    color:var(--yellow);
+    color:#FFC400;
     background:#332B08;
     border:1px solid #4B3D0A;
     font-weight:900;
-    font-size:11px;
+    font-size:12px;
 }
 
 .alert-row strong{
     display:block;
     color:#F3F6F8;
-    font-size:8.3px;
+    font-size:9px;
 }
 
 .alert-row small{
     color:#7E909C;
-    font-size:7.3px;
+    font-size:8px;
 }
 
 .alert-value{
-    color:var(--yellow);
+    color:#FFC400;
     font-weight:850;
-    font-size:11px;
+    font-size:12px;
 }
 
 /* ============================================================
-   BOTONES
+   BOTONES ACCESO RÁPIDO
    ============================================================ */
 div[data-testid="stButton"] > button{
-    min-height:42px;
+    min-height:58px;
     border-radius:8px !important;
-    background:#0F1920 !important;
+    background:#0E181F !important;
     border:1px solid #30414C !important;
     color:#E8EEF1 !important;
     box-shadow:none !important;
     font-weight:700 !important;
-    font-size:9px !important;
+    font-size:10px !important;
 }
 
 div[data-testid="stButton"] > button:hover{
-    border-color:var(--yellow) !important;
-    color:var(--yellow) !important;
+    border-color:#FFC400 !important;
+    color:#FFC400 !important;
 }
 
 /* ============================================================
-   DATAFRAMES / CHARTS
+   DATAFRAMES
    ============================================================ */
 div[data-testid="stDataFrame"]{
     border:1px solid #273741;
@@ -1215,6 +1244,9 @@ div[data-testid="stDataFrame"]{
     overflow:hidden;
 }
 
+/* ============================================================
+   CHARTS
+   ============================================================ */
 .vega-embed,
 .vega-embed > div{
     background:transparent !important;
@@ -1236,16 +1268,6 @@ div[data-testid="stDataFrame"]{
 
     .dash-kpis{
         grid-template-columns:1fr;
-    }
-
-    .dash-help-tip{
-        position:fixed;
-        left:18px !important;
-        right:18px !important;
-        bottom:22px;
-        top:auto !important;
-        width:auto !important;
-        max-width:none !important;
     }
 }
 </style>
@@ -1480,7 +1502,7 @@ def render(ctx):
     # FILA 1
     # --------------------------------------------------------
     left, center, right = st.columns(
-        [1.05, 1.15, 1.05],
+        [1.08, 1.35, 1.20],
         gap="medium",
     )
 
@@ -1571,7 +1593,7 @@ def render(ctx):
                         ],
                     )
                     .properties(
-                        height=220
+                        height=285
                     )
                     .configure_view(
                         stroke=None
@@ -1643,7 +1665,7 @@ def render(ctx):
                         ],
                     )
                     .properties(
-                        height=220
+                        height=285
                     )
                     .configure_view(
                         stroke=None
@@ -1662,7 +1684,7 @@ def render(ctx):
     # FILA 2
     # --------------------------------------------------------
     left2, center2, right2 = st.columns(
-        [1.05, 1.20, 1.05],
+        [1.05, 1.30, 1.10],
         gap="medium",
     )
 
@@ -1692,7 +1714,7 @@ def render(ctx):
                     ranking,
                     hide_index=True,
                     use_container_width=True,
-                    height=215,
+                    height=255,
                     column_config={
                         "Ventas del período":
                         st.column_config.NumberColumn(
@@ -1733,7 +1755,7 @@ def render(ctx):
                     clients,
                     hide_index=True,
                     use_container_width=True,
-                    height=215,
+                    height=255,
                     column_config={
                         "Ventas del período":
                         st.column_config.NumberColumn(
@@ -1813,7 +1835,7 @@ def render(ctx):
     # FILA 3
     # --------------------------------------------------------
     alerts_col, quick_col = st.columns(
-        [1.0, 1.45],
+        [1.05, 1.55],
         gap="medium",
     )
 
