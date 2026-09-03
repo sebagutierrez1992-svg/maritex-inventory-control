@@ -1,4 +1,4 @@
-from __future__ import annotations
+
 
 from datetime import datetime, timedelta
 from typing import Any
@@ -1195,11 +1195,78 @@ def _filter_excluded_db_rows(
 
 
 
+def _parse_sales_dates(
+    values: pd.Series,
+) -> pd.Series:
+    """
+    Convierte fechas ERP sin asumir siempre DD/MM o MM/DD.
+
+    Si las fechas son ambiguas (ej. 09/01/2026), prueba ambas
+    interpretaciones y selecciona la que genera el rango temporal
+    más compacto. Esto evita interpretar un archivo de septiembre
+    como enero-marzo.
+    """
+    if values is None:
+        return pd.Series(dtype="datetime64[ns]")
+
+    raw = values.copy()
+
+    # Fechas Excel / datetime ya reconocidas.
+    if pd.api.types.is_datetime64_any_dtype(raw):
+        return pd.to_datetime(raw, errors="coerce")
+
+    # Intento día/mes.
+    day_first = pd.to_datetime(
+        raw,
+        errors="coerce",
+        dayfirst=True,
+    )
+
+    # Intento mes/día.
+    month_first = pd.to_datetime(
+        raw,
+        errors="coerce",
+        dayfirst=False,
+    )
+
+    def _score(parsed: pd.Series) -> tuple[int, int, int]:
+        valid = parsed.dropna()
+
+        if valid.empty:
+            return (10**9, 10**9, 10**9)
+
+        # Menor rango = interpretación más probable para un archivo
+        # operativo que contiene un período específico.
+        span_days = int(
+            (valid.max().normalize() - valid.min().normalize()).days
+        )
+
+        distinct_months = int(
+            valid.dt.to_period("M").nunique()
+        )
+
+        invalid_count = int(parsed.isna().sum())
+
+        return (
+            invalid_count,
+            distinct_months,
+            span_days,
+        )
+
+    score_day = _score(day_first)
+    score_month = _score(month_first)
+
+    if score_month < score_day:
+        return month_first
+
+    return day_first
+
+
 def _sales_period_from_df(
     sales_df: pd.DataFrame,
     detected_columns: dict[str, str] | None = None,
 ) -> tuple[pd.Timestamp | None, pd.Timestamp | None]:
-    """Obtiene el rango real de fechas contenido en ERP Ventas."""
+    """Obtiene el rango REAL de fechas contenido en el archivo ERP Ventas."""
     if sales_df is None or sales_df.empty:
         return None, None
 
@@ -1216,6 +1283,7 @@ def _sales_period_from_df(
             "Fecha Documento",
             "FechaDocumento",
         ]
+
         for candidate in candidates:
             if candidate in sales_df.columns:
                 date_col = candidate
@@ -1224,16 +1292,17 @@ def _sales_period_from_df(
     if not date_col or date_col not in sales_df.columns:
         return None, None
 
-    dates = pd.to_datetime(
-        sales_df[date_col],
-        errors="coerce",
-        dayfirst=True,
+    dates = _parse_sales_dates(
+        sales_df[date_col]
     ).dropna()
 
     if dates.empty:
         return None, None
 
-    return dates.min().normalize(), dates.max().normalize()
+    return (
+        dates.min().normalize(),
+        dates.max().normalize(),
+    )
 
 
 def _period_label() -> str:
@@ -1449,10 +1518,8 @@ def _prepare_clients(
     # --------------------------------------------------------
 
     if date_col:
-        work["_crm_fecha"] = pd.to_datetime(
-            work[date_col],
-            errors="coerce",
-            dayfirst=True,
+        work["_crm_fecha"] = _parse_sales_dates(
+            work[date_col]
         )
     else:
         work["_crm_fecha"] = pd.NaT
@@ -1498,21 +1565,11 @@ def _prepare_clients(
         work["_crm_documento"] = ""
 
     # --------------------------------------------------------
-    # Ventas 12 meses
+    # Ventas del período
     # --------------------------------------------------------
-
-    valid_dates = work["_crm_fecha"].dropna()
-
-    if not valid_dates.empty:
-        max_date = valid_dates.max()
-        cutoff = max_date - pd.DateOffset(months=12)
-
-        work["_crm_venta_12m"] = work["_crm_venta"].where(
-            work["_crm_fecha"] >= cutoff,
-            0,
-        )
-    else:
-        work["_crm_venta_12m"] = work["_crm_venta"]
+    # El CRM usa exactamente las ventas contenidas en el archivo
+    # cargado. No inventa una ventana de 12 meses.
+    work["_crm_venta_periodo"] = work["_crm_venta"]
 
     # --------------------------------------------------------
     # Agrupar
@@ -1565,8 +1622,8 @@ def _prepare_clients(
             "sum",
         ),
 
-        "Ventas 12 meses": (
-            "_crm_venta_12m",
+        "Ventas del período": (
+            "_crm_venta_periodo",
             "sum",
         ),
     }
@@ -1607,9 +1664,9 @@ def _prepare_clients(
         .fillna(0)
     )
 
-    clients["Ventas 12 meses"] = (
+    clients["Ventas del período"] = (
         pd.to_numeric(
-            clients["Ventas 12 meses"],
+            clients["Ventas del período"],
             errors="coerce",
         )
         .fillna(0)
@@ -1625,7 +1682,7 @@ def _prepare_clients(
     )
 
     clients = clients.sort_values(
-        "Ventas 12 meses",
+        "Ventas del período",
         ascending=False,
     ).reset_index(drop=True)
 
@@ -1654,9 +1711,9 @@ def _render_summary(
     # Datos base ERP
     # --------------------------------------------------------
     total_clients = len(clients)
-    total_sales = float(clients["Ventas 12 meses"].sum() or 0)
+    total_sales = float(clients["Ventas del período"].sum() or 0)
     average_sales = (
-        float(clients["Ventas 12 meses"].mean() or 0)
+        float(clients["Ventas del período"].mean() or 0)
         if total_clients
         else 0
     )
@@ -1837,13 +1894,13 @@ def _render_summary(
         f'<div class="crm-kpis">'
         f'<div class="crm-kpi yellow">'
         f'<div class="crm-kpi-label">'
-        f'Ventas 12 meses'
+        f'Ventas del período'
         f'<span class="crm-help">?'
         f'<span class="crm-help-tip">'
         f'Suma de ventas ERP contenidas en el archivo cargado para el módulo comercial seleccionado.'
         f'</span></span></div>'
         f'<div class="crm-kpi-value">{_money(total_sales)}</div>'
-        f'<div class="crm-kpi-help">{_period_label()}</div>'
+        f'<div class="crm-kpi-help">Período: {_period_label()}</div>'
         f'</div>'
 
         f'<div class="crm-kpi yellow">'
@@ -1884,6 +1941,11 @@ def _render_summary(
     st.markdown(
         kpi_html,
         unsafe_allow_html=True,
+    )
+
+    st.caption(
+        f"Ventas calculadas exclusivamente con el archivo ERP cargado · "
+        f"Período detectado: {_period_label()}"
     )
 
     # --------------------------------------------------------
@@ -1979,7 +2041,7 @@ def _render_summary(
             top_clients = (
                 clients
                 .sort_values(
-                    "Ventas 12 meses",
+                    "Ventas del período",
                     ascending=False,
                 )
                 .head(8)
@@ -1991,7 +2053,7 @@ def _render_summary(
                     "Cliente",
                     "RUT",
                     "Vendedor",
-                    "Ventas 12 meses",
+                    "Ventas del período",
                     "Pedidos",
                     "Última compra",
                 ]
@@ -2020,7 +2082,7 @@ def _render_summary(
                 use_container_width=True,
                 height=310,
                 column_config={
-                    "Ventas 12 meses":
+                    "Ventas del período":
                     st.column_config.NumberColumn(
                         "Ventas del período",
                         format="$ %.0f",
@@ -2314,7 +2376,7 @@ def _render_summary(
                         "RUT",
                         "Vendedor",
                         "Última compra",
-                        "Ventas 12 meses",
+                        "Ventas del período",
                     ]
                 ].copy()
 
@@ -2343,7 +2405,7 @@ def _render_summary(
                     use_container_width=True,
                     height=300,
                     column_config={
-                        "Ventas 12 meses":
+                        "Ventas del período":
                         st.column_config.NumberColumn(
                             "Ventas del período",
                             format="$ %.0f",
@@ -2588,7 +2650,7 @@ def _render_summary(
                 )
                 .agg(
                     {
-                        "Ventas 12 meses": "sum",
+                        "Ventas del período": "sum",
                         "Cliente": "count",
                     }
                 )
@@ -2619,7 +2681,7 @@ def _render_summary(
             seller_rank = (
                 seller_rank
                 .sort_values(
-                    "Ventas 12 meses",
+                    "Ventas del período",
                     ascending=False,
                 )
                 .head(15)
@@ -2630,7 +2692,7 @@ def _render_summary(
                 hide_index=True,
                 use_container_width=True,
                 column_config={
-                    "Ventas 12 meses":
+                    "Ventas del período":
                     st.column_config.NumberColumn(
                         "Ventas del período",
                         format="$ %.0f",
@@ -2685,7 +2747,7 @@ def _render_clients(
         order_by = st.selectbox(
             "Ordenar por",
             [
-                "Ventas 12 meses",
+                "Ventas del período",
                 "Ventas acumuladas",
                 "Última compra",
                 "Pedidos",
@@ -2721,7 +2783,7 @@ def _render_clients(
             "RUT",
             "Vendedor",
             "Última compra",
-            "Ventas 12 meses",
+            "Ventas del período",
             "Ventas acumuladas",
             "Pedidos",
         ]
@@ -2745,7 +2807,7 @@ def _render_clients(
         on_select="rerun",
         selection_mode="single-row",
         column_config={
-            "Ventas 12 meses": st.column_config.NumberColumn(
+            "Ventas del período": st.column_config.NumberColumn(
                 "Ventas del período",
                 format="$ %.0f",
             ),
@@ -2795,7 +2857,7 @@ def _render_clients(
         with c1:
             st.metric(
                 "Ventas del período",
-                _money(client.get("Ventas 12 meses")),
+                _money(client.get("Ventas del período")),
             )
 
         with c2:
