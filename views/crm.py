@@ -1,4 +1,4 @@
-from __future__ import annotations
+
 
 from datetime import datetime, timedelta
 from typing import Any
@@ -72,239 +72,527 @@ def _apply_styles() -> None:
     st.markdown(
         """
 <style>
+/* =========================================================
+   CRM MONDAY-INSPIRED · MARITEX
+   ========================================================= */
+
 .block-container{
-    max-width:1680px;
-    padding-top:.9rem;
-    padding-bottom:2rem;
+    max-width:1700px;
+    padding-top:1rem;
+    padding-bottom:2.5rem;
 }
-div[data-testid="stVerticalBlock"]{gap:.65rem}
+
+[data-testid="stAppViewContainer"]{
+    background:#F6F7FB;
+}
+
+[data-testid="stHeader"]{
+    background:rgba(246,247,251,.92);
+}
+
+div[data-testid="stVerticalBlock"]{
+    gap:.72rem;
+}
+
+/* ---------------------------------------------------------
+   HEADER
+   --------------------------------------------------------- */
 
 .crm-page-head{
     display:flex;
-    align-items:flex-start;
+    align-items:center;
     justify-content:space-between;
-    gap:20px;
-    margin-bottom:6px;
+    gap:18px;
+    padding:18px 20px;
+    border:1px solid #E3E6EC;
+    border-radius:16px;
+    background:#FFFFFF;
+    box-shadow:0 4px 18px rgba(20,32,50,.05);
+    margin-bottom:10px;
 }
+
 .crm-page-head h1{
     margin:0;
-    color:#F7F9FB;
-    font-size:30px;
+    color:#171B24;
+    font-size:31px;
     line-height:1;
-    letter-spacing:-.7px;
+    letter-spacing:-.8px;
     font-weight:850;
 }
+
 .crm-page-head p{
-    margin:7px 0 0;
-    color:#9EACB8;
+    margin:8px 0 0;
+    color:#737C8B;
     font-size:12px;
 }
+
 .crm-live-pill{
     display:inline-flex;
     align-items:center;
     gap:8px;
     padding:9px 13px;
-    border:1px solid #33434F;
-    border-radius:10px;
-    background:#121C25;
-    color:#D8E0E6;
-    font-size:10.5px;
+    border:1px solid #DDE2E8;
+    border-radius:999px;
+    background:#FAFBFC;
+    color:#384252;
+    font-size:10px;
+    font-weight:750;
     white-space:nowrap;
 }
+
 .crm-live-pill i{
     display:block;
-    width:8px;height:8px;border-radius:999px;
-    background:#24CC6A;
-    box-shadow:0 0 0 4px rgba(36,204,106,.10);
+    width:8px;
+    height:8px;
+    border-radius:999px;
+    background:#22C55E;
+    box-shadow:0 0 0 4px rgba(34,197,94,.10);
 }
+
+/* ---------------------------------------------------------
+   NAV / SEGMENTED
+   --------------------------------------------------------- */
+
+div[data-testid="stSegmentedControl"]{
+    background:#FFFFFF;
+    border:1px solid #E2E6EC;
+    border-radius:13px;
+    padding:4px;
+    box-shadow:0 2px 10px rgba(20,32,50,.04);
+}
+
+div[data-testid="stSegmentedControl"] button{
+    color:#586273 !important;
+    border-radius:9px !important;
+    font-size:10px !important;
+    font-weight:750 !important;
+}
+
+div[data-testid="stSegmentedControl"] button[aria-pressed="true"]{
+    background:#FFF6CC !important;
+    color:#5E4A00 !important;
+    box-shadow:inset 0 0 0 1px #F2C200 !important;
+}
+
+/* ---------------------------------------------------------
+   KPI CARDS
+   --------------------------------------------------------- */
 
 .crm-kpis{
     display:grid;
     grid-template-columns:repeat(4,minmax(0,1fr));
-    gap:11px;
-    margin:6px 0 3px;
+    gap:12px;
+    margin:8px 0 12px;
 }
+
 .crm-kpi{
     position:relative;
     overflow:hidden;
     min-height:118px;
-    border:1px solid #33434F;
-    border-radius:11px;
-    padding:15px;
-    background:linear-gradient(145deg,#18242E,#111A22);
+    border:1px solid #E4E8EE;
+    border-radius:14px;
+    padding:16px;
+    background:#FFFFFF;
+    box-shadow:0 3px 14px rgba(20,32,50,.045);
 }
-.crm-kpi::after{
+
+.crm-kpi::before{
     content:"";
     position:absolute;
-    left:14px;right:14px;bottom:8px;height:2px;
-    border-radius:999px;
-    opacity:.42;
+    left:0;
+    top:0;
+    bottom:0;
+    width:4px;
+    border-radius:14px 0 0 14px;
 }
-.crm-kpi.yellow::after{background:linear-gradient(90deg,#FFC400,transparent)}
-.crm-kpi.green::after{background:linear-gradient(90deg,#34C867,transparent)}
-.crm-kpi.purple::after{background:linear-gradient(90deg,#8B5CF6,transparent)}
-.crm-kpi.orange::after{background:linear-gradient(90deg,#F97316,transparent)}
 
-.crm-kpi-top{display:flex;align-items:center;gap:11px}
-.crm-kpi-icon{
-    width:40px;height:40px;flex:0 0 40px;
-    display:flex;align-items:center;justify-content:center;
-    border-radius:999px;font-size:18px;font-weight:900;
+.crm-kpi.yellow::before{background:#F6C500}
+.crm-kpi.green::before{background:#22C55E}
+.crm-kpi.purple::before{background:#8B5CF6}
+.crm-kpi.orange::before{background:#F97316}
+
+.crm-kpi-label{
+    color:#7A8492;
+    font-size:9px;
+    text-transform:uppercase;
+    letter-spacing:.06em;
+    font-weight:800;
 }
-.crm-kpi-icon.yellow{color:#FFC400;background:rgba(255,196,0,.11);border:1px solid rgba(255,196,0,.28)}
-.crm-kpi-icon.green{color:#44D478;background:rgba(34,197,94,.11);border:1px solid rgba(34,197,94,.26)}
-.crm-kpi-icon.purple{color:#9E7BFF;background:rgba(139,92,246,.12);border:1px solid rgba(139,92,246,.25)}
-.crm-kpi-icon.orange{color:#FB7C2C;background:rgba(249,115,22,.12);border:1px solid rgba(249,115,22,.26)}
-.crm-kpi-label{color:#BBC6CF;font-size:9.5px;text-transform:uppercase;font-weight:760}
-.crm-kpi-value{color:#FFF;font-size:22px;font-weight:850;line-height:1;margin-top:6px;letter-spacing:-.35px}
-.crm-kpi-help{color:#8D9AA5;font-size:8.9px;margin-top:8px;font-weight:650}
-.crm-kpi-help.green{color:#49D17B}
-.crm-kpi-help.orange{color:#F6A35E}
+
+.crm-kpi-value{
+    color:#1D2430;
+    font-size:24px;
+    font-weight:850;
+    line-height:1;
+    margin-top:8px;
+    letter-spacing:-.45px;
+}
+
+.crm-kpi-help{
+    color:#8A94A3;
+    font-size:8.8px;
+    margin-top:10px;
+    font-weight:650;
+}
+
+.crm-kpi-help.green{color:#16A34A}
+.crm-kpi-help.orange{color:#EA580C}
+
+/* ---------------------------------------------------------
+   CONTAINERS / TABLES
+   --------------------------------------------------------- */
 
 div[data-testid="stVerticalBlockBorderWrapper"]{
-    border:1px solid #33434F !important;
-    background:linear-gradient(145deg,#18242E,#111A22) !important;
-    border-radius:11px !important;
-    box-shadow:none !important;
-}
-div[data-testid="stDataFrame"]{
-    border:1px solid #33434F;
-    border-radius:10px;
-    overflow:hidden;
-    background:#111A22;
+    border:1px solid #E2E6EC !important;
+    background:#FFFFFF !important;
+    border-radius:14px !important;
+    box-shadow:0 3px 14px rgba(20,32,50,.04) !important;
 }
 
+div[data-testid="stDataFrame"]{
+    border:1px solid #E2E6EC;
+    border-radius:12px;
+    overflow:hidden;
+    background:#FFFFFF;
+}
+
+div[data-testid="stDataFrame"] *{
+    color:#26303D;
+}
+
+div[data-testid="stMetric"]{
+    border:1px solid #E2E6EC;
+    border-radius:12px;
+    background:#FFFFFF;
+    padding:10px 12px;
+}
+
+div[data-testid="stMetricLabel"]{
+    color:#7B8592 !important;
+    font-size:9px !important;
+    font-weight:750 !important;
+}
+
+div[data-testid="stMetricValue"]{
+    color:#1D2430 !important;
+    font-size:19px !important;
+}
+
+/* ---------------------------------------------------------
+   SECTION TITLES
+   --------------------------------------------------------- */
+
 .crm-section-kicker{
-    color:#FFC400;
+    color:#B58D00;
     text-transform:uppercase;
-    letter-spacing:.08em;
+    letter-spacing:.10em;
     font-size:8px;
     font-weight:850;
-    margin-bottom:2px;
+    margin-bottom:3px;
 }
+
 .crm-section-title{
-    color:#F4F7F9;
-    font-size:12px;
+    color:#202733;
+    font-size:14px;
     font-weight:850;
-    margin:0 0 2px;
+    margin:0 0 3px;
 }
+
 .crm-section-sub{
-    color:#8997A3;
-    font-size:8.8px;
-    margin-bottom:6px;
+    color:#8A94A3;
+    font-size:9px;
+    margin-bottom:8px;
 }
+
 .crm-client-title{
-    color:#F7F9FB;
-    font-size:18px;
+    color:#202733;
+    font-size:19px;
     font-weight:850;
     margin-bottom:2px;
 }
+
 .crm-client-sub{
-    color:#8F9DA8;
+    color:#8A94A3;
     font-size:10px;
     margin-bottom:8px;
 }
+
+/* ---------------------------------------------------------
+   TOP CLIENTS
+   --------------------------------------------------------- */
 
 .crm-top-row{
     display:grid;
     grid-template-columns:28px minmax(0,1.6fr) 110px 92px 65px 90px;
     gap:8px;
     align-items:center;
-    min-height:38px;
-    border-bottom:1px solid #2D3C47;
+    min-height:39px;
+    border-bottom:1px solid #EEF1F4;
     font-size:8.8px;
 }
+
 .crm-top-row.header{
-    color:#83919D;
+    color:#9099A6;
     font-size:7.7px;
     text-transform:uppercase;
-    font-weight:720;
+    font-weight:750;
 }
-.crm-top-row:last-child{border-bottom:0}
-.crm-rank{color:#73818D;font-weight:800}
-.crm-client-name{
-    color:#EDF2F5;font-weight:760;
-    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-}
-.crm-client-rut{color:#9EABB6}
-.crm-money{color:#FFC400;font-weight:820;text-align:right}
-.crm-orders{color:#DCE3E8;text-align:right}
-.crm-date{color:#B3BEC7;text-align:right}
 
-.crm-activity-list{display:flex;flex-direction:column}
-.crm-activity{
-    display:grid;
-    grid-template-columns:28px minmax(0,1fr) auto;
-    gap:9px;align-items:center;
-    padding:9px 0;border-bottom:1px solid #2E3D49;
+.crm-top-row:last-child{border-bottom:0}
+.crm-rank{color:#9099A6;font-weight:800}
+.crm-client-name{
+    color:#28313E;
+    font-weight:780;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
 }
-.crm-activity:last-child{border-bottom:0}
-.crm-activity-icon{
-    width:28px;height:28px;border-radius:999px;
-    display:flex;align-items:center;justify-content:center;
-    font-size:11px;font-weight:900;
-}
-.crm-activity-icon.green{background:#123E26;color:#64DC8E}
-.crm-activity-icon.blue{background:#17375E;color:#68A7FF}
-.crm-activity-icon.purple{background:#2F2058;color:#A581FF}
-.crm-activity strong{display:block;color:#EDF2F5;font-size:9.5px}
-.crm-activity small{display:block;color:#84929E;font-size:7.9px;margin-top:2px}
-.crm-activity-time{color:#AEB9C2;font-size:8px;text-align:right}
+.crm-client-rut{color:#7E8794}
+.crm-money{color:#9B7B00;font-weight:850;text-align:right}
+.crm-orders{color:#495261;text-align:right}
+.crm-date{color:#65707F;text-align:right}
+
+/* ---------------------------------------------------------
+   EMPTY STATES
+   --------------------------------------------------------- */
 
 .crm-empty{
-    min-height:180px;
+    min-height:170px;
     display:flex;
     flex-direction:column;
     align-items:center;
     justify-content:center;
     text-align:center;
-    border:1px dashed #3A4955;
-    border-radius:10px;
-    color:#82909C;
+    border:1px dashed #D8DEE6;
+    border-radius:12px;
+    color:#8A94A3;
     padding:20px;
+    background:#FBFCFD;
 }
-.crm-empty strong{color:#EAF0F4;font-size:12px;margin-bottom:5px}
-.crm-empty span{font-size:9px;max-width:360px}
+
+.crm-empty strong{
+    color:#303846;
+    font-size:12px;
+    margin-bottom:5px;
+}
+
+.crm-empty span{
+    font-size:9px;
+    max-width:360px;
+}
+
+/* ---------------------------------------------------------
+   INPUTS / BUTTONS
+   --------------------------------------------------------- */
 
 .stButton>button{
-    border-radius:8px !important;
-    min-height:35px !important;
+    border-radius:9px !important;
+    min-height:36px !important;
     font-size:9.5px !important;
+    font-weight:780 !important;
+}
+
+.stButton>button[kind="primary"]{
+    background:#F5C400 !important;
+    border-color:#F5C400 !important;
+    color:#302600 !important;
+}
+
+[data-testid="stTextInput"] input,
+[data-testid="stTextArea"] textarea,
+[data-testid="stSelectbox"] div[data-baseweb="select"]>div,
+[data-testid="stNumberInput"] input,
+[data-testid="stDateInput"] input{
+    background:#FFFFFF !important;
+    border-color:#DDE2E8 !important;
+    color:#202733 !important;
+    border-radius:9px !important;
+}
+
+[data-testid="stTextInput"] label,
+[data-testid="stTextArea"] label,
+[data-testid="stSelectbox"] label,
+[data-testid="stNumberInput"] label,
+[data-testid="stDateInput"] label,
+[data-testid="stRadio"] label{
+    color:#66717F !important;
+    font-size:9px !important;
     font-weight:750 !important;
 }
-[data-testid="stTextInput"] input,
-[data-testid="stSelectbox"] div[data-baseweb="select"]>div{
-    background:#141F28 !important;
-    border-color:#3A4955 !important;
-    color:#F4F7F9 !important;
+
+/* ---------------------------------------------------------
+   EXPANDERS
+   --------------------------------------------------------- */
+
+details{
+    background:#FFFFFF !important;
+    border:1px solid #E2E6EC !important;
+    border-radius:12px !important;
 }
-[data-testid="stTextInput"] label,
-[data-testid="stSelectbox"] label{
-    color:#A8B4BE !important;
-    font-size:9px !important;
+
+details summary{
+    color:#384252 !important;
+    font-size:10px !important;
+    font-weight:780 !important;
 }
-div[data-testid="stMetric"]{
-    border:1px solid #33434F;
+
+/* ---------------------------------------------------------
+   MONDAY BOARD
+   --------------------------------------------------------- */
+
+.crm-board-head{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    margin:8px 0 10px;
+}
+
+.crm-board-title{
+    font-size:15px;
+    font-weight:850;
+    color:#202733;
+}
+
+.crm-board-meta{
+    font-size:9px;
+    color:#8A94A3;
+}
+
+.crm-stage-head{
+    border-radius:12px 12px 8px 8px;
+    padding:12px 12px 10px;
+    margin-bottom:8px;
+    background:#FFFFFF;
+    border:1px solid #E1E6EC;
+    box-shadow:0 2px 10px rgba(20,32,50,.035);
+    position:relative;
+    overflow:hidden;
+}
+
+.crm-stage-head::before{
+    content:"";
+    position:absolute;
+    left:0;
+    top:0;
+    right:0;
+    height:4px;
+    background:#F5C400;
+}
+
+.crm-stage-name{
+    color:#303846;
+    font-size:11px;
+    font-weight:850;
+    margin-top:2px;
+}
+
+.crm-stage-count{
+    color:#1D2430;
+    font-size:21px;
+    font-weight:850;
+    margin-top:5px;
+}
+
+.crm-stage-total{
+    color:#8B95A2;
+    font-size:8.5px;
+    margin-top:2px;
+}
+
+.crm-kanban-card{
+    border:1px solid #E2E6EC;
+    border-radius:12px;
+    padding:12px;
+    margin-bottom:8px;
+    background:#FFFFFF;
+    box-shadow:0 3px 12px rgba(20,32,50,.045);
+}
+
+.crm-kanban-id{
+    color:#9AA3AE;
+    font-size:7.8px;
+    margin-bottom:5px;
+}
+
+.crm-kanban-client{
+    color:#27303C;
+    font-size:10.5px;
+    font-weight:850;
+    line-height:1.25;
+}
+
+.crm-kanban-title{
+    color:#717B88;
+    font-size:8.8px;
+    margin-top:4px;
+}
+
+.crm-kanban-money{
+    color:#8A6D00;
+    font-size:13px;
+    font-weight:850;
+    margin-top:10px;
+}
+
+.crm-kanban-chip{
+    display:inline-flex;
+    align-items:center;
+    padding:3px 7px;
+    border-radius:999px;
+    background:#FFF4C2;
+    color:#725900;
+    font-size:7.5px;
+    font-weight:800;
+    margin-top:6px;
+}
+
+.crm-kanban-label{
+    color:#9AA3AE;
+    font-size:7.5px;
+    margin-top:9px;
+}
+
+.crm-kanban-action{
+    color:#47515E;
+    font-size:8.5px;
+    margin-top:2px;
+    line-height:1.3;
+}
+
+.crm-kanban-date{
+    color:#7D8794;
+    font-size:7.7px;
+    margin-top:3px;
+}
+
+.crm-stage-empty{
+    border:1px dashed #D9DEE5;
     border-radius:10px;
-    background:#141F28;
-    padding:10px 12px;
+    padding:22px 10px;
+    color:#A0A8B3;
+    text-align:center;
+    font-size:8.5px;
+    background:#FAFBFC;
 }
-div[data-testid="stMetricLabel"]{
-    color:#91A0AB !important;
-    font-size:9px !important;
-    font-weight:700 !important;
+
+hr{
+    border-color:#E9EDF1 !important;
 }
-div[data-testid="stMetricValue"]{
-    color:#F7F9FB !important;
-    font-size:19px !important;
-}
-hr{border-color:#2B3A45 !important}
+
+/* ---------------------------------------------------------
+   RESPONSIVE
+   --------------------------------------------------------- */
 
 @media(max-width:1100px){
     .crm-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
+
 @media(max-width:700px){
-    .crm-page-head{flex-direction:column}
+    .crm-page-head{
+        flex-direction:column;
+        align-items:flex-start;
+    }
     .crm-kpis{grid-template-columns:1fr}
 }
 </style>
@@ -2662,8 +2950,8 @@ def _render_pipeline() -> None:
     st.markdown(
         """
 <div class="crm-section-kicker">TUBERÍA</div>
-<div class="crm-section-title">Pipeline comercial</div>
-<div class="crm-section-sub">Vista Kanban de oportunidades abiertas por etapa comercial.</div>
+<div class="crm-section-title">Tablero comercial</div>
+<div class="crm-section-sub">Vista inspirada en Monday para gestionar oportunidades por etapa.</div>
         """,
         unsafe_allow_html=True,
     )
@@ -2693,15 +2981,15 @@ def _render_pipeline() -> None:
         summary.get("won_opportunities") or 0
     )
 
-    pipeline_kpis_html = (
+    board_kpis = (
         '<div class="crm-kpis">'
         '<div class="crm-kpi yellow">'
-        '<div class="crm-kpi-label">Pipeline total</div>'
+        '<div class="crm-kpi-label">Embudo total</div>'
         f'<div class="crm-kpi-value">{_money(open_amount)}</div>'
         '<div class="crm-kpi-help">Valor de oportunidades abiertas</div>'
         '</div>'
         '<div class="crm-kpi purple">'
-        '<div class="crm-kpi-label">Pipeline ponderado</div>'
+        '<div class="crm-kpi-label">Embudo ponderado</div>'
         f'<div class="crm-kpi-value">{_money(weighted_amount)}</div>'
         '<div class="crm-kpi-help">Monto ajustado por probabilidad</div>'
         '</div>'
@@ -2713,17 +3001,27 @@ def _render_pipeline() -> None:
         '<div class="crm-kpi orange">'
         '<div class="crm-kpi-label">Ganadas</div>'
         f'<div class="crm-kpi-value">{won_count}</div>'
-        '<div class="crm-kpi-help">Oportunidades cerradas con éxito</div>'
+        '<div class="crm-kpi-help">Cierres exitosos</div>'
         '</div>'
         '</div>'
     )
 
     st.markdown(
-        pipeline_kpis_html,
+        board_kpis,
         unsafe_allow_html=True,
     )
 
-    st.markdown("")
+    st.markdown(
+        """
+<div class="crm-board-head">
+    <div>
+        <div class="crm-board-title">Board de oportunidades</div>
+        <div class="crm-board-meta">Mueve negocios entre etapas con los controles rápidos de cada tarjeta.</div>
+    </div>
+</div>
+        """,
+        unsafe_allow_html=True,
+    )
 
     if not open_rows:
         st.info(
@@ -2731,17 +3029,13 @@ def _render_pipeline() -> None:
         )
         return
 
-    # --------------------------------------------------------
-    # KANBAN
-    # --------------------------------------------------------
     stage_columns = st.columns(
         len(CRM_STAGES),
         gap="small",
     )
 
-    for column, stage in zip(
-        stage_columns,
-        CRM_STAGES,
+    for stage_index, (column, stage) in enumerate(
+        zip(stage_columns, CRM_STAGES)
     ):
         stage_rows = [
             row
@@ -2763,16 +3057,10 @@ def _render_pipeline() -> None:
         with column:
             st.markdown(
                 (
-                    '<div style="'
-                    'border:1px solid #33434F;'
-                    'border-radius:11px;'
-                    'padding:12px;'
-                    'background:#121C25;'
-                    'margin-bottom:10px;'
-                    '">'
-                    f'<div style="color:#FFC400;font-size:11px;font-weight:850;">{stage}</div>'
-                    f'<div style="color:#F7F9FB;font-size:20px;font-weight:850;margin-top:4px;">{len(stage_rows)}</div>'
-                    f'<div style="color:#8F9DA8;font-size:9px;">{_money(stage_total)}</div>'
+                    '<div class="crm-stage-head">'
+                    f'<div class="crm-stage-name">{stage}</div>'
+                    f'<div class="crm-stage-count">{len(stage_rows)}</div>'
+                    f'<div class="crm-stage-total">{_money(stage_total)}</div>'
                     '</div>'
                 ),
                 unsafe_allow_html=True,
@@ -2780,23 +3068,16 @@ def _render_pipeline() -> None:
 
             if not stage_rows:
                 st.markdown(
-                    """
-<div style="
-    border:1px dashed #33434F;
-    border-radius:10px;
-    padding:18px 10px;
-    color:#778692;
-    text-align:center;
-    font-size:9px;
-">
-    Sin oportunidades
-</div>
-                    """,
+                    '<div class="crm-stage-empty">Sin oportunidades</div>',
                     unsafe_allow_html=True,
                 )
                 continue
 
             for item in stage_rows:
+                opportunity_id = int(
+                    item.get("id")
+                )
+
                 amount = float(
                     item.get("estimated_amount")
                     or 0
@@ -2840,39 +3121,138 @@ def _render_pipeline() -> None:
                     "Sin próxima acción",
                 )
 
-                card_html = (
-                    '<div style="'
-                    'border:1px solid #33434F;'
-                    'border-radius:10px;'
-                    'padding:12px;'
-                    'margin-bottom:10px;'
-                    'background:linear-gradient(145deg,#18242E,#111A22);'
-                    '">'
-                    f'<div style="font-size:8px;color:#7F8D98;margin-bottom:4px;">#{item.get("id")} · {seller}</div>'
-                    f'<div style="font-size:11px;color:#F4F7F9;font-weight:800;line-height:1.25;">{client_name}</div>'
-                    f'<div style="font-size:9px;color:#AAB6C0;margin-top:4px;">{title}</div>'
-                    '<div style="border-top:1px solid #2E3D49;margin:9px 0;"></div>'
-                    f'<div style="font-size:13px;color:#FFC400;font-weight:850;">{_money(amount)}</div>'
-                    f'<div style="font-size:8px;color:#8F9DA8;margin-top:2px;">Probabilidad {probability}%</div>'
-                    '<div style="margin-top:9px;font-size:8px;color:#8997A3;">Próxima acción</div>'
-                    f'<div style="font-size:9px;color:#E4E9ED;margin-top:2px;">{next_action}</div>'
-                    f'<div style="font-size:8px;color:#8F9DA8;margin-top:3px;">{next_date_label}</div>'
-                    f'<div style="font-size:8px;color:#6F7D88;margin-top:7px;">Cierre estimado: {close_date_label}</div>'
-                    '</div>'
-                )
-
                 st.markdown(
-                    card_html,
+                    (
+                        '<div class="crm-kanban-card">'
+                        f'<div class="crm-kanban-id">#{opportunity_id} · {seller}</div>'
+                        f'<div class="crm-kanban-client">{client_name}</div>'
+                        f'<div class="crm-kanban-title">{title}</div>'
+                        f'<div class="crm-kanban-money">{_money(amount)}</div>'
+                        f'<div class="crm-kanban-chip">{probability}% probabilidad</div>'
+                        '<div class="crm-kanban-label">Próxima acción</div>'
+                        f'<div class="crm-kanban-action">{next_action}</div>'
+                        f'<div class="crm-kanban-date">{next_date_label}</div>'
+                        f'<div class="crm-kanban-date">Cierre: {close_date_label}</div>'
+                        '</div>'
+                    ),
                     unsafe_allow_html=True,
                 )
 
+                # ------------------------------------------------
+                # Acciones rápidas tipo board
+                # ------------------------------------------------
+                left_col, right_col = st.columns(
+                    2,
+                    gap="small",
+                )
+
+                if stage_index > 0:
+                    previous_stage = CRM_STAGES[
+                        stage_index - 1
+                    ]
+
+                    with left_col:
+                        if st.button(
+                            "←",
+                            key=f"crm_prev_{opportunity_id}",
+                            help=f"Mover a {previous_stage}",
+                            use_container_width=True,
+                        ):
+                            try:
+                                update_opportunity(
+                                    opportunity_id,
+                                    stage=previous_stage,
+                                    probability=CRM_STAGE_PROBABILITY.get(
+                                        previous_stage,
+                                        probability,
+                                    ),
+                                )
+                                st.rerun()
+                            except Exception as exc:
+                                st.error(
+                                    f"No fue posible mover la oportunidad: {exc}"
+                                )
+                else:
+                    with left_col:
+                        st.caption("")
+
+                if stage_index < len(CRM_STAGES) - 1:
+                    next_stage = CRM_STAGES[
+                        stage_index + 1
+                    ]
+
+                    with right_col:
+                        if st.button(
+                            "→",
+                            key=f"crm_next_{opportunity_id}",
+                            help=f"Mover a {next_stage}",
+                            use_container_width=True,
+                        ):
+                            try:
+                                update_opportunity(
+                                    opportunity_id,
+                                    stage=next_stage,
+                                    probability=CRM_STAGE_PROBABILITY.get(
+                                        next_stage,
+                                        probability,
+                                    ),
+                                )
+                                st.rerun()
+                            except Exception as exc:
+                                st.error(
+                                    f"No fue posible mover la oportunidad: {exc}"
+                                )
+                else:
+                    with right_col:
+                        st.caption("")
+
+                action1, action2 = st.columns(
+                    2,
+                    gap="small",
+                )
+
+                with action1:
+                    if st.button(
+                        "✓ Ganada",
+                        key=f"crm_win_{opportunity_id}",
+                        use_container_width=True,
+                    ):
+                        try:
+                            update_opportunity(
+                                opportunity_id,
+                                status="Ganada",
+                                probability=100,
+                            )
+                            st.rerun()
+                        except Exception as exc:
+                            st.error(
+                                f"No fue posible cerrar como ganada: {exc}"
+                            )
+
+                with action2:
+                    if st.button(
+                        "✕ Perdida",
+                        key=f"crm_lost_{opportunity_id}",
+                        use_container_width=True,
+                    ):
+                        try:
+                            update_opportunity(
+                                opportunity_id,
+                                status="Perdida",
+                                probability=0,
+                            )
+                            st.rerun()
+                        except Exception as exc:
+                            st.error(
+                                f"No fue posible cerrar como perdida: {exc}"
+                            )
+
+                st.markdown("")
+
     st.markdown("")
 
-    # --------------------------------------------------------
-    # VISTA RESUMIDA
-    # --------------------------------------------------------
     with st.expander(
-        "Ver detalle completo de la tubería",
+        "Vista de tabla",
         expanded=False,
     ):
         display = _opportunity_display_frame(
@@ -2980,11 +3360,11 @@ def render(
     header_html = (
         '<div class="crm-page-head">'
         '<div>'
-        '<h1>CRM</h1>'
-        '<p>Clientes, actividad comercial, oportunidades y seguimiento.</p>'
+        '<h1>CRM Comercial</h1>'
+        '<p>Gestión de clientes, oportunidades, seguimiento y tubería comercial.</p>'
         '</div>'
         '<div class="crm-live-pill">'
-        '<i></i>ERP Ventas conectado'
+        '<i></i>ERP + PostgreSQL conectados'
         '</div>'
         '</div>'
     )
