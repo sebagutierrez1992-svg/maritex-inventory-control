@@ -31,7 +31,7 @@ SELLER_NAMES = {
     "001": "VENDEDOR 1",
     "01": "JEFE DE VENTAS CM",
     "02": "JEFE DE VENTAS GC",
-    "03": "DANIEL ALVARADO",
+    "03": "GC1-DANIEL ALVARADO",
     "04": "ROXANA VALENCIA",
     "05": "GRACIELA SANTANDER",
     "06": "CLAUDIA LOPEZ",
@@ -1921,9 +1921,7 @@ def render(ctx):
                     use_container_width=True,
                     icon=":material/monitoring:",
                     on_click=_go_to,
-                    args=(
-                        "Métricas Vendedores",
-                    ),
+                    args=("Métricas Vendedores",),
                 )
 
             with q5:
@@ -1933,9 +1931,7 @@ def render(ctx):
                     use_container_width=True,
                     icon=":material/storefront:",
                     on_click=_go_to,
-                    args=(
-                        "Marketplace",
-                    ),
+                    args=("Marketplace",),
                 )
 
             with q6:
@@ -1944,3 +1940,9 @@ def render(ctx):
                     key="dash_quick_templates",
                     use_container_width=True,
                     icon=":material/description:",
+                    on_click=_go_to,
+                    args=("Plantillas",),
+                )
+
+    # Fin del dashboard
+    return None
