@@ -23,11 +23,11 @@ from services.crm_service import (
 # ============================================================
 
 CRM_TABS = (
-    "Resumen",
+    "Resumen Ejecutivo",
     "Clientes",
     "Oportunidades",
     "Seguimientos",
-    "Pipeline",
+    "Tubería",
 )
 
 
@@ -942,7 +942,7 @@ def _opportunity_display_frame(
             "Etapa": frame["stage"],
             "Probabilidad": frame["probability"],
             "Estado": frame["status"],
-            "Vendedor": frame["seller"].fillna("-"),
+            "Vendedor": frame["seller"].fillna("-").map(_seller_name),
             "Cierre estimado": frame["expected_close_date"],
             "Próxima acción": frame["next_action"].fillna("-"),
             "Fecha próxima acción": frame["next_action_date"],
@@ -994,7 +994,7 @@ def _followup_display_frame(
             "Oportunidad": frame["opportunity_id"].fillna("-"),
             "Tipo": frame["followup_type"].fillna("-"),
             "Asunto": frame["subject"].fillna("-"),
-            "Responsable": frame["seller"].fillna("-"),
+            "Responsable": frame["seller"].fillna("-").map(_seller_name),
             "Detalle": frame["notes"].fillna("-"),
             "Próximo seguimiento": frame["next_followup_date"],
             "Estado": frame["completed"].map(
@@ -1036,16 +1036,29 @@ def _seller_options_from_clients(
     if clients is None or clients.empty or "Vendedor" not in clients.columns:
         return []
 
+    options = set()
+
+    for value in clients["Vendedor"].dropna().astype(str):
+        code = _normalize_seller_code(value)
+
+        if (
+            code
+            and code != "-"
+            and code not in EXCLUDED_SELLERS
+        ):
+            options.add(code)
+
     return sorted(
-        {
-            str(value).strip()
-            for value in clients["Vendedor"].dropna().astype(str)
-            if str(value).strip() and str(value).strip() != "-"
-        }
+        options,
+        key=lambda code: (
+            _seller_name(code).upper(),
+            code,
+        ),
     )
 
 
 def _filter_clients_by_seller(
+
     clients: pd.DataFrame,
     seller: str,
 ) -> pd.DataFrame:
@@ -1055,8 +1068,14 @@ def _filter_clients_by_seller(
     if not seller or seller == "Todos":
         return clients.copy()
 
+    seller_code = _normalize_seller_code(seller)
+
+    seller_codes = clients["Vendedor"].map(
+        _normalize_seller_code
+    )
+
     return clients[
-        clients["Vendedor"].fillna("").astype(str).str.strip() == seller
+        seller_codes == seller_code
     ].copy()
 
 
@@ -1068,6 +1087,111 @@ def _get_active_seller() -> str:
         )
         or "Todos"
     )
+
+
+
+SELLER_NAMES = {
+    "001": "VENDEDOR 1",
+    "01": "JEFE DE VENTAS CM",
+    "02": "JEFE DE VENTAS GC",
+    "03": "GC1-DANIEL ALVARADO",
+    "04": "ROXANA VALENCIA",
+    "05": "GRACIELA SANTANDER",
+    "06": "CLAUDIA LOPEZ",
+    "07": "LORENA OPAZO",
+    "08": "MARIO BRITO",
+    "09": "XIMENA CROVETTO",
+    "10": "REG1",
+    "11": "CAROLINA CROCKETT",
+    "12": "JOSE GONZALEZ",
+    "13": "PERSONAL",
+    "14": "REGIONES SUR",
+    "15": "VENDEDOR ECOMMERS",
+    "16": "MATIAS CHOMALI",
+    "17": "ECOMMERS",
+    "30": "VENDEDOR ECOMMERS B2C",
+    "31": "VENDEDOR ECOMMERS NOLK",
+    "32": "VENDEDOR ECOMMERS",
+    "33": "MKP FALABELLA",
+    "34": "MKP MERCADO LIBRE",
+    "35": "MKP - PARIS",
+    "42": "JEFE LOCAL",
+    "43": "SEBASTIAN ROCCO",
+    "44": "MACARENA DE LA ORDEN",
+    "45": "MARIELY ROSALES",
+    "46": "MELANY VARGAS",
+    "47": "MARIA BERNARD",
+    "48": "EURO QUIÑONEZ",
+    "49": "FRANCISCO PEREZ",
+    "50": "GINO MATUS",
+    "51": "NELSON SAN MARTIN",
+    "54": "JOHANA OBREQUE",
+    "60": "JOSE LUIS ROLANO",
+    "70": "ANDRES ESPINOZA",
+}
+
+EXCLUDED_SELLERS = {"36", "52", "53"}
+
+
+def _normalize_seller_code(value: Any) -> str:
+    code = _safe_text(value, "").strip()
+
+    if not code:
+        return ""
+
+    # Excel a veces entrega códigos numéricos como "6.0"
+    if code.endswith(".0"):
+        code = code[:-2]
+
+    # Mantener 001 como código especial y normalizar el resto a 2 dígitos.
+    if code == "001":
+        return "001"
+
+    if code.isdigit():
+        code = code.zfill(2)
+
+    return code
+
+
+def _seller_name(value: Any) -> str:
+    code = _normalize_seller_code(value)
+
+    if not code:
+        return "-"
+
+    return SELLER_NAMES.get(code, code)
+
+
+def _seller_label(value: Any) -> str:
+    code = _normalize_seller_code(value)
+
+    if not code:
+        return "Sin vendedor"
+
+    name = SELLER_NAMES.get(code)
+
+    if not name:
+        return code
+
+    return name
+
+
+def _is_excluded_seller(value: Any) -> bool:
+    return _normalize_seller_code(value) in EXCLUDED_SELLERS
+
+
+def _display_seller_series(series: pd.Series) -> pd.Series:
+    return series.map(_seller_name)
+
+
+def _filter_excluded_db_rows(
+    rows: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    return [
+        row
+        for row in rows
+        if not _is_excluded_seller(row.get("seller"))
+    ]
 
 
 # ============================================================
@@ -1690,6 +1814,10 @@ def _render_summary(
             display = recent[
                 ["Cliente", "RUT", "Vendedor", "Última compra", "Ventas 12 meses", "Pedidos"]
             ].copy()
+            display["Vendedor"] = display["Vendedor"].map(
+                _seller_name
+            )
+
             display["Última compra"] = pd.to_datetime(
                 display["Última compra"], errors="coerce"
             ).dt.strftime("%d-%m-%Y")
@@ -1736,6 +1864,10 @@ def _render_summary(
             if sellers.empty:
                 st.info("No se encontró vendedor asociado.")
             else:
+                sellers["Vendedor"] = sellers["Vendedor"].map(
+                    _seller_name
+                )
+
                 st.bar_chart(
                     sellers.set_index("Vendedor")["Ventas 12 meses"],
                     use_container_width=True,
@@ -1878,6 +2010,10 @@ def _render_clients(
         ]
     ].copy()
 
+    display["Vendedor"] = display["Vendedor"].map(
+        _seller_name
+    )
+
     display["Última compra"] = pd.to_datetime(
         display["Última compra"],
         errors="coerce",
@@ -1923,7 +2059,7 @@ def _render_clients(
 
     client_name = _safe_text(client.get("Cliente"))
     client_rut = _safe_text(client.get("RUT"))
-    client_seller = _safe_text(client.get("Vendedor"))
+    client_seller = _seller_name(client.get("Vendedor"))
 
     st.markdown("")
 
@@ -2126,6 +2262,7 @@ def _render_opportunities(
             ),
             limit=1000,
         )
+        rows = _filter_excluded_db_rows(rows)
     except Exception as exc:
         st.error(f"No fue posible cargar las oportunidades: {exc}")
         return
@@ -3234,6 +3371,7 @@ def _render_pipeline() -> None:
             ),
             limit=1500,
         )
+        all_rows = _filter_excluded_db_rows(all_rows)
         summary = get_crm_summary()
         pending_followups = list_followups(
             seller=(
@@ -3243,6 +3381,9 @@ def _render_pipeline() -> None:
             ),
             pending_only=True,
             limit=10,
+        )
+        pending_followups = _filter_excluded_db_rows(
+            pending_followups
         )
     except Exception as exc:
         st.error(
@@ -3276,6 +3417,12 @@ def _render_pipeline() -> None:
             seller_filter = st.selectbox(
                 "Vendedor",
                 ["Todos"] + seller_options,
+                format_func=(
+                    lambda value:
+                    "Todos los vendedores"
+                    if value == "Todos"
+                    else _seller_label(value)
+                ),
                 key="crm_pipe_seller",
             )
 
@@ -3881,7 +4028,7 @@ def render(
         '<div class="crm-page-head">'
         '<div>'
         '<h1>CRM</h1>'
-        '<p>Gestión comercial de clientes, oportunidades, seguimiento y tubería.</p>'
+        '<p>Resumen ejecutivo, clientes, oportunidades, seguimiento y tubería comercial.</p>'
         '</div>'
         '<div class="crm-live-pill">'
         '<i></i>ERP + PostgreSQL conectados'
@@ -3903,6 +4050,13 @@ def render(
         )
     )
 
+    if "Vendedor" in clients.columns:
+        clients = clients[
+            ~clients["Vendedor"].map(
+                _is_excluded_seller
+            )
+        ].copy()
+
     seller_options = _seller_options_from_clients(
         clients
     )
@@ -3922,6 +4076,12 @@ def render(
                 "Todos",
             ) in ["Todos"] + seller_options
             else "Todos"
+        ),
+        format_func=(
+            lambda value:
+            "Todos los vendedores"
+            if value == "Todos"
+            else _seller_label(value)
         ),
         key="crm_active_seller",
         help=(
@@ -3957,12 +4117,12 @@ def render(
         options=list(
             CRM_TABS
         ),
-        default="Resumen",
+        default="Resumen Ejecutivo",
         key="crm_section",
     )
 
     if not section:
-        section = "Resumen"
+        section = "Resumen Ejecutivo"
 
     st.markdown("")
 
@@ -3970,7 +4130,7 @@ def render(
     # Contenido
     # --------------------------------------------------------
 
-    if section == "Resumen":
+    if section == "Resumen Ejecutivo":
         _render_summary(
             clients
         )
@@ -3990,7 +4150,7 @@ def render(
             clients
         )
 
-    elif section == "Pipeline":
+    elif section == "Tubería":
         _render_pipeline()
 
     # --------------------------------------------------------
