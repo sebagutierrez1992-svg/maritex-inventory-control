@@ -1,4 +1,4 @@
-
+from __future__ import annotations
 
 from datetime import datetime
 from html import escape
@@ -7,7 +7,7 @@ import altair as alt
 import pandas as pd
 import streamlit as st
 
-from analytics.sales_metrics import calculate_commercial_totals
+from analytics.sales_metrics import calculate_commercial_totals, filter_sales
 from ui.components import render_html
 from utils.numbers import format_clp
 
@@ -1524,12 +1524,29 @@ def render(ctx):
         start_date = selected_period
         end_date = selected_period
 
-    sales = _filter_sales(
+    # ========================================================
+    # MISMA VISTA COMERCIAL QUE RESUMEN EJECUTIVO
+    # ========================================================
+    # Resumen Ejecutivo NO pasa directamente "base" al cálculo.
+    # Primero llama filter_sales(), incluso cuando los filtros
+    # visuales están vacíos. Inicio debe hacer exactamente lo mismo.
+    commercial_base = filter_sales(
         sales_all,
-        selected_seller,
-        start_date,
-        end_date,
+        sellers=[],
+        warehouses=[],
+        document_types=[],
     )
+
+    sales = commercial_base[
+        (
+            commercial_base["Fecha_dt"].dt.date
+            >= start_date
+        )
+        & (
+            commercial_base["Fecha_dt"].dt.date
+            <= end_date
+        )
+    ].copy()
 
     metrics = _sales_summary(
         sales
@@ -1548,8 +1565,8 @@ def render(ctx):
     )
 
     st.caption(
-        "Base homologada con Resumen Ejecutivo · "
-        "Factura + Boleta - Nota de crédito · Con IVA · "
+        "Misma vista comercial del Resumen Ejecutivo · "
+        "filter_sales + Factura + Boleta - Nota de crédito · Con IVA · "
         f"Fuente: {source_name} · Última fecha ERP: {actual_max_date}"
     )
 
