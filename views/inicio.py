@@ -26,6 +26,7 @@ except Exception:
 # ============================================================
 
 VAT_RATE = 0.19
+VALID_GROUPS = ["Factura", "Boleta", "Nota de crédito"]
 
 SELLER_NAMES = {
     "001": "VENDEDOR 1",
@@ -265,6 +266,17 @@ def _prepare_sales(sales_df: pd.DataFrame) -> pd.DataFrame:
 
     if "Grupo comercial" not in work.columns:
         work["Grupo comercial"] = "Factura"
+
+    # Misma base comercial que Resumen Ejecutivo:
+    # sólo Factura, Boleta y Nota de crédito.
+    work = work[
+        work["Grupo comercial"].isin(
+            VALID_GROUPS
+        )
+    ].copy()
+
+    if work.empty:
+        return work
 
     sign = (
         work["Grupo comercial"]
@@ -1525,6 +1537,11 @@ def render(ctx):
 
     crm = _crm_alerts()
 
+    st.caption(
+        "Base homologada con Resumen Ejecutivo · "
+        "Factura + Boleta - Nota de crédito · Con IVA"
+    )
+
     # --------------------------------------------------------
     # KPI
     # --------------------------------------------------------
@@ -1537,7 +1554,7 @@ def render(ctx):
             <div class="dash-kpi-icon green">$</div>
             <div class="dash-kpi-label">
                 Ventas del período
-                {_help("Venta neta comercial del período seleccionado: Facturas + Boletas - Notas de crédito.")}
+                {_help("Misma venta neta del Resumen Ejecutivo: Facturas + Boletas - Notas de crédito, con IVA.")}
             </div>
         </div>
         <div class="dash-kpi-value">{_money(metrics["net"])}</div>
@@ -1619,7 +1636,7 @@ def render(ctx):
     Resumen comercial
     {_help("Indicadores principales del período comercial seleccionado.")}
 </div>
-<div class="card-sub">ERP Ventas · misma base del Resumen Ejecutivo</div>
+<div class="card-sub">ERP Ventas · misma base comercial del Resumen Ejecutivo</div>
 
 <table class="summary-table">
     <tr><td>Venta neta</td><td>{_money(metrics["net"])}</td></tr>
