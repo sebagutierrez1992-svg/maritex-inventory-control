@@ -1,4 +1,4 @@
-
+from __future__ import annotations
 
 from datetime import datetime, timedelta
 from typing import Any
@@ -83,11 +83,11 @@ def _apply_styles() -> None:
 }
 
 [data-testid="stAppViewContainer"]{
-    background:#F6F7FB;
+    background:#0F151B;
 }
 
 [data-testid="stHeader"]{
-    background:rgba(246,247,251,.92);
+    background:rgba(15,21,27,.94);
 }
 
 div[data-testid="stVerticalBlock"]{
@@ -104,16 +104,16 @@ div[data-testid="stVerticalBlock"]{
     justify-content:space-between;
     gap:18px;
     padding:18px 20px;
-    border:1px solid #E3E6EC;
+    border:1px solid #313D47;
     border-radius:16px;
-    background:#FFFFFF;
-    box-shadow:0 4px 18px rgba(20,32,50,.05);
+    background:#151D24;
+    box-shadow:0 4px 18px rgba(0,0,0,.16);
     margin-bottom:10px;
 }
 
 .crm-page-head h1{
     margin:0;
-    color:#171B24;
+    color:#FFFFFF;
     font-size:31px;
     line-height:1;
     letter-spacing:-.8px;
@@ -122,7 +122,7 @@ div[data-testid="stVerticalBlock"]{
 
 .crm-page-head p{
     margin:8px 0 0;
-    color:#737C8B;
+    color:#AEB8C2;
     font-size:12px;
 }
 
@@ -131,10 +131,10 @@ div[data-testid="stVerticalBlock"]{
     align-items:center;
     gap:8px;
     padding:9px 13px;
-    border:1px solid #DDE2E8;
+    border:1px solid #313D47;
     border-radius:999px;
-    background:#FAFBFC;
-    color:#384252;
+    background:#111920;
+    color:#E8EDF2;
     font-size:10px;
     font-weight:750;
     white-space:nowrap;
@@ -154,23 +154,23 @@ div[data-testid="stVerticalBlock"]{
    --------------------------------------------------------- */
 
 div[data-testid="stSegmentedControl"]{
-    background:#FFFFFF;
-    border:1px solid #E2E6EC;
+    background:#151D24;
+    border:1px solid #313D47;
     border-radius:13px;
     padding:4px;
-    box-shadow:0 2px 10px rgba(20,32,50,.04);
+    box-shadow:0 2px 10px rgba(0,0,0,.12);
 }
 
 div[data-testid="stSegmentedControl"] button{
-    color:#586273 !important;
+    color:#C2CBD3 !important;
     border-radius:9px !important;
     font-size:10px !important;
     font-weight:750 !important;
 }
 
 div[data-testid="stSegmentedControl"] button[aria-pressed="true"]{
-    background:#FFF6CC !important;
-    color:#5E4A00 !important;
+    background:#2B2613 !important;
+    color:#FFC400 !important;
     box-shadow:inset 0 0 0 1px #F2C200 !important;
 }
 
@@ -189,11 +189,11 @@ div[data-testid="stSegmentedControl"] button[aria-pressed="true"]{
     position:relative;
     overflow:hidden;
     min-height:118px;
-    border:1px solid #E4E8EE;
+    border:1px solid #313D47;
     border-radius:14px;
     padding:16px;
-    background:#FFFFFF;
-    box-shadow:0 3px 14px rgba(20,32,50,.045);
+    background:#151D24;
+    box-shadow:0 3px 14px rgba(0,0,0,.14);
 }
 
 .crm-kpi::before{
@@ -207,12 +207,12 @@ div[data-testid="stSegmentedControl"] button[aria-pressed="true"]{
 }
 
 .crm-kpi.yellow::before{background:#F6C500}
-.crm-kpi.green::before{background:#22C55E}
-.crm-kpi.purple::before{background:#8B5CF6}
-.crm-kpi.orange::before{background:#F97316}
+.crm-kpi.green::before{background:#FFC400}
+.crm-kpi.purple::before{background:#FFC400}
+.crm-kpi.orange::before{background:#FFC400}
 
 .crm-kpi-label{
-    color:#7A8492;
+    color:#9DA8B2;
     font-size:9px;
     text-transform:uppercase;
     letter-spacing:.06em;
@@ -220,7 +220,7 @@ div[data-testid="stSegmentedControl"] button[aria-pressed="true"]{
 }
 
 .crm-kpi-value{
-    color:#1D2430;
+    color:#FFFFFF;
     font-size:24px;
     font-weight:850;
     line-height:1;
@@ -229,41 +229,41 @@ div[data-testid="stSegmentedControl"] button[aria-pressed="true"]{
 }
 
 .crm-kpi-help{
-    color:#8A94A3;
+    color:#9DA8B2;
     font-size:8.8px;
     margin-top:10px;
     font-weight:650;
 }
 
-.crm-kpi-help.green{color:#16A34A}
-.crm-kpi-help.orange{color:#EA580C}
+.crm-kpi-help.green{color:#FFC400}
+.crm-kpi-help.orange{color:#FFC400}
 
 /* ---------------------------------------------------------
    CONTAINERS / TABLES
    --------------------------------------------------------- */
 
 div[data-testid="stVerticalBlockBorderWrapper"]{
-    border:1px solid #E2E6EC !important;
+    border:1px solid #313D47 !important;
     background:#FFFFFF !important;
     border-radius:14px !important;
-    box-shadow:0 3px 14px rgba(20,32,50,.04) !important;
+    box-shadow:0 3px 14px rgba(0,0,0,.14) !important;
 }
 
 div[data-testid="stDataFrame"]{
-    border:1px solid #E2E6EC;
+    border:1px solid #313D47;
     border-radius:12px;
     overflow:hidden;
-    background:#FFFFFF;
+    background:#151D24;
 }
 
 div[data-testid="stDataFrame"] *{
-    color:#26303D;
+    color:#E8EDF2;
 }
 
 div[data-testid="stMetric"]{
-    border:1px solid #E2E6EC;
+    border:1px solid #313D47;
     border-radius:12px;
-    background:#FFFFFF;
+    background:#151D24;
     padding:10px 12px;
 }
 
@@ -283,7 +283,7 @@ div[data-testid="stMetricValue"]{
    --------------------------------------------------------- */
 
 .crm-section-kicker{
-    color:#B58D00;
+    color:#FFC400;
     text-transform:uppercase;
     letter-spacing:.10em;
     font-size:8px;
@@ -292,27 +292,27 @@ div[data-testid="stMetricValue"]{
 }
 
 .crm-section-title{
-    color:#202733;
+    color:#FFFFFF;
     font-size:14px;
     font-weight:850;
     margin:0 0 3px;
 }
 
 .crm-section-sub{
-    color:#8A94A3;
+    color:#9DA8B2;
     font-size:9px;
     margin-bottom:8px;
 }
 
 .crm-client-title{
-    color:#202733;
+    color:#FFFFFF;
     font-size:19px;
     font-weight:850;
     margin-bottom:2px;
 }
 
 .crm-client-sub{
-    color:#8A94A3;
+    color:#9DA8B2;
     font-size:10px;
     margin-bottom:8px;
 }
@@ -327,30 +327,30 @@ div[data-testid="stMetricValue"]{
     gap:8px;
     align-items:center;
     min-height:39px;
-    border-bottom:1px solid #EEF1F4;
+    border-bottom:1px solid #26323C;
     font-size:8.8px;
 }
 
 .crm-top-row.header{
-    color:#9099A6;
+    color:#87939E;
     font-size:7.7px;
     text-transform:uppercase;
     font-weight:750;
 }
 
 .crm-top-row:last-child{border-bottom:0}
-.crm-rank{color:#9099A6;font-weight:800}
+.crm-rank{color:#87939E;font-weight:800}
 .crm-client-name{
-    color:#28313E;
+    color:#F2F5F7;
     font-weight:780;
     white-space:nowrap;
     overflow:hidden;
     text-overflow:ellipsis;
 }
-.crm-client-rut{color:#7E8794}
-.crm-money{color:#9B7B00;font-weight:850;text-align:right}
-.crm-orders{color:#495261;text-align:right}
-.crm-date{color:#65707F;text-align:right}
+.crm-client-rut{color:#AEB8C2}
+.crm-money{color:#FFC400;font-weight:850;text-align:right}
+.crm-orders{color:#C2CBD3;text-align:right}
+.crm-date{color:#AEB8C2;text-align:right}
 
 /* ---------------------------------------------------------
    EMPTY STATES
@@ -363,15 +363,15 @@ div[data-testid="stMetricValue"]{
     align-items:center;
     justify-content:center;
     text-align:center;
-    border:1px dashed #D8DEE6;
+    border:1px dashed #3A4650;
     border-radius:12px;
-    color:#8A94A3;
+    color:#9DA8B2;
     padding:20px;
-    background:#FBFCFD;
+    background:#111920;
 }
 
 .crm-empty strong{
-    color:#303846;
+    color:#F2F5F7;
     font-size:12px;
     margin-bottom:5px;
 }
@@ -404,7 +404,7 @@ div[data-testid="stMetricValue"]{
 [data-testid="stNumberInput"] input,
 [data-testid="stDateInput"] input{
     background:#FFFFFF !important;
-    border-color:#DDE2E8 !important;
+    border-color:#313D47 !important;
     color:#202733 !important;
     border-radius:9px !important;
 }
@@ -415,7 +415,7 @@ div[data-testid="stMetricValue"]{
 [data-testid="stNumberInput"] label,
 [data-testid="stDateInput"] label,
 [data-testid="stRadio"] label{
-    color:#66717F !important;
+    color:#AEB8C2 !important;
     font-size:9px !important;
     font-weight:750 !important;
 }
@@ -426,7 +426,7 @@ div[data-testid="stMetricValue"]{
 
 details{
     background:#FFFFFF !important;
-    border:1px solid #E2E6EC !important;
+    border:1px solid #313D47 !important;
     border-radius:12px !important;
 }
 
@@ -451,21 +451,21 @@ details summary{
 .crm-board-title{
     font-size:15px;
     font-weight:850;
-    color:#202733;
+    color:#FFFFFF;
 }
 
 .crm-board-meta{
     font-size:9px;
-    color:#8A94A3;
+    color:#9DA8B2;
 }
 
 .crm-stage-head{
     border-radius:12px 12px 8px 8px;
     padding:12px 12px 10px;
     margin-bottom:8px;
-    background:#FFFFFF;
-    border:1px solid #E1E6EC;
-    box-shadow:0 2px 10px rgba(20,32,50,.035);
+    background:#151D24;
+    border:1px solid #313D47;
+    box-shadow:0 2px 10px rgba(0,0,0,.12);
     position:relative;
     overflow:hidden;
 }
@@ -481,14 +481,14 @@ details summary{
 }
 
 .crm-stage-name{
-    color:#303846;
+    color:#F2F5F7;
     font-size:11px;
     font-weight:850;
     margin-top:2px;
 }
 
 .crm-stage-count{
-    color:#1D2430;
+    color:#FFFFFF;
     font-size:21px;
     font-weight:850;
     margin-top:5px;
@@ -501,35 +501,35 @@ details summary{
 }
 
 .crm-kanban-card{
-    border:1px solid #E2E6EC;
+    border:1px solid #313D47;
     border-radius:12px;
     padding:12px;
     margin-bottom:8px;
-    background:#FFFFFF;
-    box-shadow:0 3px 12px rgba(20,32,50,.045);
+    background:#151D24;
+    box-shadow:0 3px 12px rgba(0,0,0,.16);
 }
 
 .crm-kanban-id{
-    color:#9AA3AE;
+    color:#87939E;
     font-size:7.8px;
     margin-bottom:5px;
 }
 
 .crm-kanban-client{
-    color:#27303C;
+    color:#FFFFFF;
     font-size:10.5px;
     font-weight:850;
     line-height:1.25;
 }
 
 .crm-kanban-title{
-    color:#717B88;
+    color:#AEB8C2;
     font-size:8.8px;
     margin-top:4px;
 }
 
 .crm-kanban-money{
-    color:#8A6D00;
+    color:#FFC400;
     font-size:13px;
     font-weight:850;
     margin-top:10px;
@@ -540,40 +540,40 @@ details summary{
     align-items:center;
     padding:3px 7px;
     border-radius:999px;
-    background:#FFF4C2;
-    color:#725900;
+    background:#332B08;
+    color:#FFC400;
     font-size:7.5px;
     font-weight:800;
     margin-top:6px;
 }
 
 .crm-kanban-label{
-    color:#9AA3AE;
+    color:#87939E;
     font-size:7.5px;
     margin-top:9px;
 }
 
 .crm-kanban-action{
-    color:#47515E;
+    color:#E4E9ED;
     font-size:8.5px;
     margin-top:2px;
     line-height:1.3;
 }
 
 .crm-kanban-date{
-    color:#7D8794;
+    color:#9DA8B2;
     font-size:7.7px;
     margin-top:3px;
 }
 
 .crm-stage-empty{
-    border:1px dashed #D9DEE5;
+    border:1px dashed #3A4650;
     border-radius:10px;
     padding:22px 10px;
     color:#A0A8B3;
     text-align:center;
     font-size:8.5px;
-    background:#FAFBFC;
+    background:#111920;
 }
 
 hr{
