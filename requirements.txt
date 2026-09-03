@@ -5,3 +5,4 @@ openpyxl
 xlrd>=2.0.1
 lxml
 pytest
+psycopg[binary]>=3.2
