@@ -1,4 +1,4 @@
-from __future__ import annotations
+
 
 from datetime import datetime, timedelta
 from typing import Any
@@ -1170,6 +1170,66 @@ def _followup_opportunity_label(
 
 
 
+
+def _seller_options_from_sales(
+    sales_df: pd.DataFrame,
+    seller_col: str | None,
+) -> list[str]:
+    if (
+        sales_df is None
+        or sales_df.empty
+        or not seller_col
+        or seller_col not in sales_df.columns
+    ):
+        return []
+
+    options = set()
+
+    for value in sales_df[seller_col].dropna():
+        code = _normalize_seller_code(value)
+
+        if (
+            code
+            and code not in EXCLUDED_SELLERS
+        ):
+            options.add(code)
+
+    return sorted(
+        options,
+        key=lambda code: (
+            _seller_name(code).upper(),
+            code,
+        ),
+    )
+
+
+def _filter_sales_by_seller(
+    sales_df: pd.DataFrame,
+    seller_col: str | None,
+    seller: str,
+) -> pd.DataFrame:
+    if sales_df is None or sales_df.empty:
+        return pd.DataFrame()
+
+    if (
+        not seller
+        or seller == "Todos"
+        or not seller_col
+        or seller_col not in sales_df.columns
+    ):
+        return sales_df.copy()
+
+    seller_code = _normalize_seller_code(seller)
+
+    codes = sales_df[seller_col].map(
+        _normalize_seller_code
+    )
+
+    return sales_df[
+        codes == seller_code
+    ].copy()
+
+
 def _seller_options_from_clients(
     clients: pd.DataFrame,
 ) -> list[str]:
@@ -2131,7 +2191,7 @@ def _render_summary(
     )
 
     st.caption(
-        f"Ventas calculadas con la misma base comercial del Resumen Ejecutivo · "
+        f"Ventas filtradas por vendedor antes de agrupar clientes, usando la misma base comercial del Resumen Ejecutivo · "
         f"Período detectado: {_period_label()}"
     )
 
@@ -5008,28 +5068,18 @@ def render(
         )
         return
 
-    clients, detected_columns = (
-        _prepare_clients(
-            sales_df
-        )
+    # Detectar estructura del ERP antes de agrupar.
+    detected_columns = _detect_sales_columns(
+        sales_df
     )
 
-    period_start, period_end = _sales_period_from_df(
+    seller_col = detected_columns.get(
+        "seller"
+    )
+
+    seller_options = _seller_options_from_sales(
         sales_df,
-        detected_columns,
-    )
-    st.session_state["crm_sales_period_start"] = period_start
-    st.session_state["crm_sales_period_end"] = period_end
-
-    if "Vendedor" in clients.columns:
-        clients = clients[
-            ~clients["Vendedor"].map(
-                _is_excluded_seller
-            )
-        ].copy()
-
-    seller_options = _seller_options_from_clients(
-        clients
+        seller_col,
     )
 
     active_seller = st.selectbox(
@@ -5061,10 +5111,36 @@ def render(
         ),
     )
 
-    clients = _filter_clients_by_seller(
-        clients,
+    # CLAVE:
+    # El vendedor debe filtrarse ANTES de agrupar por cliente.
+    # Antes se agrupaban todos los vendedores por cliente y luego
+    # se asignaba el primer vendedor encontrado, provocando totales
+    # incorrectos para vendedores específicos.
+    sales_for_module = _filter_sales_by_seller(
+        sales_df,
+        seller_col,
         active_seller,
     )
+
+    clients, detected_columns = (
+        _prepare_clients(
+            sales_for_module
+        )
+    )
+
+    period_start, period_end = _sales_period_from_df(
+        sales_for_module,
+        detected_columns,
+    )
+    st.session_state["crm_sales_period_start"] = period_start
+    st.session_state["crm_sales_period_end"] = period_end
+
+    if "Vendedor" in clients.columns:
+        clients = clients[
+            ~clients["Vendedor"].map(
+                _is_excluded_seller
+            )
+        ].copy()
 
     if clients.empty:
         st.error(
@@ -5073,7 +5149,7 @@ def render(
         )
 
         _render_source_info(
-            sales_df,
+            sales_for_module,
             detected_columns,
         )
 
@@ -5129,6 +5205,6 @@ def render(
     st.markdown("")
 
     _render_source_info(
-        sales_df,
+        sales_for_module,
         detected_columns,
     )
