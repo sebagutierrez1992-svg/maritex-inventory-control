@@ -1,4 +1,4 @@
-from __future__ import annotations
+
 
 from datetime import datetime, timedelta
 from typing import Any
@@ -25,6 +25,8 @@ from services.commercial_dashboard_service import (
     seller_name as shared_seller_name,
 )
 
+from views.crm_ficha_360_cliente import render_client_360
+
 
 # ============================================================
 # CONFIGURACIÓN
@@ -33,6 +35,7 @@ from services.commercial_dashboard_service import (
 CRM_TABS = (
     "Resumen Ejecutivo",
     "Clientes",
+    "Ficha 360°",
     "Oportunidades",
     "Seguimientos",
     "Tubería",
@@ -5212,6 +5215,11 @@ def render(
     elif section == "Clientes":
         _render_clients(
             clients
+        )
+
+    elif section == "Ficha 360°":
+        render_client_360(
+            ctx
         )
 
     elif section == "Oportunidades":
