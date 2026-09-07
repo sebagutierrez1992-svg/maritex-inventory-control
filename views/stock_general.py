@@ -619,6 +619,105 @@ def _kpi_card(
     """
 
 
+
+def _status_badge(value: object) -> str:
+    text = _clean_text(value)
+    low = text.lower()
+
+    if "disponible" in low:
+        tone = "green"
+        label = "DISPONIBLE"
+    elif "stock bajo" in low:
+        tone = "yellow"
+        label = "STOCK BAJO"
+    elif "riesgo" in low:
+        tone = "orange"
+        label = "RIESGO"
+    elif "sin stock" in low or "negativo" in low:
+        tone = "red"
+        label = "SIN STOCK" if "sin stock" in low else "NEGATIVO"
+    elif "por llegar" in low:
+        tone = "blue"
+        label = "POR LLEGAR"
+    else:
+        tone = "neutral"
+        label = text or "—"
+
+    return (
+        f'<span class="sgx-badge {tone}">'
+        f'{escape(label)}'
+        f'</span>'
+    )
+
+
+def _inventory_table_html(
+    df: pd.DataFrame,
+    columns: list[str] | None = None,
+    max_rows: int | None = None,
+) -> str:
+    """Tabla HTML negra para evitar el fondo azul nativo de Streamlit."""
+    if df is None or df.empty:
+        return '<div class="sgx-empty-table">Sin registros para mostrar.</div>'
+
+    work = df.copy()
+
+    if columns:
+        visible = [column for column in columns if column in work.columns]
+        work = work[visible]
+
+    if max_rows is not None:
+        work = work.head(max_rows)
+
+    numeric_columns = {
+        "Stock físico",
+        "Disponible",
+        "Por llegar",
+        "Por despachar",
+        "Precio",
+    }
+
+    header_map = {
+        "Código": "SKU",
+    }
+
+    head = "".join(
+        f'<th class="{"num" if column in numeric_columns else ""}">'
+        f'{escape(header_map.get(column, column))}'
+        f'</th>'
+        for column in work.columns
+    )
+
+    body_rows = []
+    for _, row in work.iterrows():
+        cells = []
+        for column in work.columns:
+            value = row.get(column, "")
+
+            if column == "Estado":
+                cell = _status_badge(value)
+                cells.append(f'<td>{cell}</td>')
+                continue
+
+            if column in numeric_columns:
+                display = _fmt_int(value)
+                cells.append(f'<td class="num">{escape(display)}</td>')
+                continue
+
+            display = _clean_text(value) or "—"
+            cells.append(f'<td>{escape(display)}</td>')
+
+        body_rows.append("<tr>" + "".join(cells) + "</tr>")
+
+    return (
+        '<div class="sgx-table-wrap">'
+        '<table class="sgx-data-table">'
+        f'<thead><tr>{head}</tr></thead>'
+        f'<tbody>{"".join(body_rows)}</tbody>'
+        '</table>'
+        '</div>'
+    )
+
+
 # ============================================================
 # CSS
 # ============================================================
@@ -1269,7 +1368,334 @@ def _inject_css():
         .sgx-wh-track { background:#2A3742 !important; }
         .sgx-wh-total, .sgx-result { background:#111C25 !important; border-color:#34414D !important; }
         .sgx-critical-table th,.sgx-product-table th,.sgx-critical-table td,.sgx-product-table td { border-color:#34414D !important; }
-                </style>
+        
+        /* ============================================================
+           STOCK GENERAL · MOCKUP NEGRO MARITEX
+           ============================================================ */
+        :root{
+            --sgx-bg:#000000;
+            --sgx-panel:#080808;
+            --sgx-panel-2:#0D0D0D;
+            --sgx-line:#2A2A2A;
+            --sgx-line-2:#383838;
+            --sgx-text:#FFFFFF;
+            --sgx-muted:#9A9A9A;
+            --sgx-yellow:#FFC400;
+        }
+
+        .stApp,
+        [data-testid="stAppViewContainer"],
+        [data-testid="stMain"],
+        section.main{
+            background:#000000 !important;
+        }
+
+        [data-testid="stHeader"]{
+            background:rgba(0,0,0,.96) !important;
+        }
+
+        section[data-testid="stSidebar"]{
+            background:#050505 !important;
+            border-right:1px solid #202020 !important;
+        }
+
+        .sgx-head{
+            padding:4px 2px 12px !important;
+            border-bottom:1px solid #1E1E1E;
+        }
+
+        .sgx-title{
+            color:#FFFFFF !important;
+            font-size:30px !important;
+        }
+
+        .sgx-title::before{
+            content:"";
+            display:inline-block;
+            width:4px;
+            height:29px;
+            margin-right:10px;
+            border-radius:3px;
+            background:#FFC400;
+            vertical-align:-5px;
+        }
+
+        .sgx-subtitle,
+        .sgx-update,
+        .sgx-card-sub,
+        .sgx-section-head span{
+            color:#8E8E8E !important;
+        }
+
+        .sgx-search-card,
+        .sgx-kpi,
+        div[data-testid="stVerticalBlockBorderWrapper"],
+        .sgx-product-meta > div,
+        .sgx-wh-total,
+        .sgx-result,
+        .sgx-detail-note{
+            background:#080808 !important;
+            border-color:#2C2C2C !important;
+            box-shadow:none !important;
+        }
+
+        .sgx-kpi{
+            position:relative;
+            border-radius:10px !important;
+            overflow:hidden;
+        }
+
+        .sgx-kpi::before{
+            content:"";
+            position:absolute;
+            left:0;
+            top:0;
+            bottom:0;
+            width:3px;
+            background:#FFC400;
+        }
+
+        .sgx-kpi-copy > span{
+            color:#B8B8B8 !important;
+        }
+
+        .sgx-kpi-copy > strong,
+        .sgx-card-title,
+        .sgx-section-head strong,
+        .sgx-product-meta strong,
+        .sgx-wh-value,
+        .sgx-alert-row strong{
+            color:#FFFFFF !important;
+        }
+
+        .sgx-kpi-icon.neutral{
+            background:#151515 !important;
+            color:#D6D6D6 !important;
+        }
+
+        .sgx-kpi-icon.green{
+            background:#082617 !important;
+            color:#26D77A !important;
+        }
+
+        .sgx-kpi-icon.yellow{
+            background:#312700 !important;
+            color:#FFC400 !important;
+        }
+
+        .sgx-kpi-icon.red{
+            background:#2F1010 !important;
+            color:#FF6660 !important;
+        }
+
+        .sgx-ring{
+            background:
+                radial-gradient(circle at center,#080808 57%,transparent 58%),
+                conic-gradient(#27D17C var(--p),#FFC400 var(--p),#242424 0) !important;
+        }
+
+        .sgx-wh-track{
+            background:#202020 !important;
+        }
+
+        .sgx-wh-fill{
+            background:#FFC400 !important;
+        }
+
+        .sgx-healthy-note{
+            background:#071A10 !important;
+            color:#72DCA2 !important;
+            border:1px solid #123D28;
+        }
+
+        .sgx-alert-row{
+            border-color:#242424 !important;
+        }
+
+        .sgx-alert-icon.red{
+            background:#2C1010 !important;
+            color:#FF716A !important;
+        }
+
+        .sgx-alert-icon.yellow{
+            background:#302600 !important;
+            color:#FFC400 !important;
+        }
+
+        .sgx-alert-icon.blue{
+            background:#0C2030 !important;
+            color:#66B7FF !important;
+        }
+
+        .sgx-alert-icon.green{
+            background:#082617 !important;
+            color:#45DC8E !important;
+        }
+
+        div[data-baseweb="select"] > div,
+        div[data-baseweb="input"] > div,
+        .stTextInput input,
+        input{
+            background:#090909 !important;
+            color:#FFFFFF !important;
+            border-color:#333333 !important;
+        }
+
+        div[data-baseweb="popover"],
+        div[data-baseweb="menu"]{
+            background:#090909 !important;
+        }
+
+        div[data-baseweb="menu"] li{
+            background:#090909 !important;
+            color:#FFFFFF !important;
+        }
+
+        div[data-baseweb="menu"] li:hover{
+            background:#171717 !important;
+        }
+
+        details,
+        details > summary{
+            background:#070707 !important;
+            border-color:#2A2A2A !important;
+            color:#FFFFFF !important;
+        }
+
+        .stButton > button,
+        .stDownloadButton > button{
+            background:#0A0A0A !important;
+            border:1px solid #333333 !important;
+            color:#FFFFFF !important;
+        }
+
+        .stButton > button:hover,
+        .stDownloadButton > button:hover{
+            border-color:#FFC400 !important;
+            color:#FFC400 !important;
+        }
+
+        .stDownloadButton > button[kind="primary"],
+        .stButton > button[kind="primary"]{
+            background:#FFC400 !important;
+            border-color:#FFC400 !important;
+            color:#111111 !important;
+        }
+
+        .sgx-badge.green{
+            background:#082617 !important;
+            color:#55E59A !important;
+            border:1px solid #174A30;
+        }
+
+        .sgx-badge.yellow{
+            background:#302600 !important;
+            color:#FFD23F !important;
+            border:1px solid #665300;
+        }
+
+        .sgx-badge.orange{
+            background:#321C0B !important;
+            color:#FFAD6A !important;
+            border:1px solid #633A18;
+        }
+
+        .sgx-badge.red{
+            background:#2C1010 !important;
+            color:#FF8B86 !important;
+            border:1px solid #5A2424;
+        }
+
+        .sgx-badge.blue{
+            background:#0C2030 !important;
+            color:#79C2FF !important;
+            border:1px solid #19425E;
+        }
+
+        .sgx-badge.neutral{
+            background:#151515 !important;
+            color:#CFCFCF !important;
+            border:1px solid #353535;
+        }
+
+        .sgx-table-wrap{
+            width:100%;
+            overflow:auto;
+            margin-top:10px;
+            border:1px solid #292929;
+            border-radius:10px;
+            background:#050505;
+            max-height:470px;
+        }
+
+        .sgx-data-table{
+            width:100%;
+            border-collapse:separate;
+            border-spacing:0;
+            min-width:820px;
+            font-size:10px;
+        }
+
+        .sgx-data-table thead th{
+            position:sticky;
+            top:0;
+            z-index:2;
+            background:#101010;
+            color:#A9A9A9;
+            text-align:left;
+            font-size:8.5px;
+            font-weight:800;
+            text-transform:uppercase;
+            letter-spacing:.04em;
+            padding:10px 11px;
+            border-bottom:1px solid #333333;
+            white-space:nowrap;
+        }
+
+        .sgx-data-table tbody td{
+            color:#F2F2F2;
+            padding:9px 11px;
+            border-bottom:1px solid #202020;
+            background:#070707;
+            white-space:nowrap;
+        }
+
+        .sgx-data-table tbody tr:nth-child(even) td{
+            background:#0B0B0B;
+        }
+
+        .sgx-data-table tbody tr:hover td{
+            background:#121212;
+        }
+
+        .sgx-data-table tbody tr:last-child td{
+            border-bottom:none;
+        }
+
+        .sgx-data-table .num{
+            text-align:right;
+            font-variant-numeric:tabular-nums;
+        }
+
+        .sgx-empty-table{
+            margin-top:10px;
+            padding:20px;
+            border:1px dashed #303030;
+            border-radius:9px;
+            color:#888888;
+            background:#060606;
+            text-align:center;
+            font-size:10px;
+        }
+
+        section[data-testid="stSidebar"] div[data-testid="stButton"] button[kind="primary"],
+        section[data-testid="stSidebar"] div[data-testid="stButton"] button[data-testid="stBaseButton-primary"]{
+            background:#FFC400 !important;
+            color:#080808 !important;
+            border-color:#FFC400 !important;
+        }
+
+        </style>
         """,
         unsafe_allow_html=True,
     )
@@ -1571,40 +1997,18 @@ def render(ctx):
                         ascending=[False, True],
                     ).reset_index(drop=True)
 
-                st.dataframe(
-                    product_detail,
-                    hide_index=True,
-                    width="stretch",
-                    height=min(
-                        300,
-                        44 + len(product_detail) * 35,
-                    ),
-                    column_config={
-                        "Bodega": st.column_config.TextColumn(
+                render_html(
+                    _inventory_table_html(
+                        product_detail,
+                        columns=[
                             "Bodega",
-                            width="large",
-                        ),
-                        "Stock físico": st.column_config.NumberColumn(
                             "Stock físico",
-                            format="%d",
-                        ),
-                        "Disponible": st.column_config.NumberColumn(
                             "Disponible",
-                            format="%d",
-                        ),
-                        "Por llegar": st.column_config.NumberColumn(
                             "Por llegar",
-                            format="%d",
-                        ),
-                        "Por despachar": st.column_config.NumberColumn(
                             "Por despachar",
-                            format="%d",
-                        ),
-                        "Estado": st.column_config.TextColumn(
                             "Estado",
-                            width="medium",
-                        ),
-                    },
+                        ],
+                    )
                 )
 
     # --------------------------------------------------------
@@ -2423,43 +2827,16 @@ def render(ctx):
             if col in display.columns
         ]
 
-        st.dataframe(
-            display[visible_columns],
-            hide_index=True,
-            width="stretch",
-            height=470,
-            column_config={
-                "Código": st.column_config.TextColumn(
-                    "SKU",
-                    width="medium",
-                ),
-                "Producto": st.column_config.TextColumn(
-                    "Producto",
-                    width="large",
-                ),
-                "Bodega": st.column_config.TextColumn(
-                    "Bodega",
-                    width="medium",
-                ),
-                "Stock físico": st.column_config.NumberColumn(
-                    "Stock físico",
-                    format="%d",
-                ),
-                "Disponible": st.column_config.NumberColumn(
-                    "Disponible",
-                    format="%d",
-                ),
-                "Por llegar": st.column_config.NumberColumn(
-                    "Por llegar",
-                    format="%d",
-                ),
-                "Por despachar": st.column_config.NumberColumn(
-                    "Por despachar",
-                    format="%d",
-                ),
-                "Estado": st.column_config.TextColumn(
-                    "Estado",
-                    width="medium",
-                ),
-            },
+        render_html(
+            _inventory_table_html(
+                display[visible_columns],
+                columns=visible_columns,
+                max_rows=250,
+            )
         )
+
+        if len(display) > 250:
+            st.caption(
+                f"Vista limitada a 250 registros de {_fmt_int(len(display))}. "
+                "El Excel conserva todos los resultados filtrados."
+            )

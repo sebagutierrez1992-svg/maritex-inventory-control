@@ -1,6 +1,5 @@
 
 
-import hashlib
 from datetime import datetime
 from io import BytesIO
 from pathlib import Path
@@ -110,18 +109,33 @@ def _validate_template(
                 row,
             )
 
-            if {
+            required = {
+                "familyid",
+                "itemid",
+                "productnumber",
+                "variationid",
                 "sku",
+                "title",
+                "variations",
                 "quantity",
-            }.issubset(headers):
+                "price",
+                "currencyid",
+                "condition",
+                "shippingmethod",
+                "listingtype",
+                "feepersale",
+                "status",
+            }
+
+            if required.issubset(headers):
                 found = True
                 break
 
         if not found:
             return (
                 False,
-                "No se encontraron las columnas "
-                "SKU y QUANTITY.",
+                "La plantilla Mercado Libre no corresponde al archivo "
+                "Publicaciones oficial o le faltan columnas obligatorias.",
             )
 
         return True, "Plantilla Mercado Libre válida."
@@ -188,6 +202,46 @@ def _advance_template_uploader(
     )
 
 
+def _template_meta_path(path: Path) -> Path:
+    path = Path(path)
+    return path.with_suffix(path.suffix + ".meta.json")
+
+
+def _save_marketplace_template(
+    *,
+    name: str,
+    path: Path,
+    raw: bytes,
+    original_filename: str,
+) -> dict:
+    """Guarda la plantilla de forma atómica y verifica la escritura."""
+    meta_path = _template_meta_path(path)
+
+    meta = save_source(
+        raw,
+        original_filename,
+        path,
+        meta_path,
+        {
+            "source": "marketplace_template",
+            "marketplace": name,
+        },
+    )
+
+    saved_raw, saved_meta = load_source(
+        path,
+        meta_path,
+    )
+
+    if saved_raw is None or saved_raw != raw:
+        raise IOError(
+            "La plantilla fue procesada, pero la verificación posterior "
+            "no coincide con el archivo cargado."
+        )
+
+    return saved_meta or meta
+
+
 def _render_template_card(
     name: str,
     path: Path,
@@ -211,13 +265,39 @@ def _render_template_card(
     )
 
     if exists:
-        updated = datetime.fromtimestamp(
-            path.stat().st_mtime
-        ).strftime(
-            "%d/%m/%Y %H:%M"
+        _, template_meta = load_source(
+            path,
+            _template_meta_path(path),
         )
 
-        filename = path.name
+        if template_meta:
+            filename = template_meta.get(
+                "filename",
+                path.name,
+            )
+            loaded_at = template_meta.get(
+                "loaded_at",
+                "",
+            )
+            try:
+                updated = datetime.fromisoformat(
+                    loaded_at
+                ).strftime(
+                    "%d/%m/%Y %H:%M"
+                )
+            except Exception:
+                updated = datetime.fromtimestamp(
+                    path.stat().st_mtime
+                ).strftime(
+                    "%d/%m/%Y %H:%M"
+                )
+        else:
+            updated = datetime.fromtimestamp(
+                path.stat().st_mtime
+            ).strftime(
+                "%d/%m/%Y %H:%M"
+            )
+            filename = path.name
 
     else:
         updated = "—"
@@ -256,13 +336,11 @@ def _render_template_card(
         )
 
         with c1:
-
             with st.popover(
                 "Reemplazar",
                 use_container_width=True,
                 icon=":material/upload_file:",
             ):
-
                 uploaded = st.file_uploader(
                     f"Nueva plantilla {short}",
                     type=["xlsx"],
@@ -274,59 +352,58 @@ def _render_template_card(
                 )
 
                 if uploaded is not None:
-
                     raw = uploaded.getvalue()
-
-                    valid, message = (
-                        _validate_template(
-                            name,
-                            raw,
-                        )
+                    valid, message = _validate_template(
+                        name,
+                        raw,
                     )
 
                     if not valid:
-                        st.error(
-                            message
+                        st.error(message)
+                    else:
+                        st.success(
+                            f"✓ {uploaded.name} validada."
                         )
 
-                    else:
+                        if st.button(
+                            "Guardar plantilla",
+                            type="primary",
+                            use_container_width=True,
+                            key=f"tpl3_save_{_norm(name)}",
+                        ):
+                            try:
+                                meta = _save_marketplace_template(
+                                    name=name,
+                                    path=path,
+                                    raw=raw,
+                                    original_filename=uploaded.name,
+                                )
 
-                        try:
-                            path.parent.mkdir(
-                                parents=True,
-                                exist_ok=True,
-                            )
+                                st.cache_data.clear()
+                                _advance_template_uploader(
+                                    name,
+                                    "replace",
+                                )
+                                st.session_state[
+                                    "tpl3_flash_success"
+                                ] = (
+                                    f"✓ {short} actualizada con "
+                                    f"{meta.get('filename', uploaded.name)}."
+                                )
+                                st.rerun()
 
-                            path.write_bytes(
-                                raw
-                            )
-
-                            st.cache_data.clear()
-
-                            st.success(
-                                f"✓ {short} actualizada."
-                            )
-
-                            _advance_template_uploader(
-                                name,
-                                "replace",
-                            )
-
-                            st.rerun()
-
-                        except Exception as exc:
-                            st.error(
-                                "No fue posible guardar "
-                                f"la plantilla: {exc}"
-                            )
+                            except Exception as exc:
+                                st.error(
+                                    "No fue posible guardar la plantilla: "
+                                    f"{exc}"
+                                )
 
         with c2:
-
             try:
                 st.download_button(
                     "Descargar",
                     data=path.read_bytes(),
-                    file_name=path.name,
+                    file_name=filename,
                     mime=(
                         "application/vnd.openxmlformats-"
                         "officedocument.spreadsheetml.sheet"
@@ -335,7 +412,6 @@ def _render_template_card(
                     icon=":material/download:",
                     key=f"tpl3_download_{name}",
                 )
-
             except Exception as exc:
                 st.warning(
                     "No fue posible leer "
@@ -343,7 +419,6 @@ def _render_template_card(
                 )
 
     else:
-
         uploaded = st.file_uploader(
             f"Cargar plantilla {short}",
             type=["xlsx"],
@@ -354,64 +429,88 @@ def _render_template_card(
         )
 
         if uploaded is not None:
-
             raw = uploaded.getvalue()
-
-            valid, message = (
-                _validate_template(
-                    name,
-                    raw,
-                )
+            valid, message = _validate_template(
+                name,
+                raw,
             )
 
             if not valid:
-                st.error(
-                    message
+                st.error(message)
+            else:
+                st.success(
+                    f"✓ {uploaded.name} validada."
                 )
 
-            else:
+                if st.button(
+                    "Guardar plantilla",
+                    type="primary",
+                    use_container_width=True,
+                    key=f"tpl3_save_missing_{_norm(name)}",
+                ):
+                    try:
+                        meta = _save_marketplace_template(
+                            name=name,
+                            path=path,
+                            raw=raw,
+                            original_filename=uploaded.name,
+                        )
+                        st.cache_data.clear()
+                        _advance_template_uploader(
+                            name,
+                            "missing",
+                        )
+                        st.session_state[
+                            "tpl3_flash_success"
+                        ] = (
+                            f"✓ {short} asociada con "
+                            f"{meta.get('filename', uploaded.name)}."
+                        )
+                        st.rerun()
 
-                try:
-                    path.parent.mkdir(
-                        parents=True,
-                        exist_ok=True,
-                    )
+                    except Exception as exc:
+                        st.error(
+                            "No fue posible guardar la plantilla: "
+                            f"{exc}"
+                        )
 
-                    path.write_bytes(
-                        raw
-                    )
 
-                    st.cache_data.clear()
 
-                    st.success(
-                        f"✓ {short} asociada."
-                    )
+def _sales_uploader_key() -> str:
+    """
+    File uploader versionado para ERP Ventas.
 
-                    _advance_template_uploader(
-                        name,
-                        "missing",
-                    )
+    Evita errores React del tipo:
+    removeChild: el nodo no es un hijo de este nodo
+    después de guardar + st.rerun().
+    """
 
-                    st.rerun()
+    if "tpl3_sales_version" not in st.session_state:
+        st.session_state[
+            "tpl3_sales_version"
+        ] = 0
 
-                except Exception as exc:
-                    st.error(
-                        "No fue posible guardar "
-                        f"la plantilla: {exc}"
-                    )
+    return (
+        "tpl3_sales_"
+        f"{st.session_state['tpl3_sales_version']}"
+    )
+
+
+def _advance_sales_uploader() -> None:
+    st.session_state[
+        "tpl3_sales_version"
+    ] = (
+        int(
+            st.session_state.get(
+                "tpl3_sales_version",
+                0,
+            )
+        )
+        + 1
+    )
 
 
 def _render_sales_source():
-    """
-    Fuente ERP Ventas.
-
-    Se evita st.rerun() inmediatamente después del file_uploader porque,
-    en algunas versiones de Streamlit/React, puede provocar:
-    NotFoundError: removeChild ... el nodo no es un hijo de este nodo.
-
-    Para impedir que el mismo archivo se procese nuevamente en cada rerun,
-    se guarda su SHA256 en session_state.
-    """
 
     _, meta = load_source(
         ERP_SALES_FILE,
@@ -419,12 +518,15 @@ def _render_sales_source():
     )
 
     if meta:
+
         st.success(
             "Fuente activa: "
             f"{meta.get('filename', 'ERP Ventas')} · "
             f"{meta.get('loaded_at', '')}"
         )
+
     else:
+
         st.info(
             "Aún no existe una fuente "
             "ERP Ventas guardada."
@@ -437,69 +539,51 @@ def _render_sales_source():
             "xls",
             "xlsx",
         ],
-        key="tpl3_sales",
+        key=_sales_uploader_key(),
     )
 
-    if uploaded is None:
-        return
+    if uploaded is not None:
 
-    try:
-        raw = uploaded.getvalue()
+        try:
 
-        upload_hash = hashlib.sha256(
-            raw
-        ).hexdigest()
+            raw = uploaded.getvalue()
 
-        last_hash = st.session_state.get(
-            "tpl3_sales_last_processed_hash"
-        )
-
-        if upload_hash == last_hash:
-            st.caption(
-                "Este archivo ya fue procesado en esta sesión."
+            df = read_sales_source(
+                raw,
+                uploaded.name,
             )
-            return
 
-        df = read_sales_source(
-            raw,
-            uploaded.name,
-        )
+            info = validate_sales_source(
+                df
+            )
 
-        info = validate_sales_source(
-            df
-        )
+            save_source(
+                raw,
+                uploaded.name,
+                ERP_SALES_FILE,
+                ERP_SALES_META,
+                info,
+            )
 
-        save_source(
-            raw,
-            uploaded.name,
-            ERP_SALES_FILE,
-            ERP_SALES_META,
-            info,
-        )
+            st.cache_data.clear()
 
-        st.session_state[
-            "tpl3_sales_last_processed_hash"
-        ] = upload_hash
+            st.success(
+                "✓ ERP Ventas actualizado · "
+                f"{info['commercial_rows']:,} documentos · "
+                f"{info['min_date']} → {info['max_date']} · "
+                f"{format_clp(info['net_sales_with_vat'])}"
+            )
 
-        st.cache_data.clear()
+            # Fuerza un uploader nuevo en el siguiente render.
+            _advance_sales_uploader()
 
-        st.success(
-            "✓ ERP Ventas actualizado · "
-            f"{info['commercial_rows']:,} documentos · "
-            f"{info['min_date']} → {info['max_date']} · "
-            f"{format_clp(info['net_sales_with_vat'])}"
-        )
+            st.rerun()
 
-        st.caption(
-            "La fuente quedó guardada. "
-            "Puedes navegar a CRM, Métricas Vendedores "
-            "o Resumen Ejecutivo sin volver a cargar el archivo."
-        )
+        except Exception as exc:
 
-    except Exception as exc:
-        st.error(
-            f"Error cargando ERP Ventas: {exc}"
-        )
+            st.error(
+                f"Error cargando ERP Ventas: {exc}"
+            )
 
 
 def render(ctx):
@@ -530,6 +614,13 @@ def render(ctx):
         </div>
         """
     )
+
+    flash_success = st.session_state.pop(
+        "tpl3_flash_success",
+        None,
+    )
+    if flash_success:
+        st.success(flash_success)
 
     paris_path = (
         MARKETPLACE_TEMPLATES.get(

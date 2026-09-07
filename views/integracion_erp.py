@@ -25,125 +25,73 @@ from services.erp_stock_helper import (
 
 def _apply_view_styles():
     st.markdown(
-        """
+        r"""
         <style>
-        /* Cabecera */
-        .erp-page-head {
-            display:flex;
-            align-items:flex-end;
-            justify-content:space-between;
-            gap:18px;
-            padding:4px 2px 14px 2px;
-            margin-bottom:4px;
+        :root {
+            --erp-bg:#000000; --erp-panel:#080b0e; --erp-card:#0b0f13;
+            --erp-card-2:#0e1419; --erp-border:#29343d; --erp-text:#f7f9fb;
+            --erp-muted:#9aa8b3; --erp-yellow:#ffc400; --erp-green:#25c784;
+            --erp-red:#ff5b57; --erp-blue:#4da3ff;
         }
-        .erp-page-head h1 {
-            margin:0;
-            font-size:2rem;
-            line-height:1.05;
-            letter-spacing:-.03em;
-            color:#f7f9fb;
+        .stApp, [data-testid="stAppViewContainer"], [data-testid="stMain"], section.main {
+            background:#000 !important; color:var(--erp-text) !important;
         }
-        .erp-page-head p {
-            margin:7px 0 0 0;
-            color:#94a3af;
-            font-size:.9rem;
-        }
-        .erp-live-pill {
-            display:inline-flex;
-            align-items:center;
-            gap:8px;
-            padding:7px 11px;
-            border:1px solid rgba(255,196,0,.22);
-            border-radius:999px;
-            background:rgba(255,196,0,.07);
-            color:#e8edf2;
-            font-size:.78rem;
-            white-space:nowrap;
-        }
-        .erp-live-pill i {
-            display:block;
-            width:7px;
-            height:7px;
-            border-radius:999px;
-            background:#ffc400;
-            box-shadow:0 0 0 4px rgba(255,196,0,.10);
-        }
+        [data-testid="stMainBlockContainer"] {max-width:1500px; padding-top:1.2rem;}
+        .erp-page-head{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;padding:4px 2px 18px;margin-bottom:6px;border-bottom:1px solid #1f272e}
+        .erp-page-head h1{margin:0;font-size:2rem;line-height:1.05;letter-spacing:-.03em;color:#fff}
+        .erp-page-head p{margin:7px 0 0;color:var(--erp-muted);font-size:.9rem}
+        .erp-live-pill{display:inline-flex;align-items:center;gap:8px;padding:7px 11px;border:1px solid rgba(255,196,0,.30);border-radius:999px;background:rgba(255,196,0,.07);color:#fff;font-size:.78rem;white-space:nowrap}
+        .erp-live-pill i{display:block;width:7px;height:7px;border-radius:999px;background:var(--erp-yellow);box-shadow:0 0 0 4px rgba(255,196,0,.10)}
 
-        /* Tarjetas nativas */
-        div[data-testid="stVerticalBlockBorderWrapper"] {
-            border-color:#2d3d49 !important;
-            border-radius:14px !important;
-            background:linear-gradient(180deg, rgba(18,30,40,.96), rgba(15,26,35,.96)) !important;
-            box-shadow:0 8px 24px rgba(0,0,0,.10);
-        }
+        /* contenedores */
+        div[data-testid="stVerticalBlockBorderWrapper"]{border:1px solid var(--erp-border)!important;border-radius:14px!important;background:#050709!important;box-shadow:none!important}
+        div[data-testid="stVerticalBlockBorderWrapper"] > div{background:transparent!important}
 
-        /* Métricas */
-        div[data-testid="stMetric"] {
-            border:1px solid #2d3d49;
-            border-radius:12px;
-            background:#111d27;
-            padding:12px 14px;
-            min-height:92px;
-        }
-        div[data-testid="stMetricLabel"] {
-            color:#93a2ae !important;
-            font-size:.78rem !important;
-            font-weight:650 !important;
-        }
-        div[data-testid="stMetricValue"] {
-            color:#f6f8fa !important;
-            font-size:1.65rem !important;
-            line-height:1.15 !important;
-        }
+        /* métricas */
+        div[data-testid="stMetric"]{border:1px solid var(--erp-border);border-left:3px solid var(--erp-yellow);border-radius:12px;background:var(--erp-card);padding:13px 15px;min-height:94px}
+        div[data-testid="stMetricLabel"]{color:var(--erp-muted)!important;font-size:.75rem!important;font-weight:750!important;text-transform:uppercase;letter-spacing:.03em}
+        div[data-testid="stMetricValue"]{color:#fff!important;font-size:1.55rem!important;line-height:1.15!important;font-weight:800!important}
 
-        /* Dataframe */
-        div[data-testid="stDataFrame"] {
-            border:1px solid #2d3d49;
-            border-radius:13px;
-            overflow:hidden;
-            background:#101b24;
+        /* inputs */
+        [data-testid="stTextInput"] input, [data-testid="stSelectbox"] div[data-baseweb="select"] > div{
+            background:#080b0e!important;color:#fff!important;border-color:var(--erp-border)!important;border-radius:10px!important;
         }
+        [data-testid="stTextInput"] input::placeholder{color:#71808c!important}
+        [data-testid="stTextInput"] label, [data-testid="stSelectbox"] label{color:#dce4ea!important;font-weight:700!important}
+        [data-baseweb="popover"] > div, [role="listbox"]{background:#080b0e!important;color:#fff!important}
 
-        /* Separadores */
-        hr {
-            border-color:#2b3a45 !important;
-            opacity:.85;
-        }
+        /* segmented control */
+        [data-testid="stSegmentedControl"]{background:#050709!important;border:1px solid var(--erp-border)!important;border-radius:12px!important;padding:4px!important}
+        [data-testid="stSegmentedControl"] button{background:transparent!important;color:#c5d0d8!important;border:0!important}
+        [data-testid="stSegmentedControl"] button[aria-pressed="true"]{background:var(--erp-yellow)!important;color:#050505!important;font-weight:800!important}
 
-        /* Textos secundarios */
-        .erp-section-kicker {
-            color:#ffc400;
-            text-transform:uppercase;
-            letter-spacing:.08em;
-            font-size:.68rem;
-            font-weight:800;
-            margin-bottom:2px;
-        }
-        .erp-section-title {
-            color:#f7f9fb;
-            font-size:1.02rem;
-            font-weight:800;
-            margin:0 0 3px 0;
-        }
-        .erp-section-sub {
-            color:#8f9da8;
-            font-size:.79rem;
-            margin-bottom:10px;
-        }
+        /* botones */
+        .stButton > button{background:#0b0f13!important;color:#fff!important;border:1px solid var(--erp-border)!important;border-radius:10px!important}
+        .stButton > button:hover{border-color:var(--erp-yellow)!important;color:var(--erp-yellow)!important}
+        .stButton > button[kind="primary"], button[data-testid="stBaseButton-primary"]{background:var(--erp-yellow)!important;color:#050505!important;border-color:var(--erp-yellow)!important;font-weight:850!important}
 
-        /* Tabla: instrucción clic */
-        .erp-table-hint {
-            display:flex;
-            align-items:center;
-            justify-content:space-between;
-            gap:10px;
-            color:#90a0ac;
-            font-size:.76rem;
-            margin:2px 0 8px 0;
-        }
-        .erp-table-hint strong {
-            color:#dce3e8;
-        }
+        /* dataframe: conservar selección de filas, pero neutralizar azul */
+        div[data-testid="stDataFrame"]{border:1px solid var(--erp-border)!important;border-radius:13px!important;overflow:hidden!important;background:#070a0d!important;
+            --gdg-bg-cell:#0b1116; --gdg-bg-header:#080b0e; --gdg-text-dark:#f5f7f9; --gdg-border-color:#27323b;}
+        div[data-testid="stDataFrame"] > div, div[data-testid="stDataFrame"] canvas{background:#0b1116!important}
+        div[data-testid="stDataFrame"] [role="columnheader"]{background:#080b0e!important;color:#aebbc5!important}
+
+        /* alertas y expanders */
+        [data-testid="stAlert"]{background:#090d10!important;border-radius:10px!important;border-color:#303b43!important;color:#eef3f6!important}
+        [data-testid="stExpander"]{background:#050709!important;border:1px solid var(--erp-border)!important;border-radius:12px!important}
+        [data-testid="stExpander"] summary{color:#eef3f6!important}
+        [data-testid="stCodeBlock"], pre{background:#050709!important;border-color:var(--erp-border)!important}
+
+        hr{border-color:#222b32!important;opacity:1!important}
+        .erp-section-kicker{color:var(--erp-yellow);text-transform:uppercase;letter-spacing:.08em;font-size:.68rem;font-weight:850;margin-bottom:3px}
+        .erp-section-title{color:#fff;font-size:1.05rem;font-weight:850;margin:0 0 3px}
+        .erp-section-sub{color:var(--erp-muted);font-size:.79rem;margin-bottom:10px}
+        .erp-table-hint{display:flex;align-items:center;justify-content:space-between;gap:10px;color:#8f9da8;font-size:.76rem;margin:4px 0 9px}
+        .erp-table-hint strong{color:#fff}
+        .erp-page-indicator{min-height:40px;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:.78rem}
+        .erp-page-indicator strong{color:var(--erp-yellow);margin:0 4px}
+        h1,h2,h3,h4,h5{color:#fff!important}
+        p, .stCaption{color:#9eabb5}
         </style>
         """,
         unsafe_allow_html=True,
@@ -1818,17 +1766,36 @@ def render():
         )
         return
 
+    # --------------------------------------------------------
+    # TABLA OPERATIVA PAGINADA
+    # --------------------------------------------------------
+    page_size = 25
+    total_filtered = len(filtered)
+    total_pages = max((total_filtered + page_size - 1) // page_size, 1)
+    page_key = f"erp_page_{channel}"
+
+    if page_key not in st.session_state:
+        st.session_state[page_key] = 1
+
+    current_page = int(st.session_state.get(page_key, 1) or 1)
+    current_page = max(1, min(current_page, total_pages))
+    st.session_state[page_key] = current_page
+
+    start_row = (current_page - 1) * page_size
+    end_row = min(start_row + page_size, total_filtered)
+    page_filtered = filtered.iloc[start_row:end_row].copy()
+
     st.markdown(
         f"""
         <div class="erp-table-hint">
-            <span><strong>{len(filtered):,}</strong> de {len(rows):,} pedidos visibles</span>
+            <span><strong>{start_row + 1}–{end_row}</strong> de {total_filtered:,} pedidos visibles</span>
             <span>Haz clic en una fila para revisar el pedido</span>
         </div>
         """.replace(",", "."),
         unsafe_allow_html=True,
     )
 
-    display = filtered[
+    display = page_filtered[
         [
             "Pedido VTEX",
             "Cliente",
@@ -1839,6 +1806,16 @@ def render():
         ]
     ].copy()
 
+    # La causa completa se conserva en el dataframe original y en el
+    # diagnóstico. En la grilla mostramos una versión compacta para evitar
+    # scroll horizontal.
+    display["Motivo"] = (
+        display["Motivo"]
+        .fillna("")
+        .astype(str)
+        .apply(lambda value: value if len(value) <= 58 else value[:55].rstrip() + "…")
+    )
+
     table_event = st.dataframe(
         display,
         hide_index=True,
@@ -1847,7 +1824,7 @@ def render():
             430,
             38 + len(display) * 35,
         ),
-        key=f"erp_orders_table_{channel}",
+        key=f"erp_orders_table_{channel}_{current_page}",
         on_select="rerun",
         selection_mode="single-row",
         column_config={
@@ -1861,22 +1838,52 @@ def render():
             ),
             "Fecha": st.column_config.TextColumn(
                 "Fecha",
-                width="medium",
+                width="small",
             ),
             "Estado": st.column_config.TextColumn(
                 "Estado",
-                width="medium",
+                width="small",
             ),
             "Documento ERP": st.column_config.TextColumn(
-                "Documento ERP",
+                "Documento",
                 width="small",
             ),
             "Motivo": st.column_config.TextColumn(
                 "Motivo",
-                width="large",
+                width="medium",
             ),
         },
     )
+
+    # Navegación por páginas. La selección sigue siendo nativa de Streamlit,
+    # por lo que conserva el clic de fila para abrir diagnóstico/reinyección.
+    nav_left, nav_center, nav_right = st.columns([1, 2, 1], gap="small")
+
+    with nav_left:
+        if st.button(
+            "‹ Anterior",
+            key=f"erp_prev_{channel}",
+            disabled=current_page <= 1,
+            use_container_width=True,
+        ):
+            st.session_state[page_key] = current_page - 1
+            st.rerun()
+
+    with nav_center:
+        st.markdown(
+            f'<div class="erp-page-indicator">Página <strong>{current_page}</strong> de {total_pages}</div>',
+            unsafe_allow_html=True,
+        )
+
+    with nav_right:
+        if st.button(
+            "Siguiente ›",
+            key=f"erp_next_{channel}",
+            disabled=current_page >= total_pages,
+            use_container_width=True,
+        ):
+            st.session_state[page_key] = current_page + 1
+            st.rerun()
 
     selected_position = None
     selected_order_id = None
@@ -1892,12 +1899,12 @@ def render():
     except Exception:
         selected_position = None
 
-    # Si el usuario hizo clic en una fila, esa selección pasa a ser
-    # la selección persistente del canal.
+    # La posición seleccionada corresponde a la página actual, no al
+    # dataframe filtrado completo.
     if selected_position is not None:
         if (
             selected_position < 0
-            or selected_position >= len(filtered)
+            or selected_position >= len(page_filtered)
         ):
             st.error(
                 "No fue posible resolver el pedido seleccionado."
@@ -1905,7 +1912,7 @@ def render():
             return
 
         selected_order_id = _safe_text(
-            filtered.iloc[
+            page_filtered.iloc[
                 selected_position
             ]["Pedido VTEX"],
             "",

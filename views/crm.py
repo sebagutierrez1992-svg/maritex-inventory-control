@@ -1,6 +1,7 @@
 
 
 from datetime import datetime, timedelta
+from html import escape
 from typing import Any
 
 import pandas as pd
@@ -97,7 +98,7 @@ def _apply_styles() -> None:
 [data-testid="stAppViewContainer"]{
     background:
         radial-gradient(circle at 80% 0%, rgba(255,196,0,.035), transparent 24%),
-        #0D141A;
+        #000000;
 }
 
 [data-testid="stHeader"]{
@@ -120,7 +121,7 @@ div[data-testid="stVerticalBlock"]{
     padding:14px 18px;
     border:1px solid #26323C;
     border-radius:14px;
-    background:linear-gradient(145deg,#121B23,#0F171E);
+    background:linear-gradient(145deg,#101010,#080808);
     box-shadow:0 4px 18px rgba(0,0,0,.18);
     margin-bottom:8px;
 }
@@ -147,7 +148,7 @@ div[data-testid="stVerticalBlock"]{
     padding:8px 12px;
     border:1px solid #31404B;
     border-radius:999px;
-    background:#111A21;
+    background:#0A0A0A;
     color:#DCE3E8;
     font-size:9px;
     font-weight:750;
@@ -168,7 +169,7 @@ div[data-testid="stVerticalBlock"]{
    --------------------------------------------------------- */
 
 div[data-testid="stSegmentedControl"]{
-    background:#111A21;
+    background:#0A0A0A;
     border:1px solid #2C3943;
     border-radius:10px;
     padding:3px;
@@ -244,7 +245,7 @@ div[data-testid="stSegmentedControl"] button[aria-pressed="true"]{
     border:1px solid #2E3B45;
     border-radius:8px;
     overflow:hidden;
-    background:#111A21;
+    background:#0A0A0A;
 }
 
 .crm-view-tab{
@@ -283,7 +284,7 @@ div[data-testid="stSegmentedControl"] button[aria-pressed="true"]{
     border:1px solid #2C3943;
     border-radius:10px;
     padding:14px 15px;
-    background:linear-gradient(145deg,#121C24,#101820);
+    background:linear-gradient(145deg,#101010,#090909);
     box-shadow:0 3px 14px rgba(0,0,0,.15);
 }
 
@@ -338,7 +339,7 @@ div[data-testid="stSegmentedControl"] button[aria-pressed="true"]{
     border-radius:10px 10px 6px 6px;
     padding:11px 12px 9px;
     margin-bottom:6px;
-    background:linear-gradient(145deg,#131D25,#101820);
+    background:linear-gradient(145deg,#111111,#090909);
     position:relative;
     overflow:hidden;
 }
@@ -385,7 +386,7 @@ div[data-testid="stSegmentedControl"] button[aria-pressed="true"]{
     border-radius:9px;
     padding:11px;
     margin-bottom:7px;
-    background:linear-gradient(145deg,#131E26,#101820);
+    background:linear-gradient(145deg,#101010,#090909);
     box-shadow:0 3px 12px rgba(0,0,0,.18);
 }
 
@@ -456,7 +457,7 @@ div[data-testid="stSegmentedControl"] button[aria-pressed="true"]{
     color:#7F8B95;
     text-align:center;
     font-size:8px;
-    background:#10171D;
+    background:#070707;
 }
 
 /* ---------------------------------------------------------
@@ -469,7 +470,7 @@ div[data-testid="stSegmentedControl"] button[aria-pressed="true"]{
     font-size:8.8px !important;
     font-weight:780 !important;
     border:1px solid #33414C !important;
-    background:#111A21 !important;
+    background:#0A0A0A !important;
     color:#DCE4EA !important;
 }
 
@@ -493,7 +494,7 @@ div[data-testid="stSegmentedControl"] button[aria-pressed="true"]{
 [data-testid="stSelectbox"] div[data-baseweb="select"]>div,
 [data-testid="stNumberInput"] input,
 [data-testid="stDateInput"] input{
-    background:#111920 !important;
+    background:#0A0A0A !important;
     border-color:#2F3B45 !important;
     color:#EEF2F5 !important;
     border-radius:7px !important;
@@ -516,7 +517,7 @@ div[data-testid="stSegmentedControl"] button[aria-pressed="true"]{
 
 div[data-testid="stVerticalBlockBorderWrapper"]{
     border:1px solid #2C3943 !important;
-    background:#111A21 !important;
+    background:#0A0A0A !important;
     border-radius:10px !important;
     box-shadow:0 3px 14px rgba(0,0,0,.14) !important;
 }
@@ -525,7 +526,7 @@ div[data-testid="stDataFrame"]{
     border:1px solid #2C3943;
     border-radius:9px;
     overflow:hidden;
-    background:#101820;
+    background:#090909;
 }
 
 div[data-testid="stDataFrame"] *{
@@ -535,7 +536,7 @@ div[data-testid="stDataFrame"] *{
 div[data-testid="stMetric"]{
     border:1px solid #2C3943;
     border-radius:9px;
-    background:#111A21;
+    background:#0A0A0A;
     padding:9px 11px;
 }
 
@@ -551,7 +552,7 @@ div[data-testid="stMetricValue"]{
 }
 
 details{
-    background:#111A21 !important;
+    background:#0A0A0A !important;
     border:1px solid #2C3943 !important;
     border-radius:9px !important;
 }
@@ -621,7 +622,7 @@ details summary{
     border-radius:9px;
     color:#8B98A2;
     padding:18px;
-    background:#10171D;
+    background:#070707;
 }
 
 .crm-empty strong{
@@ -664,7 +665,7 @@ hr{
     border:1px solid #66727C;
     border-radius:50%;
     color:#FFC400;
-    background:#111A21;
+    background:#0A0A0A;
     font-size:9px;
     font-weight:900;
     line-height:1;
@@ -770,7 +771,7 @@ div[data-testid="stVerticalBlockBorderWrapper"]{
     position:relative;
     padding:12px 16px 12px 20px !important;
     border-radius:10px !important;
-    background:linear-gradient(180deg,#111A21 0%,#0D151B 100%) !important;
+    background:linear-gradient(180deg,#0A0A0A 0%,#050505 100%) !important;
     border:1px solid #293741 !important;
     box-shadow:none !important;
 }
@@ -794,7 +795,7 @@ div[data-testid="stVerticalBlockBorderWrapper"]{
 
 /* Selector vendedor tipo barra superior */
 div[data-testid="stSelectbox"] > div > div{
-    background:#101A22 !important;
+    background:#0A0A0A !important;
     border-color:#2D3C47 !important;
     border-radius:8px !important;
 }
@@ -847,7 +848,7 @@ div[role="radiogroup"] label:has(input:checked) p{
 .crm-kpi{
     min-height:112px !important;
     border-radius:9px !important;
-    background:linear-gradient(180deg,#111B23 0%,#0F181F 100%) !important;
+    background:linear-gradient(180deg,#101010 0%,#080808 100%) !important;
     border-color:#2D3B45 !important;
     padding:14px 15px 12px 17px !important;
     box-shadow:none !important;
@@ -865,7 +866,7 @@ div[role="radiogroup"] label:has(input:checked) p{
 
 /* Contenedores inferiores */
 div[data-testid="stVerticalBlockBorderWrapper"]{
-    background:linear-gradient(180deg,#111A21 0%,#0E171D 100%) !important;
+    background:linear-gradient(180deg,#0A0A0A 0%,#070707 100%) !important;
     border:1px solid #2A3944 !important;
     border-radius:9px !important;
     box-shadow:none !important;
@@ -881,7 +882,7 @@ div[data-testid="stDataFrame"]{
 /* Botón principal amarillo */
 button[kind="primary"]{
     background:#FFC400 !important;
-    color:#101419 !important;
+    color:#080808 !important;
     border-color:#FFC400 !important;
     font-weight:800 !important;
 }
@@ -889,17 +890,150 @@ button[kind="primary"]{
 button[kind="primary"]:hover{
     background:#FFD12A !important;
     border-color:#FFD12A !important;
-    color:#101419 !important;
+    color:#080808 !important;
 }
 
 /* Métricas nativas */
 div[data-testid="stMetric"]{
-    background:#101A21;
+    background:#0A0A0A;
     border:1px solid #2B3944;
     border-radius:9px;
     padding:10px 12px;
 }
 
+
+/* ===== MOCKUP NEGRO MARITEX · OVERRIDE GLOBAL ===== */
+html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"], .stApp {background:#000000 !important;color:#F5F5F5 !important;}
+[data-testid="stHeader"]{background:#000000 !important;}
+.block-container{background:#000000 !important;}
+[data-testid="stSidebar"]{background:#050505 !important;border-right:1px solid #242424 !important;}
+[data-testid="stSidebar"] *{color:#EAEAEA;}
+.crm-page-head,.crm-kpi,.crm-stage-head,.crm-kanban-card,div[data-testid="stVerticalBlockBorderWrapper"],div[data-testid="stMetric"],details{background:#0B0B0B !important;border-color:#292929 !important;box-shadow:none !important;}
+.crm-page-head{border-left:4px solid #FFC400 !important;}
+.crm-page-head::before{display:none !important;}
+.crm-page-head h1,.crm-page-head .crm-page-title,.crm-section-title,.crm-client-title,.crm-kpi-value,.crm-stage-name,.crm-stage-count,.crm-kanban-client{color:#FFFFFF !important;}
+.crm-page-head p,.crm-section-sub,.crm-client-sub,.crm-kpi-help,.crm-kanban-title,.crm-kanban-meta{color:#A7A7A7 !important;}
+.crm-section-kicker,.crm-money,.crm-kanban-money{color:#FFC400 !important;}
+.stButton>button{background:#101010 !important;border-color:#333333 !important;color:#F2F2F2 !important;}
+.stButton>button[kind="primary"],button[kind="primary"]{background:#FFC400 !important;border-color:#FFC400 !important;color:#090909 !important;}
+[data-testid="stTextInput"] input,[data-testid="stTextArea"] textarea,[data-testid="stNumberInput"] input,[data-testid="stDateInput"] input,[data-baseweb="select"]>div{background:#0B0B0B !important;color:#F5F5F5 !important;border-color:#303030 !important;}
+div[role="radiogroup"]{background:#000 !important;border-bottom:1px solid #262626 !important;}
+div[role="radiogroup"] label:has(input:checked){background:#171300 !important;border-bottom-color:#FFC400 !important;}
+div[data-testid="stDataFrame"]{background:#080808 !important;border-color:#292929 !important;}
+
+
+/* =========================================================
+   TABLA EJECUTIVA · PRINCIPALES CLIENTES
+   ========================================================= */
+.crm-client-table-wrap{
+    width:100%;
+    overflow:hidden;
+    border:1px solid #272727;
+    border-radius:10px;
+    background:#080808;
+}
+.crm-client-table{
+    width:100%;
+    border-collapse:collapse;
+    table-layout:fixed;
+}
+.crm-client-table th{
+    padding:9px 10px;
+    color:#8E969C;
+    background:#0D0D0D;
+    border-bottom:1px solid #2A2A2A;
+    font-size:8px;
+    font-weight:800;
+    text-transform:uppercase;
+    letter-spacing:.05em;
+    text-align:left;
+    white-space:nowrap;
+}
+.crm-client-table td{
+    padding:10px 10px;
+    color:#EEF1F3;
+    border-bottom:1px solid #202020;
+    font-size:9px;
+    line-height:1.2;
+    vertical-align:middle;
+}
+.crm-client-table tr:last-child td{border-bottom:0;}
+.crm-client-table tbody tr:hover{background:#101010;}
+.crm-client-table .client-name{
+    font-weight:800;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+}
+.crm-client-table .client-rut,
+.crm-client-table .client-seller,
+.crm-client-table .client-date{
+    color:#B9C0C5;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+}
+.crm-client-table .client-money{
+    color:#FFC400;
+    font-weight:900;
+    text-align:right;
+    white-space:nowrap;
+}
+.crm-client-table .client-orders{
+    color:#E7EBEE;
+    text-align:center;
+    white-space:nowrap;
+}
+.crm-client-table th:nth-child(1){width:31%;}
+.crm-client-table th:nth-child(2){width:16%;}
+.crm-client-table th:nth-child(3){width:21%;}
+.crm-client-table th:nth-child(4){width:16%;text-align:right;}
+.crm-client-table th:nth-child(5){width:7%;text-align:center;}
+.crm-client-table th:nth-child(6){width:12%;}
+@media(max-width:900px){
+    .crm-client-table th:nth-child(5),
+    .crm-client-table td:nth-child(5),
+    .crm-client-table th:nth-child(6),
+    .crm-client-table td:nth-child(6){display:none;}
+    .crm-client-table th:nth-child(1){width:36%;}
+    .crm-client-table th:nth-child(2){width:20%;}
+    .crm-client-table th:nth-child(3){width:25%;}
+    .crm-client-table th:nth-child(4){width:19%;}
+}
+
+
+
+/* COMPONENTES NEGROS · SIN AZUL NATIVO STREAMLIT */
+[data-testid="stTextInput"] input,
+[data-testid="stSelectbox"] div[data-baseweb="select"] > div,
+[data-testid="stDateInput"] input,
+[data-testid="stNumberInput"] input,
+[data-testid="stTextArea"] textarea{
+    background:#070707 !important;
+    border-color:#303030 !important;
+    color:#F7F7F7 !important;
+}
+[data-testid="stTextInput"] input:focus,
+[data-testid="stSelectbox"] div[data-baseweb="select"] > div:focus-within{
+    border-color:#FFC400 !important;
+    box-shadow:0 0 0 1px rgba(255,196,0,.18) !important;
+}
+.crm-generic-table-wrap{width:100%;overflow:auto;border:1px solid #2A2A2A;border-radius:10px;background:#050505;margin-top:8px;}
+.crm-generic-table{width:100%;border-collapse:collapse;background:#050505;color:#F5F5F5;}
+.crm-generic-table th{padding:12px;background:#0A0A0A;color:#AEB7BE;border-right:1px solid #252525;border-bottom:1px solid #343434;font-size:10px;font-weight:750;text-align:left;white-space:nowrap;}
+.crm-generic-table td{padding:11px 12px;background:#050505;color:#F2F4F5;border-right:1px solid #202020;border-bottom:1px solid #252525;font-size:10px;}
+.crm-generic-table tbody tr:nth-child(even) td{background:#080808;}
+.crm-generic-table tbody tr:hover td{background:#111006;}
+.crm-generic-table th:last-child,.crm-generic-table td:last-child{border-right:0;}
+.crm-generic-table tbody tr:last-child td{border-bottom:0;}
+.crm-generic-table td.money{color:#FFC400;font-weight:800;text-align:right;}
+.crm-generic-table td.num{text-align:right;font-weight:750;}
+.crm-ranking-table th:nth-child(2),.crm-ranking-table td:nth-child(2),.crm-ranking-table th:nth-child(3),.crm-ranking-table td:nth-child(3){text-align:right;}
+.crm-follow-summary{display:flex;flex-direction:column;gap:16px;padding:16px 4px 4px;}
+.crm-follow-top{display:flex;justify-content:space-between;align-items:center;color:#C8D0D5;font-size:10px;margin-bottom:7px;}
+.crm-follow-top strong{color:#FFF;font-size:12px;}
+.crm-follow-track{height:7px;background:#171717;border:1px solid #282828;border-radius:999px;overflow:hidden;}
+.crm-follow-track i{display:block;height:100%;border-radius:999px;min-width:0;}
 </style>
         """,
         unsafe_allow_html=True,
@@ -2325,23 +2459,35 @@ def _render_summary(
                 )
             )
 
-            st.dataframe(
-                top_display,
-                hide_index=True,
-                use_container_width=True,
-                height=310,
-                column_config={
-                    "Ventas del período":
-                    st.column_config.NumberColumn(
-                        "Ventas del período",
-                        format="$ %.0f",
-                    ),
-                    "Pedidos":
-                    st.column_config.NumberColumn(
-                        "Pedidos",
-                        format="%d",
-                    ),
-                },
+            rows_html = []
+            for _, row in top_display.iterrows():
+                client = escape(_safe_text(row.get("Cliente"), "-"))
+                rut = escape(_safe_text(row.get("RUT"), "-"))
+                seller = escape(_safe_text(row.get("Vendedor"), "-"))
+                amount = _money(_number(row.get("Ventas del período")))
+                orders = int(_number(row.get("Pedidos")))
+                last = escape(_safe_text(row.get("Última compra"), "-"))
+                rows_html.append(
+                    '<tr>'
+                    f'<td class="client-name" title="{client}">{client}</td>'
+                    f'<td class="client-rut">{rut}</td>'
+                    f'<td class="client-seller" title="{seller}">{seller}</td>'
+                    f'<td class="client-money">{amount}</td>'
+                    f'<td class="client-orders">{orders}</td>'
+                    f'<td class="client-date">{last}</td>'
+                    '</tr>'
+                )
+
+            st.markdown(
+                '<div class="crm-client-table-wrap">'
+                '<table class="crm-client-table">'
+                '<thead><tr>'
+                '<th>Cliente</th><th>RUT</th><th>Vendedor</th>'
+                '<th>Ventas</th><th>Docs.</th><th>Última compra</th>'
+                '</tr></thead><tbody>'
+                + ''.join(rows_html) +
+                '</tbody></table></div>',
+                unsafe_allow_html=True,
             )
 
     with center:
@@ -2849,15 +2995,26 @@ def _render_summary(
                 ]
             )
 
-            st.bar_chart(
-                followup_summary
-                .set_index(
-                    "Estado"
-                )[
-                    "Cantidad"
-                ],
-                use_container_width=True,
-                height=205,
+            max_follow = max(int(followup_summary["Cantidad"].max()), 1)
+            followup_rows = []
+            status_colors = {
+                "Pendientes": "#FFC400",
+                "Vencidos": "#FF5A52",
+                "Para hoy": "#35D07F",
+            }
+            for _, item in followup_summary.iterrows():
+                label = str(item["Estado"])
+                qty = int(item["Cantidad"])
+                width = (qty / max_follow * 100) if qty else 0
+                followup_rows.append(
+                    f'<div class="crm-follow-row">'
+                    f'<div class="crm-follow-top"><span>{escape(label)}</span><strong>{qty}</strong></div>'
+                    f'<div class="crm-follow-track"><i style="width:{width:.1f}%;background:{status_colors.get(label, "#FFC400")}"></i></div>'
+                    f'</div>'
+                )
+            st.markdown(
+                '<div class="crm-follow-summary">' + ''.join(followup_rows) + '</div>',
+                unsafe_allow_html=True,
             )
 
     # --------------------------------------------------------
@@ -2936,24 +3093,56 @@ def _render_summary(
                 .head(15)
             )
 
-            st.dataframe(
+            _render_maritrex_table(
                 seller_rank,
-                hide_index=True,
-                use_container_width=True,
-                column_config={
-                    "Ventas del período":
-                    st.column_config.NumberColumn(
-                        "Ventas del período",
-                        format="$ %.0f",
-                    ),
-                    "Clientes":
-                    st.column_config.NumberColumn(
-                        "Clientes",
-                        format="%d",
-                    ),
-                },
+                money_cols=("Ventas del período",),
+                int_cols=("Clientes",),
+                max_rows=15,
+                css_class="crm-generic-table crm-ranking-table",
             )
 
+
+
+def _render_maritrex_table(
+    df: pd.DataFrame,
+    money_cols: tuple[str, ...] = (),
+    int_cols: tuple[str, ...] = (),
+    max_rows: int | None = None,
+    css_class: str = "crm-generic-table",
+) -> None:
+    """Tabla HTML negra para evitar el fondo azul de st.dataframe."""
+    if df is None or df.empty:
+        st.caption("Sin datos disponibles.")
+        return
+
+    view = df.head(max_rows).copy() if max_rows else df.copy()
+    headers = "".join(f"<th>{escape(str(col))}</th>" for col in view.columns)
+    rows = []
+    for _, row in view.iterrows():
+        cells = []
+        for col in view.columns:
+            value = row.get(col)
+            classes = ["crm-generic-cell"]
+            if col in money_cols:
+                text = _money(_number(value))
+                classes.append("money")
+            elif col in int_cols:
+                text = str(int(_number(value)))
+                classes.append("num")
+            else:
+                text = _safe_text(value)
+            cls = " ".join(classes)
+            cells.append(f'<td class="{cls}">{escape(text)}</td>')
+        rows.append("<tr>" + "".join(cells) + "</tr>")
+
+    html = (
+        f'<div class="crm-generic-table-wrap">'
+        f'<table class="{css_class}">'
+        f'<thead><tr>{headers}</tr></thead>'
+        f'<tbody>{"".join(rows)}</tbody>'
+        f'</table></div>'
+    )
+    st.markdown(html, unsafe_allow_html=True)
 
 # ============================================================
 # CLIENTES
@@ -3047,43 +3236,109 @@ def _render_clients(
         errors="coerce",
     ).dt.strftime("%d-%m-%Y")
 
-    table_event = st.dataframe(
-        display,
-        hide_index=True,
-        use_container_width=True,
-        height=min(460, 70 + len(display) * 34),
-        key="crm_clients_table_v2",
-        on_select="rerun",
-        selection_mode="single-row",
-        column_config={
-            "Ventas del período": st.column_config.NumberColumn(
-                "Ventas del período",
-                format="$ %.0f",
-            ),
-            "Ventas acumuladas": st.column_config.NumberColumn(
-                "Venta acumulada",
-                format="$ %.0f",
-            ),
-            "Pedidos": st.column_config.NumberColumn(
-                "Pedidos",
-                format="%d",
-            ),
-        },
+    # La grilla nativa de Streamlit hereda el secondaryBackgroundColor del tema
+    # y en modo oscuro se ve azul. Para mantener el mockup Maritex usamos una
+    # tabla HTML negra y un selector explícito para abrir la ficha del cliente.
+    selector_options = list(range(len(filtered)))
+    selected_position = st.selectbox(
+        "Abrir ficha de cliente",
+        selector_options,
+        format_func=lambda idx: (
+            f"{_safe_text(filtered.iloc[idx].get('Cliente'))} · "
+            f"{_safe_text(filtered.iloc[idx].get('RUT'))}"
+        ),
+        key="crm_clients_open_selector_v3",
     )
 
-    selected_position = 0
+    rows_html = []
+    for _, row in display.iterrows():
+        rows_html.append(
+            '<tr>'
+            f'<td class="crm-client-cell crm-client-name-cell">{escape(_safe_text(row.get("Cliente")))}</td>'
+            f'<td class="crm-client-cell">{escape(_safe_text(row.get("RUT")))}</td>'
+            f'<td class="crm-client-cell">{escape(_safe_text(row.get("Vendedor")))}</td>'
+            f'<td class="crm-client-cell crm-client-date-cell">{escape(_safe_text(row.get("Última compra")))}</td>'
+            f'<td class="crm-client-cell crm-client-money-cell">{escape(_money(_number(row.get("Ventas del período"))))}</td>'
+            f'<td class="crm-client-cell crm-client-money-cell">{escape(_money(_number(row.get("Ventas acumuladas"))))}</td>'
+            f'<td class="crm-client-cell crm-client-orders-cell">{int(_number(row.get("Pedidos")))}</td>'
+            '</tr>'
+        )
 
-    try:
-        selected_rows = list(table_event.selection.rows)
-        if selected_rows:
-            selected_position = int(selected_rows[0])
-    except Exception:
-        selected_position = 0
+    st.markdown(
+        """
+<style>
+.crm-client-table-wrap{
+    width:100%;
+    overflow-x:auto;
+    border:1px solid #262626;
+    border-radius:10px;
+    background:#050505;
+    margin-top:8px;
+}
+.crm-client-table{
+    width:100%;
+    min-width:1120px;
+    border-collapse:collapse;
+    table-layout:fixed;
+    background:#050505;
+}
+.crm-client-table th{
+    padding:12px 12px;
+    background:#0B0B0B;
+    border-right:1px solid #242424;
+    border-bottom:1px solid #303030;
+    color:#AEB7BE;
+    font-size:10px;
+    font-weight:800;
+    text-align:left;
+    white-space:nowrap;
+}
+.crm-client-table td{
+    padding:11px 12px;
+    background:#070707;
+    border-right:1px solid #202020;
+    border-bottom:1px solid #242424;
+    color:#F5F7F8;
+    font-size:10px;
+    line-height:1.25;
+    vertical-align:middle;
+}
+.crm-client-table tbody tr:nth-child(even) td{background:#090909;}
+.crm-client-table tbody tr:hover td{background:#121005;}
+.crm-client-table th:last-child,
+.crm-client-table td:last-child{border-right:0;}
+.crm-client-table tbody tr:last-child td{border-bottom:0;}
+.crm-client-table th:nth-child(1){width:27%;}
+.crm-client-table th:nth-child(2){width:11%;}
+.crm-client-table th:nth-child(3){width:17%;}
+.crm-client-table th:nth-child(4){width:12%;}
+.crm-client-table th:nth-child(5){width:13%;text-align:right;}
+.crm-client-table th:nth-child(6){width:13%;text-align:right;}
+.crm-client-table th:nth-child(7){width:7%;text-align:right;}
+.crm-client-name-cell{font-weight:800;color:#FFFFFF !important;}
+.crm-client-date-cell{color:#C8D0D6 !important;}
+.crm-client-money-cell{text-align:right;color:#FFC400 !important;font-weight:850;white-space:nowrap;}
+.crm-client-orders-cell{text-align:right;font-weight:800;}
+</style>
+        """,
+        unsafe_allow_html=True,
+    )
 
-    if selected_position < 0 or selected_position >= len(filtered):
+    table_html = (
+        '<div class="crm-client-table-wrap"><table class="crm-client-table">'
+        '<thead><tr>'
+        '<th>Cliente</th><th>RUT</th><th>Vendedor</th><th>Última compra</th>'
+        '<th>Ventas del período</th><th>Venta acumulada</th><th>Pedidos</th>'
+        '</tr></thead><tbody>'
+        + ''.join(rows_html)
+        + '</tbody></table></div>'
+    )
+    st.markdown(table_html, unsafe_allow_html=True)
+
+    if selected_position is None or selected_position < 0 or selected_position >= len(filtered):
         return
 
-    client = filtered.iloc[selected_position]
+    client = filtered.iloc[int(selected_position)]
 
     client_name = _safe_text(client.get("Cliente"))
     client_rut = _safe_text(client.get("RUT"))

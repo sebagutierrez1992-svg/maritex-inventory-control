@@ -2,10 +2,12 @@
 
 from io import BytesIO
 import re
+import zipfile
+import xml.etree.ElementTree as ET
 
 import pandas as pd
 import streamlit as st
-from openpyxl import load_workbook
+from openpyxl import Workbook, load_workbook
 
 from analytics.stock_metrics import (
     stock_view,
@@ -26,6 +28,212 @@ def _safe_int(value) -> int:
         return int(round(float(value)))
     except Exception:
         return 0
+
+
+
+
+def _fmt_int(value) -> str:
+    return f"{_safe_int(value):,}".replace(",", ".")
+
+
+def _format_loaded_at(value) -> str:
+    if value is None:
+        return "actualización automática"
+
+    text = str(value).strip()
+    if not text:
+        return "actualización automática"
+
+    try:
+        dt = pd.to_datetime(text, utc=True)
+        if pd.isna(dt):
+            return text
+        dt = dt.tz_convert("America/Santiago")
+        return dt.strftime("%d-%m-%Y · %H:%M")
+    except Exception:
+        return text
+
+
+def _inject_marketplace_contrast_css():
+    st.markdown(
+        """
+        <style>
+        /* =====================================================
+           MARKETPLACE · MARITEX DARK UI
+           ===================================================== */
+        :root {
+            --mk-bg: #05080b;
+            --mk-panel: #0b1117;
+            --mk-panel-2: #101820;
+            --mk-border: #26323d;
+            --mk-text: #f6f8fa;
+            --mk-muted: #9eacb9;
+            --mk-yellow: #ffd400;
+            --mk-green: #2ed47a;
+            --mk-amber: #ffbf00;
+            --mk-red: #ff4d4f;
+            --mk-blue: #29a9ff;
+        }
+
+        .stApp {
+            background: var(--mk-bg) !important;
+        }
+
+        [data-testid="stAppViewContainer"],
+        [data-testid="stMain"],
+        section.main {
+            background: var(--mk-bg) !important;
+        }
+
+        .block-container {
+            max-width: 1500px !important;
+            padding-top: 1.25rem !important;
+            padding-bottom: 2.5rem !important;
+        }
+
+        /* Header */
+        .mkx-page-head {
+            display:flex; align-items:center; justify-content:space-between;
+            gap:20px; margin:2px 0 18px 0;
+        }
+        .mkx-title-wrap { display:flex; align-items:center; gap:16px; }
+        .mkx-brand-mark {
+            width:56px; height:56px; border-radius:14px; display:flex; align-items:center;
+            justify-content:center; background:linear-gradient(145deg,#1878f2,#0aa6ff);
+            color:#fff; font-size:28px; font-weight:850; box-shadow:0 8px 24px rgba(0,130,255,.22);
+        }
+        .mkx-title { color:#fff; font-size:34px; line-height:1.05; font-weight:850; letter-spacing:-.03em; }
+        .mkx-subtitle { color:var(--mk-muted); font-size:14px; margin-top:6px; }
+        .mkx-live {
+            display:inline-flex; align-items:center; gap:8px; padding:9px 13px;
+            border:1px solid #2a3945; border-radius:999px; color:#d8e1e8;
+            background:#0b1117; font-size:12px; font-weight:700;
+        }
+        .mkx-live i { width:8px; height:8px; border-radius:50%; background:var(--mk-green); box-shadow:0 0 0 4px rgba(46,212,122,.11); }
+
+        /* Source bar */
+        .mkx-source {
+            display:grid; grid-template-columns:1.35fr 1fr; gap:0;
+            background:linear-gradient(180deg,#0d141b,#091017);
+            border:1px solid var(--mk-border); border-radius:16px; overflow:hidden;
+            margin-bottom:16px; box-shadow:0 10px 28px rgba(0,0,0,.18);
+        }
+        .mkx-source-col { display:flex; align-items:center; gap:16px; padding:20px 22px; min-height:96px; }
+        .mkx-source-col + .mkx-source-col { border-left:1px solid #42515d; }
+        .mkx-source-icon {
+            width:56px; height:56px; border-radius:14px; display:flex; align-items:center;
+            justify-content:center; flex:0 0 auto; background:#fff2b8; color:#111; font-weight:900;
+            box-shadow:inset 0 0 0 1px rgba(255,212,0,.22);
+        }
+        .mkx-source-kicker { color:#8fa0ae; font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.08em; }
+        .mkx-source-title { color:#fff; font-size:18px; font-weight:800; margin:4px 0; }
+        .mkx-source-meta { color:#aab6c0; font-size:12px; line-height:1.5; }
+
+        /* KPIs */
+        .mkx-kpis { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin:16px 0 18px; }
+        .mkx-kpi {
+            position:relative; min-height:112px; padding:18px 18px 16px 18px;
+            border-radius:16px; border:1px solid var(--mk-border);
+            background:linear-gradient(145deg,#101820,#0b1117); overflow:hidden;
+        }
+        .mkx-kpi.good { background:linear-gradient(145deg,rgba(13,60,43,.72),rgba(8,31,24,.75)); border-color:#1e5d46; }
+        .mkx-kpi.warn { background:linear-gradient(145deg,rgba(78,61,10,.58),rgba(37,29,8,.72)); border-color:#5f4f1d; }
+        .mkx-kpi.blue { background:linear-gradient(145deg,rgba(15,52,76,.65),rgba(8,26,38,.72)); border-color:#214b64; }
+        .mkx-kpi-label { color:#cbd5dd; font-size:12px; font-weight:750; }
+        .mkx-kpi-value { color:#fff; font-size:31px; line-height:1; font-weight:880; margin:9px 0 8px; letter-spacing:-.03em; }
+        .mkx-kpi-help { color:#a5b1bc; font-size:12px; }
+        .mkx-kpi-badge {
+            position:absolute; top:16px; right:16px; border-radius:999px; padding:6px 9px;
+            font-size:11px; font-weight:850;
+        }
+        .mkx-kpi-badge.good { background:rgba(46,212,122,.15); color:#78efaf; }
+        .mkx-kpi-badge.warn { background:rgba(255,191,0,.16); color:#ffd85c; }
+
+        /* Section heads */
+        .mkx-section-head {
+            display:flex; align-items:center; justify-content:space-between; gap:16px;
+            margin:16px 0 8px;
+        }
+        .mkx-section-title { color:#fff; font-size:15px; font-weight:800; }
+        .mkx-section-sub { color:#8fa0ae; font-size:12px; margin-top:3px; }
+        .mkx-pill {
+            display:inline-flex; align-items:center; border:1px solid #33414d; border-radius:999px;
+            padding:6px 10px; color:#d6dee5; background:#0a1016; font-size:11px; font-weight:750;
+        }
+
+        /* Download banner */
+        .mkx-download-banner {
+            display:flex; align-items:center; justify-content:space-between; gap:18px;
+            border:1px solid var(--mk-border); background:linear-gradient(180deg,#0d141b,#0a1016);
+            border-radius:15px; padding:16px 18px; margin-top:14px;
+        }
+        .mkx-download-copy strong { color:#fff; font-size:14px; display:block; }
+        .mkx-download-copy span { color:#9caab6; font-size:12px; display:block; margin-top:4px; }
+
+        /* Recommendations */
+        .mkx-reco {
+            border:1px solid var(--mk-border); background:linear-gradient(180deg,#0d141b,#090f14);
+            border-radius:15px; margin-top:14px; overflow:hidden;
+        }
+        .mkx-reco-title { padding:14px 18px 8px; color:#fff; font-size:15px; font-weight:850; }
+        .mkx-reco-title b { color:var(--mk-yellow); }
+        .mkx-reco-grid { display:grid; grid-template-columns:repeat(3,1fr); }
+        .mkx-reco-item { padding:14px 18px 18px; min-height:88px; }
+        .mkx-reco-item + .mkx-reco-item { border-left:1px solid #25313b; }
+        .mkx-reco-item strong { color:#fff; display:block; font-size:13px; margin-bottom:4px; }
+        .mkx-reco-item span { color:#98a6b2; font-size:12px; line-height:1.45; }
+
+        /* Streamlit tabs */
+        .stTabs [data-baseweb="tab-list"] { gap:10px; border-bottom:1px solid #202b34; }
+        .stTabs [data-baseweb="tab"] {
+            color:#a7b4bf !important; font-weight:750 !important; padding:10px 14px !important;
+        }
+        .stTabs [aria-selected="true"] { color:#fff !important; border-bottom-color:var(--mk-yellow) !important; }
+
+        /* Inputs */
+        div[data-testid="stTextInput"] input {
+            background:#080d12 !important; color:#f7f9fb !important; border:1px solid #2a3742 !important;
+            border-radius:11px !important;
+        }
+        div[data-testid="stTextInput"] input::placeholder { color:#7f8c97 !important; }
+        div[data-testid="stRadio"] label { color:#dce3e9 !important; font-weight:700 !important; }
+
+        /* Dataframe */
+        div[data-testid="stDataFrame"] {
+            border:1px solid #26313b !important; border-radius:14px !important; overflow:hidden !important;
+            background:#080d12 !important;
+        }
+        div[data-testid="stDataFrame"] * { color:#e9eef2; }
+
+        /* Buttons */
+        .stDownloadButton > button[kind="primary"],
+        button[kind="primary"] {
+            background:var(--mk-yellow) !important; color:#111 !important; border:1px solid #f4c900 !important;
+            border-radius:11px !important; font-weight:850 !important; box-shadow:none !important;
+        }
+        .stDownloadButton > button[kind="primary"] p,
+        button[kind="primary"] p { color:#111 !important; font-weight:850 !important; }
+
+        /* Alerts */
+        div[data-testid="stAlert"] {
+            background:#15120a !important; border:1px solid #5d4b16 !important; color:#ffe38a !important;
+            border-radius:12px !important;
+        }
+
+        /* Legacy classes still used elsewhere */
+        .mk2-platform-head, .mk2-summary-grid, .mk2-source, .mk3-compact-summary { display:none !important; }
+
+        @media (max-width: 1000px) {
+            .mkx-kpis { grid-template-columns:repeat(2,1fr); }
+            .mkx-source { grid-template-columns:1fr; }
+            .mkx-source-col + .mkx-source-col { border-left:0; border-top:1px solid #42515d; }
+            .mkx-reco-grid { grid-template-columns:1fr; }
+            .mkx-reco-item + .mkx-reco-item { border-left:0; border-top:1px solid #25313b; }
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 def _normalize_sku(value) -> str:
@@ -420,12 +628,13 @@ def _build_paris_workbook(
             sku_key in stock_lookup
         )
 
-        new_stock = int(
-            stock_lookup.get(
-                sku_key,
-                0,
-            )
+        # Paris publica exactamente el Disponible de Casa Matriz.
+        # Si el SKU no existe en CM, nuevo_stock queda en 0.
+        available_cm = max(
+            int(stock_lookup.get(sku_key, 0)),
+            0,
         )
+        new_stock = available_cm
 
         current_stock = (
             ws.cell(
@@ -490,6 +699,7 @@ def _build_paris_workbook(
                 "Stock actual": _safe_int(
                     current_stock
                 ),
+                "Disponible Casa Matriz": available_cm,
                 "Nuevo stock": new_stock,
                 "Diferencia": delta,
                 "Cambio": change,
@@ -540,121 +750,105 @@ def _build_meli_workbook(
     stock_items: tuple,
 ):
     """
-    Mercado Libre:
-        Hoja       -> Publicaciones
-        Cruce      -> SKU
-        Stock base -> QUANTITY
-        Escribe    -> QUANTITY
+    Mercado Libre - conserva el formato oficial:
+        - Lee SKU y QUANTITY desde la hoja Publicaciones.
+        - Cruza SKU contra Disponible de Casa Matriz.
+        - Modifica SOLO las celdas QUANTITY dentro del XLSX original.
+        - Conserva todas las hojas, columnas, estilos, validaciones y metadatos.
 
-    Las filas de publicaciones comienzan en la fila 6.
+    Importante: NO se guarda el libro con openpyxl. El XLSX se copia como ZIP
+    y se parchean únicamente las celdas de QUANTITY en el XML de Publicaciones.
     """
-    stock_lookup = dict(
-        stock_items
+    stock_lookup = dict(stock_items)
+
+    # --------------------------------------------------------
+    # 1) Leer estructura/filas de forma secuencial
+    # --------------------------------------------------------
+    source_wb = load_workbook(
+        BytesIO(template_bytes),
+        data_only=False,
+        read_only=True,
     )
 
-    wb = load_workbook(
-        BytesIO(template_bytes)
-    )
-
-    if "Publicaciones" not in wb.sheetnames:
+    if "Publicaciones" not in source_wb.sheetnames:
+        source_wb.close()
         raise ValueError(
-            "La plantilla Mercado Libre no contiene "
-            "la hoja 'Publicaciones'."
+            "La plantilla Mercado Libre no contiene la hoja 'Publicaciones'."
         )
 
-    ws = wb["Publicaciones"]
+    ws = source_wb["Publicaciones"]
+    rows = ws.iter_rows(values_only=True)
 
-    sku_col = _find_header_column(
-        ws,
-        1,
-        ["SKU"],
-    )
+    header_row = None
+    header_values = None
 
-    quantity_col = _find_header_column(
-        ws,
-        1,
-        ["QUANTITY"],
-    )
+    for row_number, values in enumerate(rows, start=1):
+        if row_number > 12:
+            break
 
-    title_col = _find_header_column(
-        ws,
-        1,
-        ["TITLE"],
-    )
+        normalized = [
+            re.sub(r"[^A-Z0-9]", "", str(v).strip().upper())
+            if v is not None else ""
+            for v in values
+        ]
 
-    variation_col = _find_header_column(
-        ws,
-        1,
-        ["VARIATIONS"],
-    )
+        if "SKU" in normalized and "QUANTITY" in normalized:
+            header_row = row_number
+            header_values = normalized
+            break
 
-    item_col = _find_header_column(
-        ws,
-        1,
-        ["ITEM_ID"],
-    )
-
-    if sku_col is None:
+    if header_row is None or header_values is None:
+        source_wb.close()
         raise ValueError(
-            "No se encontró la columna 'SKU' "
+            "No se encontraron las columnas 'SKU' y 'QUANTITY' "
             "en la plantilla Mercado Libre."
         )
 
-    if quantity_col is None:
-        raise ValueError(
-            "No se encontró la columna 'QUANTITY' "
-            "en la plantilla Mercado Libre."
-        )
+    sku_idx = header_values.index("SKU")
+    quantity_idx = header_values.index("QUANTITY")
+
+    def _excel_col_letter(index_zero_based: int) -> str:
+        n = index_zero_based + 1
+        out = ""
+        while n:
+            n, rem = divmod(n - 1, 26)
+            out = chr(65 + rem) + out
+        return out
+
+    quantity_col_letter = _excel_col_letter(quantity_idx)
 
     preview_rows = []
+    replacements = {}
     matched_rows = 0
     unmatched_rows = 0
     publishable_units = 0
-    processed_rows = 0
-
     matched_skus = set()
     unmatched_skus = set()
 
-    for row in range(
-        6,
-        ws.max_row + 1,
-    ):
-        raw_sku = ws.cell(
-            row=row,
-            column=sku_col,
-        ).value
+    for row_number, values in enumerate(rows, start=header_row + 1):
+        if not values or sku_idx >= len(values):
+            continue
 
+        raw_sku = values[sku_idx]
         if raw_sku is None:
             continue
 
-        sku_text = str(
-            raw_sku
-        ).strip()
-
+        sku_text = str(raw_sku).strip()
         if not sku_text:
             continue
 
-        processed_rows += 1
+        sku_key = _normalize_sku(raw_sku)
+        if not sku_key:
+            continue
 
-        sku_key = _normalize_sku(
-            raw_sku
+        current_stock = (
+            values[quantity_idx]
+            if quantity_idx < len(values)
+            else 0
         )
 
-        found = (
-            sku_key in stock_lookup
-        )
-
-        current_stock = ws.cell(
-            row=row,
-            column=quantity_col,
-        ).value
-
-        new_stock = int(
-            stock_lookup.get(
-                sku_key,
-                0,
-            )
-        )
+        found = sku_key in stock_lookup
+        new_stock = max(int(stock_lookup.get(sku_key, 0)), 0)
 
         change, delta = _change_status(
             current_stock,
@@ -662,122 +856,167 @@ def _build_meli_workbook(
             found,
         )
 
-        # Solo se actualiza QUANTITY.
-        ws.cell(
-            row=row,
-            column=quantity_col,
-        ).value = new_stock
-
         if found:
             matched_rows += 1
-            matched_skus.add(
-                sku_key
-            )
+            matched_skus.add(sku_key)
         else:
             unmatched_rows += 1
-            unmatched_skus.add(
-                sku_key
-            )
+            unmatched_skus.add(sku_key)
 
         publishable_units += new_stock
+        replacements[f"{quantity_col_letter}{row_number}"] = new_stock
 
-        raw_title = (
-            ws.cell(
-                row=row,
-                column=title_col,
-            ).value
-            if title_col
-            else ""
-        )
+        preview_rows.append({
+            "SKU": sku_text,
+            "Stock actual": _safe_int(current_stock),
+            "Nuevo stock": new_stock,
+            "Diferencia": delta,
+            "Cambio": change,
+            "Coincidencia Stock CM": (
+                "Encontrado" if found else "Sin coincidencia"
+            ),
+        })
 
-        product_title = raw_title or ""
+    source_wb.close()
 
-        # MELI puede repetir el TITLE mediante fórmula.
-        if (
-            title_col
-            and isinstance(
-                raw_title,
-                str,
-            )
-            and raw_title.strip().startswith("=")
-        ):
-            for previous_row in range(
-                row - 1,
-                5,
-                -1,
-            ):
-                previous_title = ws.cell(
-                    row=previous_row,
-                    column=title_col,
-                ).value
+    # --------------------------------------------------------
+    # 2) Localizar el XML exacto de la hoja Publicaciones
+    # --------------------------------------------------------
+    with zipfile.ZipFile(BytesIO(template_bytes), "r") as zin:
+        workbook_xml = ET.fromstring(zin.read("xl/workbook.xml"))
+        rels_xml = ET.fromstring(zin.read("xl/_rels/workbook.xml.rels"))
 
-                if previous_title is None:
-                    continue
+        ns_main = {
+            "m": "http://schemas.openxmlformats.org/spreadsheetml/2006/main",
+            "r": "http://schemas.openxmlformats.org/officeDocument/2006/relationships",
+        }
+        ns_rel = {
+            "p": "http://schemas.openxmlformats.org/package/2006/relationships",
+        }
 
-                previous_title = str(
-                    previous_title
-                ).strip()
-
-                if (
-                    not previous_title
-                    or previous_title.startswith("=")
-                ):
-                    continue
-
-                product_title = previous_title
+        rel_id = None
+        for sheet in workbook_xml.findall("m:sheets/m:sheet", ns_main):
+            if sheet.attrib.get("name") == "Publicaciones":
+                rel_id = sheet.attrib.get(
+                    "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id"
+                )
                 break
 
-        preview_rows.append(
-            {
-                "Publicación": (
-                    ws.cell(
-                        row=row,
-                        column=item_col,
-                    ).value
-                    if item_col
-                    else ""
-                ),
-                "SKU": sku_text,
-                "Producto": product_title,
-                "Variación": (
-                    ws.cell(
-                        row=row,
-                        column=variation_col,
-                    ).value
-                    if variation_col
-                    else ""
-                ),
-                "Stock actual": _safe_int(
-                    current_stock
-                ),
-                "Nuevo stock": new_stock,
-                "Diferencia": delta,
-                "Cambio": change,
-                "Coincidencia Stock CM": (
-                    "Encontrado"
-                    if found
-                    else "Sin coincidencia"
-                ),
-            }
-        )
+        if not rel_id:
+            raise ValueError(
+                "No fue posible localizar la relación de la hoja Publicaciones."
+            )
 
-    output = BytesIO()
-    wb.save(output)
+        target = None
+        for rel in rels_xml.findall("p:Relationship", ns_rel):
+            if rel.attrib.get("Id") == rel_id:
+                target = rel.attrib.get("Target")
+                break
+
+        if not target:
+            raise ValueError(
+                "No fue posible localizar el XML de la hoja Publicaciones."
+            )
+
+        if target.startswith("/"):
+            sheet_path = target.lstrip("/")
+        elif target.startswith("xl/"):
+            sheet_path = target
+        else:
+            sheet_path = "xl/" + target.lstrip("./")
+
+        sheet_bytes = zin.read(sheet_path)
+
+        # ----------------------------------------------------
+        # 3) Parche raw-byte: SOLO las celdas QUANTITY
+        # ----------------------------------------------------
+        patched = sheet_bytes
+        changed_cells = 0
+
+        for ref, new_stock in replacements.items():
+            ref_b = ref.encode("ascii")
+            value_b = str(int(new_stock)).encode("ascii")
+
+            # Celda normal: <c ... r="H6" ...>...</c>
+            pattern = re.compile(
+                rb'<c(?P<attrs>[^>]*\br="' + re.escape(ref_b) + rb'"[^>]*)>'
+                rb'(?P<body>.*?)</c>',
+                re.DOTALL,
+            )
+
+            match = pattern.search(patched)
+            if match:
+                attrs = match.group("attrs")
+                # QUANTITY puede venir como shared string (t="s").
+                # Al escribir un número removemos SOLO ese atributo.
+                attrs_clean = re.sub(
+                    rb'\s+t="[^"]*"',
+                    b'',
+                    attrs,
+                    count=1,
+                )
+                replacement = (
+                    b'<c' + attrs_clean + b'><v>' + value_b + b'</v></c>'
+                )
+                patched = (
+                    patched[:match.start()]
+                    + replacement
+                    + patched[match.end():]
+                )
+                changed_cells += 1
+                continue
+
+            # Caso excepcional de celda autocerrada: <c ... r="H6" .../>
+            pattern_empty = re.compile(
+                rb'<c(?P<attrs>[^>]*\br="' + re.escape(ref_b) + rb'"[^>]*)/>',
+                re.DOTALL,
+            )
+            match = pattern_empty.search(patched)
+            if match:
+                attrs = match.group("attrs")
+                attrs_clean = re.sub(
+                    rb'\s+t="[^"]*"',
+                    b'',
+                    attrs,
+                    count=1,
+                ).rstrip()
+                replacement = (
+                    b'<c' + attrs_clean + b'><v>' + value_b + b'</v></c>'
+                )
+                patched = (
+                    patched[:match.start()]
+                    + replacement
+                    + patched[match.end():]
+                )
+                changed_cells += 1
+
+        if changed_cells == 0 and replacements:
+            raise ValueError(
+                "No fue posible actualizar las celdas QUANTITY del archivo Mercado Libre."
+            )
+
+        # ----------------------------------------------------
+        # 4) Copiar el XLSX completo; sustituir SOLO sheet XML
+        # ----------------------------------------------------
+        output = BytesIO()
+        with zipfile.ZipFile(output, "w") as zout:
+            for info in zin.infolist():
+                data = patched if info.filename == sheet_path else zin.read(info.filename)
+                zout.writestr(info, data)
+
     output.seek(0)
 
-    preview = pd.DataFrame(
-        preview_rows
-    )
-
+    preview = pd.DataFrame(preview_rows)
     stats = _stats_from_preview(
         preview,
         {
-            "rows": processed_rows,
+            "rows": len(preview_rows),
             "matched_rows": matched_rows,
             "unmatched_rows": unmatched_rows,
             "matched_skus": len(matched_skus),
             "unmatched_skus": len(unmatched_skus),
             "units": publishable_units,
+            "changed_cells": changed_cells,
         },
     )
 
@@ -787,10 +1026,6 @@ def _build_meli_workbook(
         stats,
     )
 
-
-# ============================================================
-# COMPONENTES DE INTERFAZ
-# ============================================================
 
 def _marketplace_header(
     name: str,
@@ -903,218 +1138,184 @@ def _render_marketplace_panel(
     name: str,
     key_name: str,
     house: pd.DataFrame,
+    loaded_at: str = "actualización automática",
 ):
-    path = MARKETPLACE_TEMPLATES[
-        name
-    ]
+    path = MARKETPLACE_TEMPLATES[name]
 
     if not path.exists():
-        render_html(
-            f"""
-            <div class="mk2-platform-head">
-                <div class="mk2-platform-title">
-                    <div class="mk2-platform-mark">
-                        {"P" if "Paris" in name else "ML"}
-                    </div>
-                    <div>
-                        <strong>{name}</strong>
-                        <span>Plantilla pendiente</span>
-                    </div>
-                </div>
-                <span class="mk2-badge risk">SIN PLANTILLA</span>
-            </div>
-            """
-        )
-
-        st.warning(
+        st.error(
             f"No existe la plantilla oficial de {name}. "
             "Cárgala desde Plantillas."
         )
         return
 
     # --------------------------------------------------------
-    # CONTROLES
+    # PROCESAR PLANTILLA
     # --------------------------------------------------------
-    c1, c2 = st.columns(
-        [1.55, 0.75],
-        gap="medium",
-    )
-
-    with c1:
-        search = st.text_input(
-            "Buscar SKU o producto",
-            placeholder=(
-                "Ej: 13051205, parka, softshell..."
-            ),
-            key=f"market_search_v2_{key_name}",
-        )
-
-    with c2:
-        reserve = st.number_input(
-            "Stock de seguridad",
-            min_value=0,
-            value=0,
-            step=1,
-            help=(
-                "Stock a publicar = Stock Casa Matriz - reserva. "
-                "Nunca se publican cantidades negativas."
-            ),
-            key=f"market_reserve_v2_{key_name}",
-        )
-
-    lookup = _stock_map(
-        house,
-        reserve,
-    )
-
-    stock_items = tuple(
-        sorted(
-            lookup.items()
-        )
-    )
-
+    reserve = 0
+    lookup = _stock_map(house, reserve)
+    stock_items = tuple(sorted(lookup.items()))
     template_bytes = path.read_bytes()
 
     try:
         if name == "Paris Marketplace":
-            (
-                output_bytes,
-                preview,
-                stats,
-            ) = _build_paris_workbook(
+            output_bytes, preview, stats = _build_paris_workbook(
                 template_bytes,
                 stock_items,
             )
-
-            download_name = (
-                "Paris_stock_actualizado.xlsx"
-            )
-
-            button_label = (
-                "Descargar Paris actualizado"
-            )
-
+            download_name = "Paris_stock_actualizado.xlsx"
+            button_label = "Descargar archivo actualizado"
         else:
-            (
-                output_bytes,
-                preview,
-                stats,
-            ) = _build_meli_workbook(
+            output_bytes, preview, stats = _build_meli_workbook(
                 template_bytes,
                 stock_items,
             )
-
-            download_name = (
-                "Mercado_Libre_stock_actualizado.xlsx"
-            )
-
-            button_label = (
-                "Descargar Mercado Libre actualizado"
-            )
-
+            download_name = path.name
+            button_label = "Descargar Mercado Libre actualizado"
     except Exception as exc:
-        st.error(
-            f"No fue posible procesar la plantilla: {exc}"
-        )
+        st.error(f"No fue posible procesar la plantilla: {exc}")
         return
 
-    _marketplace_header(
-        name,
-        path.name,
-        stats,
+    match_pct = float(stats.get("match_pct", 0.0))
+    unmatched_pct = max(0.0, 100.0 - match_pct)
+
+    # --------------------------------------------------------
+    # ENCABEZADO VISUAL
+    # --------------------------------------------------------
+    brand_letter = "P" if name == "Paris Marketplace" else "ML"
+    subtitle = (
+        "Genera tu archivo de actualización de stock para Paris."
+        if name == "Paris Marketplace"
+        else "Actualiza QUANTITY usando exclusivamente el Disponible de Casa Matriz."
     )
 
-    # --------------------------------------------------------
-    # KPI CRUCE
-    # --------------------------------------------------------
     render_html(
         f"""
-        <div class="mk2-summary-grid">
-            <div>
-                <span>FILAS PLANTILLA</span>
-                <strong>{stats["rows"]:,}</strong>
-                <small>registros procesados</small>
+        <div class="mkx-page-head">
+            <div class="mkx-title-wrap">
+                <div class="mkx-brand-mark">{brand_letter}</div>
+                <div>
+                    <div class="mkx-title">{name}</div>
+                    <div class="mkx-subtitle">{subtitle}</div>
+                </div>
             </div>
+            <div class="mkx-live"><i></i> Stock automático</div>
+        </div>
 
-            <div>
-                <span>SKU ENCONTRADOS</span>
-                <strong>{stats["matched_rows"]:,}</strong>
-                <small>coinciden con Casa Matriz</small>
+        <div class="mkx-source">
+            <div class="mkx-source-col">
+                <div class="mkx-source-icon">CM</div>
+                <div>
+                    <div class="mkx-source-kicker">Fuente de stock</div>
+                    <div class="mkx-source-title">Stock automático · Llegadas_OK</div>
+                    <div class="mkx-source-meta">
+                        Bodega utilizada: <b style="color:#fff">CASA MATRIZ</b>
+                        &nbsp;&nbsp;·&nbsp;&nbsp; Actualizado: {loaded_at}
+                    </div>
+                </div>
             </div>
-
-            <div>
-                <span>SIN COINCIDENCIA</span>
-                <strong>{stats["unmatched_rows"]:,}</strong>
-                <small>se exportarán con stock 0</small>
+            <div class="mkx-source-col">
+                <div class="mkx-source-icon" style="background:#182028;color:#fff">⚙</div>
+                <div>
+                    <div class="mkx-source-kicker">Regla de publicación</div>
+                    <div class="mkx-source-title">Solo Casa Matriz</div>
+                    <div class="mkx-source-meta">CD, Patronato y Concepción excluidos</div>
+                </div>
             </div>
+        </div>
 
-            <div>
-                <span>STOCK A PUBLICAR</span>
-                <strong>{stats["units"]:,}</strong>
-                <small>unidades después de reserva</small>
+        <div class="mkx-kpis">
+            <div class="mkx-kpi">
+                <div class="mkx-kpi-label">Total filas plantilla</div>
+                <div class="mkx-kpi-value">{_fmt_int(stats['rows'])}</div>
+                <div class="mkx-kpi-help">registros procesados</div>
+            </div>
+            <div class="mkx-kpi good">
+                <div class="mkx-kpi-badge good">{match_pct:.1f}%</div>
+                <div class="mkx-kpi-label">SKU encontrados</div>
+                <div class="mkx-kpi-value">{_fmt_int(stats['matched_rows'])}</div>
+                <div class="mkx-kpi-help">coinciden con Casa Matriz</div>
+            </div>
+            <div class="mkx-kpi warn">
+                <div class="mkx-kpi-badge warn">{unmatched_pct:.1f}%</div>
+                <div class="mkx-kpi-label">Sin coincidencia</div>
+                <div class="mkx-kpi-value">{_fmt_int(stats['unmatched_rows'])}</div>
+                <div class="mkx-kpi-help">se exportarán con stock 0</div>
+            </div>
+            <div class="mkx-kpi blue">
+                <div class="mkx-kpi-label">Stock a publicar</div>
+                <div class="mkx-kpi-value">{_fmt_int(stats['units'])}</div>
+                <div class="mkx-kpi-help">unidades disponibles Casa Matriz</div>
             </div>
         </div>
         """
     )
 
     # --------------------------------------------------------
-    # FILTRO
+    # CONTROLES DE VISTA
     # --------------------------------------------------------
-    change_filter = st.radio(
-        "Mostrar",
-        [
-            "Todos",
-            "Con cambio",
-            "Sin coincidencia",
-        ],
-        horizontal=True,
-        key=f"market_change_filter_v2_{key_name}",
-    )
+    c1, c2 = st.columns([1.7, 1.0], gap="medium")
 
-    preview_view = _filter_preview(
-        preview,
-        search,
-        change_filter,
-    )
+    with c1:
+        change_filter = st.radio(
+            "Vista",
+            ["Todos", "Sin coincidencia", "Con cambio", "Sin cambio"],
+            horizontal=True,
+            key=f"market_change_filter_v3_{key_name}",
+            label_visibility="collapsed",
+        )
+
+    with c2:
+        search = st.text_input(
+            "Buscar",
+            placeholder="Buscar por SKU, producto o talla...",
+            key=f"market_search_v3_{key_name}",
+            label_visibility="collapsed",
+        )
+
+    # filtro compatible con la función existente
+    preview_view = preview.copy()
+    if search:
+        preview_view = _filter_preview(preview_view, search, "Todos")
+
+    if change_filter == "Sin coincidencia":
+        if "Coincidencia Stock CM" in preview_view.columns:
+            preview_view = preview_view[
+                preview_view["Coincidencia Stock CM"].eq("Sin coincidencia")
+            ].copy()
+    elif change_filter == "Con cambio":
+        if "Cambio" in preview_view.columns:
+            preview_view = preview_view[
+                ~preview_view["Cambio"].eq("Sin cambios")
+            ].copy()
+    elif change_filter == "Sin cambio":
+        if "Cambio" in preview_view.columns:
+            preview_view = preview_view[
+                preview_view["Cambio"].eq("Sin cambios")
+            ].copy()
 
     render_html(
         f"""
-        <div class="mk2-table-head">
+        <div class="mkx-section-head">
             <div>
-                <strong>Stock a publicar</strong>
-                <span>
-                    {len(preview_view):,} registros visibles · Casa Matriz
-                </span>
+                <div class="mkx-section-title">Vista previa</div>
+                <div class="mkx-section-sub">{_fmt_int(len(preview_view))} de {_fmt_int(len(preview))} registros visibles</div>
             </div>
-            <div>
-                Stock de seguridad:
-                <b>{int(reserve)}</b>
-            </div>
+            <div class="mkx-pill">Disponible Casa Matriz → nuevo_stock</div>
         </div>
         """
     )
 
+    # --------------------------------------------------------
+    # TABLA
+    # --------------------------------------------------------
     column_config = {
-        "Stock actual": st.column_config.NumberColumn(
-            "Stock actual",
-            format="%d",
-        ),
-        "Nuevo stock": st.column_config.NumberColumn(
-            "Nuevo stock",
-            format="%d",
-        ),
-        "Diferencia": st.column_config.NumberColumn(
-            "Diferencia",
-            format="%+d",
-        ),
-        "Cambio": st.column_config.TextColumn(
-            "Cambio",
-            width="medium",
-        ),
-        "Coincidencia Stock CM": st.column_config.TextColumn(
-            "Coincidencia",
-            width="medium",
-        ),
+        "Stock actual": st.column_config.NumberColumn("STOCK ACTUAL", format="%d"),
+        "Disponible Casa Matriz": st.column_config.NumberColumn("DISPONIBLE CM", format="%d"),
+        "Nuevo stock": st.column_config.NumberColumn("NUEVO STOCK", format="%d"),
+        "Diferencia": st.column_config.NumberColumn("DIFERENCIA", format="%+d"),
+        "Cambio": st.column_config.TextColumn("CAMBIO", width="small"),
+        "Coincidencia Stock CM": st.column_config.TextColumn("COINCIDENCIA", width="medium"),
     }
 
     st.dataframe(
@@ -1125,26 +1326,63 @@ def _render_marketplace_panel(
         column_config=column_config,
     )
 
+    # --------------------------------------------------------
+    # ALERTA + DESCARGA
+    # --------------------------------------------------------
     if stats["unmatched_rows"] > 0:
+        target_field = "QUANTITY" if name == "Mercado Libre" else "nuevo_stock"
         st.warning(
-            f"{stats['unmatched_rows']:,} fila(s) no tienen "
-            "coincidencia con el stock de Casa Matriz de Llegadas_OK. "
-            "Esas filas se exportarán con stock 0."
+            f"{_fmt_int(stats['unmatched_rows'])} fila(s) no tienen coincidencia "
+            "con Casa Matriz. "
+            f"Se exportarán con {target_field} = 0."
         )
+
+    render_html(
+        f"""
+        <div class="mkx-download-banner">
+            <div class="mkx-download-copy">
+                <strong>Archivo listo para descargar</strong>
+                <span>Se generará un Excel manteniendo la plantilla oficial y actualizando solo el stock.</span>
+            </div>
+            <div class="mkx-pill">{path.name}</div>
+        </div>
+        """
+    )
 
     st.download_button(
         button_label,
         data=output_bytes,
         file_name=download_name,
-        mime=(
-            "application/"
-            "vnd.openxmlformats-officedocument."
-            "spreadsheetml.sheet"
-        ),
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         use_container_width=True,
         type="primary",
         icon=":material/download:",
-        key=f"market_download_v2_{key_name}",
+        key=f"market_download_v3_{key_name}",
+    )
+
+    # --------------------------------------------------------
+    # RECOMENDACIONES OPERATIVAS
+    # --------------------------------------------------------
+    render_html(
+        f"""
+        <div class="mkx-reco">
+            <div class="mkx-reco-title"><b>◉</b> Recomendaciones</div>
+            <div class="mkx-reco-grid">
+                <div class="mkx-reco-item">
+                    <strong>Revisa los SKU sin coincidencia ({_fmt_int(stats['unmatched_rows'])})</strong>
+                    <span>Verifica si el SKU existe en Casa Matriz o si requiere corrección en la plantilla.</span>
+                </div>
+                <div class="mkx-reco-item">
+                    <strong>Revisa cambios significativos</strong>
+                    <span>Prioriza disminuciones fuertes de stock antes de publicar el archivo.</span>
+                </div>
+                <div class="mkx-reco-item">
+                    <strong>Mantén el stock actualizado</strong>
+                    <span>Genera el archivo nuevamente cuando Llegadas_OK actualice Casa Matriz.</span>
+                </div>
+            </div>
+        </div>
+        """
     )
 
 
@@ -1153,392 +1391,32 @@ def _render_marketplace_panel(
 # ============================================================
 
 def render(ctx):
-    # Tema visual Marketplace · Dark corporativo Maritex.
-    # Solo presentación: no altera cruces, stock, plantillas ni exportación.
-    st.markdown(
-        """
-        <style>
-        .mk2-page-head{
-            display:flex;justify-content:space-between;align-items:flex-start;
-            gap:18px;margin:2px 0 18px;
-        }
-        .mk2-eyebrow{
-            color:#FFC400!important;font-size:10px!important;font-weight:800!important;
-            letter-spacing:.8px!important;margin-bottom:5px!important;
-        }
-        .mk2-title{
-            color:#F7F8FA!important;font-size:30px!important;font-weight:800!important;
-            line-height:1.08!important;
-        }
-        .mk2-subtitle{color:#9FB0C0!important;margin-top:7px!important;}
-        .mk2-live{
-            color:#B8C5CF!important;background:#151F28!important;
-            border:1px solid #34414D!important;border-radius:999px!important;
-            padding:8px 12px!important;font-size:11px!important;white-space:nowrap!important;
-        }
-        .mk2-live i{
-            display:inline-block;width:8px;height:8px;border-radius:50%;
-            background:#22C55E;margin-right:7px;box-shadow:0 0 0 4px rgba(34,197,94,.10);
-        }
+    df = ctx.get("stock_df")
+    meta = ctx.get("stock_meta") or {}
 
-        .mk2-source{
-            display:grid!important;grid-template-columns:auto 1fr auto!important;
-            align-items:center!important;gap:14px!important;
-            background:linear-gradient(145deg,#18242E,#121B23)!important;
-            border:1px solid #34414D!important;border-radius:12px!important;
-            padding:15px 17px!important;margin:0 0 10px!important;
-        }
-        .mk2-source-icon{
-            width:42px;height:42px;border-radius:10px;display:flex;align-items:center;
-            justify-content:center;background:#3B3007!important;color:#FFC400!important;
-            border:1px solid rgba(255,196,0,.35)!important;font-weight:900!important;
-        }
-        .mk2-source-main span,.mk2-source-rule span{
-            color:#8FA2B3!important;font-size:9px!important;font-weight:800!important;
-            letter-spacing:.6px!important;
-        }
-        .mk2-source-main strong,.mk2-source-rule strong{
-            display:block;color:#F7F8FA!important;font-weight:800!important;margin-top:2px!important;
-        }
-        .mk2-source-main small,.mk2-source-rule small{color:#9FB0C0!important;}
-        .mk2-source-main small b{color:#FFC400!important;}
-        .mk2-source-rule{
-            padding-left:18px!important;border-left:1px solid #34414D!important;
-        }
-
-        .mk3-compact-summary{
-            display:flex!important;gap:10px!important;flex-wrap:wrap!important;
-            background:#111B24!important;border:1px solid #34414D!important;
-            border-radius:10px!important;padding:10px 13px!important;margin-bottom:14px!important;
-            color:#9FB0C0!important;
-        }
-        .mk3-compact-summary span{
-            padding-right:12px!important;border-right:1px solid #34414D!important;
-        }
-        .mk3-compact-summary span:last-child{border-right:0!important;}
-        .mk3-compact-summary b{color:#F7F8FA!important;}
-
-        .mk2-platform-head{
-            display:flex!important;justify-content:space-between!important;align-items:center!important;
-            gap:14px!important;background:linear-gradient(145deg,#18242E,#121B23)!important;
-            border:1px solid #34414D!important;border-radius:12px!important;
-            padding:14px 16px!important;margin:8px 0 12px!important;
-        }
-        .mk2-platform-title{display:flex!important;align-items:center!important;gap:11px!important;}
-        .mk2-platform-mark{
-            min-width:38px;height:38px;border-radius:9px;display:flex;align-items:center;
-            justify-content:center;background:#3B3007!important;color:#FFC400!important;
-            border:1px solid rgba(255,196,0,.32)!important;font-weight:900!important;
-        }
-        .mk2-platform-title strong{display:block;color:#F7F8FA!important;}
-        .mk2-platform-title span{display:block;color:#9FB0C0!important;font-size:10px!important;margin-top:2px!important;}
-        .mk2-platform-badges{display:flex!important;gap:7px!important;flex-wrap:wrap!important;}
-        .mk2-badge{
-            border-radius:999px!important;padding:5px 9px!important;font-size:9px!important;
-            font-weight:800!important;letter-spacing:.35px!important;
-        }
-        .mk2-badge.neutral{background:#202C36!important;color:#C7D1D9!important;border:1px solid #40505D!important;}
-        .mk2-badge.ok{background:#123824!important;color:#70DF96!important;border:1px solid #236A40!important;}
-        .mk2-badge.warn{background:#453606!important;color:#FFD75A!important;border:1px solid #806407!important;}
-        .mk2-badge.risk{background:#4A2020!important;color:#FF8181!important;border:1px solid #843737!important;}
-
-        .mk2-summary-grid{
-            display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;
-            gap:12px!important;margin:12px 0 14px!important;
-        }
-        .mk2-summary-grid>div{
-            background:linear-gradient(145deg,#18242E,#121B23)!important;
-            border:1px solid #34414D!important;border-radius:11px!important;
-            padding:14px!important;min-height:94px!important;
-        }
-        .mk2-summary-grid span{
-            display:block;color:#9FB0C0!important;font-size:9px!important;
-            font-weight:800!important;letter-spacing:.45px!important;
-        }
-        .mk2-summary-grid strong{
-            display:block;color:#F7F8FA!important;font-size:22px!important;
-            line-height:1.15!important;margin:7px 0 4px!important;
-        }
-        .mk2-summary-grid small{color:#8FA2B3!important;}
-
-        .mk2-table-head{
-            display:flex!important;justify-content:space-between!important;align-items:end!important;
-            gap:12px!important;margin:14px 0 8px!important;
-        }
-        .mk2-table-head strong{display:block;color:#F7F8FA!important;font-size:14px!important;}
-        .mk2-table-head span,.mk2-table-head>div:last-child{color:#9FB0C0!important;font-size:10px!important;}
-        .mk2-table-head b{color:#FFC400!important;}
-
-        [data-testid="stTabs"] [data-baseweb="tab-list"]{
-            gap:8px!important;border-bottom:1px solid #34414D!important;
-        }
-        [data-testid="stTabs"] button[role="tab"]{
-            color:#9FB0C0!important;background:transparent!important;
-            border-radius:8px 8px 0 0!important;
-        }
-        [data-testid="stTabs"] button[role="tab"][aria-selected="true"]{
-            color:#FFC400!important;background:#18242E!important;
-        }
-        [data-testid="stTabs"] [data-baseweb="tab-highlight"]{background:#FFC400!important;}
-
-        [data-testid="stTextInput"] label p,
-        [data-testid="stNumberInput"] label p,
-        [data-testid="stRadio"] label p{color:#B8C5CF!important;}
-        [data-testid="stTextInput"] input,
-        [data-testid="stNumberInput"] input{
-            background:#141E27!important;color:#F7F8FA!important;
-        }
-        [data-testid="stRadio"] [role="radiogroup"]{
-            background:#111B24!important;border:1px solid #34414D!important;
-            border-radius:10px!important;padding:5px 9px!important;
-        }
-
-        [data-testid="stDataFrame"]{
-            background:#111B24!important;border:1px solid #34414D!important;
-            border-radius:10px!important;overflow:hidden!important;
-        }
-
-        [data-testid="stAlert"]{
-            background:#2A240E!important;border-color:#6F5B0B!important;color:#F5DE87!important;
-        }
-
-        .main .stDownloadButton>button[kind="primary"],
-        .main .stDownloadButton>button{
-            background:#FFC400!important;color:#111820!important;
-            border:1px solid #FFC400!important;font-weight:800!important;
-        }
-        .main .stDownloadButton>button:hover{
-            background:#FFD02D!important;color:#111820!important;border-color:#FFD02D!important;
-        }
-
-        @media(max-width:900px){
-            .mk2-source{grid-template-columns:auto 1fr!important;}
-            .mk2-source-rule{grid-column:1/-1;border-left:0!important;border-top:1px solid #34414D!important;padding:10px 0 0!important;}
-            .mk2-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;}
-        }
-
-        /* ============================================================
-           MARKETPLACE · CONTRASTE FINAL V2
-           Solo mejora legibilidad; no modifica lógica ni cálculos.
-           ============================================================ */
-
-        .mk2-source-main strong,
-        .mk2-source-rule strong,
-        .mk2-platform-title strong,
-        .mk2-summary-grid strong,
-        .mk2-table-head strong {
-            color:#F7F8FA !important;
-            opacity:1 !important;
-        }
-
-        .mk2-source-main span,
-        .mk2-source-rule span,
-        .mk2-source-main small,
-        .mk2-source-rule small,
-        .mk2-platform-title span,
-        .mk2-summary-grid span,
-        .mk2-summary-grid small,
-        .mk2-table-head span,
-        .mk2-table-head > div:last-child {
-            color:#AEBBC6 !important;
-            opacity:1 !important;
-        }
-
-        .mk2-source-main small b,
-        .mk2-table-head b {
-            color:#FFC400 !important;
-        }
-
-        .mk2-summary-grid > div {
-            background:linear-gradient(145deg,#1A2530,#141E27) !important;
-        }
-
-        .mk2-summary-grid > div strong {
-            color:#FFFFFF !important;
-            font-size:23px !important;
-            font-weight:850 !important;
-            text-shadow:none !important;
-        }
-
-        .mk2-platform-head {
-            background:linear-gradient(145deg,#1A2530,#141E27) !important;
-        }
-
-        .mk2-platform-title strong {
-            color:#FFFFFF !important;
-            font-weight:800 !important;
-        }
-
-        .mk2-badge.neutral {
-            background:#26333D !important;
-            color:#E9EEF2 !important;
-            border-color:#465764 !important;
-        }
-
-        .mk2-badge.risk {
-            background:#4A2020 !important;
-            color:#FF8A8A !important;
-            border-color:#8F3A3A !important;
-        }
-
-        .mk2-live {
-            background:#151F28 !important;
-            color:#D9E1E7 !important;
-            border-color:#3A4955 !important;
-        }
-
-        .mk3-compact-summary b {
-            color:#FFFFFF !important;
-        }
-
-        [data-testid="stTabs"] button[role="tab"] {
-            color:#CFD8DF !important;
-            font-weight:700 !important;
-        }
-
-        [data-testid="stTabs"] button[role="tab"][aria-selected="true"] {
-            color:#FFC400 !important;
-        }
-
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
-    df = ctx.get(
-        "stock_df"
-    )
-
-    meta = (
-        ctx.get(
-            "stock_meta"
-        )
-        or {}
-    )
-
-    render_html(
-        """
-        <div class="mk2-page-head">
-            <div>
-                <div class="mk2-eyebrow">
-                    MARITEX / OPERACIÓN
-                </div>
-                <div class="mk2-title">
-                    Marketplace
-                </div>
-                <div class="mk2-subtitle">
-                    Sincronización de stock para Paris y Mercado Libre
-                    utilizando exclusivamente Casa Matriz.
-                </div>
-            </div>
-            <div class="mk2-live">
-                <i></i>
-                Stock automático
-            </div>
-        </div>
-        """
-    )
+    _inject_marketplace_contrast_css()
 
     if df is None or df.empty:
-        st.info(
-            "No hay stock disponible desde Llegadas_OK."
-        )
+        st.info("No hay stock disponible desde Llegadas_OK.")
         return
 
-    house = _prepare_house_stock(
-        df
-    )
-
+    house = _prepare_house_stock(df)
     if house.empty:
-        st.warning(
-            "Llegadas_OK no contiene registros asociados "
-            "a Casa Matriz."
-        )
+        st.warning("Llegadas_OK no contiene registros asociados a Casa Matriz.")
         return
 
-    available = pd.to_numeric(
-        house["Disponible"],
-        errors="coerce",
-    ).fillna(0)
-
-    total_skus = int(
-        house["_sku_match"]
-        .nunique()
+    loaded_at = _format_loaded_at(
+        meta.get("loaded_at") or meta.get("generated_at")
     )
 
-    total_available = _safe_int(
-        available.sum()
-    )
-
-    positive_skus = int(
-        (available > 0).sum()
-    )
-
-    zero_skus = int(
-        (available <= 0).sum()
-    )
-
-    source_name = (
-        meta.get(
-            "filename"
-        )
-        or "Stock automático · Llegadas_OK"
-    )
-
-    loaded_at = (
-        meta.get(
-            "loaded_at"
-        )
-        or meta.get(
-            "generated_at"
-        )
-        or "actualización automática"
-    )
-
-    render_html(
-        f"""
-        <div class="mk2-source">
-            <div class="mk2-source-icon">CM</div>
-            <div class="mk2-source-main">
-                <span>FUENTE DE STOCK</span>
-                <strong>{source_name}</strong>
-                <small>
-                    Bodega utilizada:
-                    <b>CASA MATRIZ</b>
-                    · {loaded_at}
-                </small>
-            </div>
-            <div class="mk2-source-rule">
-                <span>REGLA</span>
-                <strong>Solo Casa Matriz</strong>
-                <small>CD, Patronato y Concepción excluidos</small>
-            </div>
-        </div>
-        """
-    )
-
-    render_html(
-        f"""
-        <div class="mk3-compact-summary">
-            <span><b>{total_skus:,}</b> SKU CM</span>
-            <span><b>{total_available:,}</b> unidades disponibles</span>
-            <span><b>{positive_skus:,}</b> con stock</span>
-            <span><b>{zero_skus:,}</b> sin disponibilidad</span>
-        </div>
-        """
-    )
-
-    paris_tab, meli_tab = st.tabs(
-        [
-            "Paris",
-            "Mercado Libre",
-        ]
-    )
+    paris_tab, meli_tab = st.tabs(["Paris", "Mercado Libre"])
 
     with paris_tab:
         _render_marketplace_panel(
             name="Paris Marketplace",
             key_name="paris",
             house=house,
+            loaded_at=loaded_at,
         )
 
     with meli_tab:
@@ -1546,4 +1424,6 @@ def render(ctx):
             name="Mercado Libre",
             key_name="meli",
             house=house,
+            loaded_at=loaded_at,
         )
+

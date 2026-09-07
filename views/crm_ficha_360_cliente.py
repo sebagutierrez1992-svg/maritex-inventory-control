@@ -3,6 +3,7 @@
 from html import escape
 from typing import Any
 
+import altair as alt
 import pandas as pd
 import streamlit as st
 
@@ -598,6 +599,71 @@ def _styles() -> None:
 @media(max-width:1100px){
     .crm360-kpis,.crm360-activity{grid-template-columns:repeat(2,minmax(0,1fr));}
 }
+
+/* ===== FICHA 360 · MOCKUP NEGRO MARITEX ===== */
+html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"], .stApp{background:#000000 !important;color:#F5F5F5 !important;}
+[data-testid="stHeader"],.block-container{background:#000000 !important;}
+.crm360-page-head,.crm360-client-card,.crm360-kpi,.crm360-activity-item{background:#0B0B0B !important;border-color:#292929 !important;box-shadow:none !important;}
+.crm360-page-head,.crm360-client-card{border-left-color:#FFC400 !important;}
+.crm360-page-title,.crm360-client-name,.crm360-kpi-value,.crm360-section,.crm360-activity-value{color:#FFFFFF !important;}
+.crm360-page-sub,.crm360-client-meta,.crm360-kpi-label,.crm360-kpi-note,.crm360-section-sub,.crm360-activity-label{color:#A5A5A5 !important;}
+[data-testid="stTextInput"] input,[data-baseweb="select"]>div{background:#0B0B0B !important;color:#F5F5F5 !important;border-color:#303030 !important;}
+div[data-testid="stDataFrame"]{background:#080808 !important;border:1px solid #292929 !important;border-radius:9px !important;}
+.stTabs [data-baseweb="tab-list"]{background:#000 !important;border-bottom:1px solid #292929 !important;}
+.stTabs [aria-selected="true"]{color:#FFC400 !important;border-bottom-color:#FFC400 !important;}
+
+
+/* FICHA 360 · TABLAS Y GRÁFICOS */
+.crm360-page-head,
+.crm360-client-card,
+.crm360-kpi,
+.crm360-activity-item{box-shadow:none !important;}
+div[data-testid="stDataFrame"]{
+    border:1px solid #292929 !important;
+    border-radius:10px !important;
+    overflow:hidden !important;
+    background:#070707 !important;
+}
+div[data-testid="stDataFrame"] *{
+    color:#EEF1F3 !important;
+}
+div[data-testid="stVegaLiteChart"]{
+    border:1px solid #292929;
+    border-radius:10px;
+    overflow:hidden;
+    background:#050505;
+    padding:4px 6px 2px;
+}
+
+
+
+/* FICHA 360 · COMPONENTES NEGROS */
+[data-testid="stTextInput"] input,
+[data-testid="stSelectbox"] div[data-baseweb="select"] > div{
+    background:#070707 !important;
+    border-color:#303030 !important;
+    color:#F7F7F7 !important;
+}
+[data-testid="stTextInput"] input:focus,
+[data-testid="stSelectbox"] div[data-baseweb="select"] > div:focus-within{
+    border-color:#FFC400 !important;
+    box-shadow:0 0 0 1px rgba(255,196,0,.18) !important;
+}
+[data-testid="stVegaLiteChart"],
+[data-testid="stVegaLiteChart"] > div,
+.vega-embed,
+.vega-embed > div{
+    background:#050505 !important;
+}
+.crm360-table-wrap{width:100%;overflow:auto;border:1px solid #2A2A2A;border-radius:10px;background:#050505;margin-top:8px;}
+.crm360-table{width:100%;border-collapse:collapse;background:#050505;color:#F5F5F5;}
+.crm360-table th{padding:11px 12px;background:#0A0A0A;color:#AEB7BE;border-right:1px solid #242424;border-bottom:1px solid #343434;font-size:10px;font-weight:750;text-align:left;white-space:nowrap;}
+.crm360-table td{padding:11px 12px;background:#050505;color:#F3F4F5;border-right:1px solid #202020;border-bottom:1px solid #252525;font-size:10px;white-space:nowrap;}
+.crm360-table tbody tr:nth-child(even) td{background:#080808;}
+.crm360-table tbody tr:hover td{background:#111006;}
+.crm360-table th:last-child,.crm360-table td:last-child{border-right:0;}
+.crm360-table tbody tr:last-child td{border-bottom:0;}
+.crm360-table-money{color:#FFC400 !important;font-weight:800;}
 </style>
         """,
         unsafe_allow_html=True,
@@ -623,6 +689,29 @@ def _kpi_html(label: str, value: str, note: str = "", status: tuple[str, str] | 
         f'</div>'
     )
 
+
+
+def _render_360_table(df: pd.DataFrame, max_rows: int | None = None) -> None:
+    """Tabla HTML negra para la Ficha 360, sin estilos azules nativos."""
+    if df is None or df.empty:
+        st.caption("Sin datos disponibles.")
+        return
+    view = df.head(max_rows).copy() if max_rows else df.copy()
+    headers = "".join(f"<th>{escape(str(c))}</th>" for c in view.columns)
+    rows = []
+    for _, row in view.iterrows():
+        cells = []
+        for c in view.columns:
+            text = _safe_str(row.get(c)) or "-"
+            cls = "crm360-table-money" if c.lower() in {"venta", "ventas", "estimated_amount", "monto"} else ""
+            cells.append(f'<td class="{cls}">{escape(text)}</td>')
+        rows.append("<tr>" + "".join(cells) + "</tr>")
+    html = (
+        '<div class="crm360-table-wrap"><table class="crm360-table">'
+        f'<thead><tr>{headers}</tr></thead><tbody>{"".join(rows)}</tbody>'
+        '</table></div>'
+    )
+    st.markdown(html, unsafe_allow_html=True)
 
 def render_client_360(ctx: dict[str, Any]) -> None:
     _styles()
@@ -804,10 +893,76 @@ def render_client_360(ctx: dict[str, Any]) -> None:
 
         monthly = _monthly_sales(client_df)
         if not monthly.empty:
-            st.bar_chart(
-                monthly.set_index("Mes")["Ventas"],
-                use_container_width=True,
+            chart_data = monthly.copy()
+            chart_data["MesFecha"] = pd.to_datetime(
+                chart_data["Mes"] + "-01",
+                errors="coerce",
             )
+            chart_data = chart_data[chart_data["MesFecha"].notna()].copy()
+
+            base_chart = alt.Chart(chart_data).encode(
+                x=alt.X(
+                    "MesFecha:T",
+                    title=None,
+                    axis=alt.Axis(
+                        format="%b %Y",
+                        labelColor="#AEB6BC",
+                        labelFontSize=10,
+                        labelAngle=0,
+                        tickColor="#303030",
+                        domainColor="#303030",
+                        grid=False,
+                    ),
+                ),
+                y=alt.Y(
+                    "Ventas:Q",
+                    title=None,
+                    axis=alt.Axis(
+                        labelColor="#AEB6BC",
+                        labelFontSize=10,
+                        grid=True,
+                        gridColor="#242424",
+                        gridOpacity=.8,
+                        domain=False,
+                        ticks=False,
+                        format="~s",
+                    ),
+                ),
+            )
+
+            area = base_chart.mark_area(
+                color="#FFC400",
+                opacity=.10,
+                interpolate="monotone",
+            )
+            line = base_chart.mark_line(
+                color="#FFC400",
+                strokeWidth=3,
+                interpolate="monotone",
+                point=alt.OverlayMarkDef(
+                    filled=True,
+                    size=70,
+                    color="#FFC400",
+                    stroke="#000000",
+                    strokeWidth=1.5,
+                ),
+            ).encode(
+                tooltip=[
+                    alt.Tooltip("MesFecha:T", title="Mes", format="%B %Y"),
+                    alt.Tooltip("Ventas:Q", title="Venta neta", format=",.0f"),
+                ]
+            )
+
+            chart = (area + line).properties(
+                height=280,
+            ).configure_view(
+                stroke=None,
+                fill="#050505",
+            ).configure(
+                background="#050505",
+            )
+
+            st.altair_chart(chart, use_container_width=True, theme=None)
         else:
             st.info("Sin evolución mensual disponible.")
 
@@ -843,12 +998,7 @@ def render_client_360(ctx: dict[str, Any]) -> None:
                     lambda x: f"{float(x):.1f}%"
                 )
 
-            st.dataframe(
-                show,
-                use_container_width=True,
-                hide_index=True,
-                height=310,
-            )
+            _render_360_table(show, max_rows=12)
 
     # --------------------------------------------------------
     # HISTORIAL + CRM
@@ -894,12 +1044,7 @@ def render_client_360(ctx: dict[str, Any]) -> None:
         if "Fecha" in hist.columns:
             hist["Fecha"] = pd.to_datetime(hist["Fecha"], errors="coerce").dt.strftime("%d-%m-%Y")
 
-        st.dataframe(
-            hist,
-            use_container_width=True,
-            hide_index=True,
-            height=360,
-        )
+        _render_360_table(hist, max_rows=18)
 
     with tab2:
         if not opportunities:
@@ -930,12 +1075,7 @@ def render_client_360(ctx: dict[str, Any]) -> None:
                     opp_df["estimated_amount"], errors="coerce"
                 ).fillna(0).map(_money)
 
-            st.dataframe(
-                opp_df[keep],
-                use_container_width=True,
-                hide_index=True,
-                height=330,
-            )
+            _render_360_table(opp_df[keep], max_rows=18)
 
     with tab3:
         if not followups:
@@ -958,12 +1098,7 @@ def render_client_360(ctx: dict[str, Any]) -> None:
                 if c in fol_df.columns
             ]
 
-            st.dataframe(
-                fol_df[keep],
-                use_container_width=True,
-                hide_index=True,
-                height=330,
-            )
+            _render_360_table(fol_df[keep], max_rows=18)
 
     st.caption(
         f"Fuente comercial única · Con IVA · Última fecha ERP disponible: {source_date}"

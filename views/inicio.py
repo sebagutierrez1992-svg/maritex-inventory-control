@@ -578,6 +578,56 @@ def _top_clients(
     )
 
 
+def _render_seller_ranking_html(ranking: pd.DataFrame) -> None:
+    if ranking is None or ranking.empty:
+        st.caption("Sin datos de vendedores.")
+        return
+
+    rows = []
+    for _, row in ranking.iterrows():
+        rows.append(
+            '<tr>'
+            f'<td class="dash-rank">{int(row.get("Ranking", 0))}</td>'
+            f'<td class="dash-main-cell">{escape(str(row.get("Vendedor", "-")))}</td>'
+            f'<td class="dash-money">{escape(_money(row.get("Ventas del período", 0)))}</td>'
+            f'<td class="dash-pct">{float(row.get("% Participación", 0) or 0):.1f}%</td>'
+            '</tr>'
+        )
+
+    render_html(
+        '<div class="dash-table-wrap">'
+        '<table class="dash-table">'
+        '<thead><tr><th>#</th><th>Vendedor</th><th>Ventas</th><th>Part.</th></tr></thead>'
+        '<tbody>' + ''.join(rows) + '</tbody>'
+        '</table></div>'
+    )
+
+
+def _render_top_clients_html(clients: pd.DataFrame) -> None:
+    if clients is None or clients.empty:
+        st.caption("Sin datos de clientes.")
+        return
+
+    rows = []
+    for _, row in clients.iterrows():
+        rows.append(
+            '<tr>'
+            f'<td class="dash-main-cell dash-client-name">{escape(str(row.get("Cliente", "-")))}</td>'
+            f'<td class="dash-money">{escape(_money(row.get("Ventas del período", 0)))}</td>'
+            f'<td class="dash-num">{int(row.get("Pedidos", 0) or 0):,}</td>'
+            f'<td class="dash-date">{escape(str(row.get("Última compra", "-")))}</td>'
+            '</tr>'
+        )
+
+    render_html(
+        '<div class="dash-table-wrap">'
+        '<table class="dash-table dash-table-clients">'
+        '<thead><tr><th>Cliente</th><th>Ventas</th><th>Pedidos</th><th>Última compra</th></tr></thead>'
+        '<tbody>' + ''.join(rows) + '</tbody>'
+        '</table></div>'
+    )
+
+
 def _sales_by_branch(work: pd.DataFrame) -> pd.DataFrame:
     """
     Ventas por sucursal comercial.
@@ -730,11 +780,11 @@ def _inject_css() -> None:
         """
 <style>
 :root{
-    --bg:#071017;
-    --panel:#0D171E;
-    --panel2:#101B23;
-    --line:#263640;
-    --line2:#31434F;
+    --bg:#020608;
+    --panel:#0A1015;
+    --panel2:#0D151B;
+    --line:#24313A;
+    --line2:#33434D;
     --text:#F6F8FA;
     --muted:#93A4B0;
     --yellow:#FFC400;
@@ -747,15 +797,14 @@ def _inject_css() -> None:
    BASE GENERAL
    ============================================================ */
 .block-container{
-    max-width:1580px !important;
-    padding-top:1.15rem !important;
+    max-width:1680px !important;
+    padding-top:1.0rem !important;
     padding-bottom:2rem !important;
 }
 
 div[data-testid="stAppViewContainer"]{
     background:
-        radial-gradient(circle at 70% 0%, rgba(27,55,74,.18), transparent 34%),
-        #071017 !important;
+        #020608 !important;
 }
 
 div[data-testid="stVerticalBlock"]{
@@ -767,7 +816,7 @@ div[data-testid="stVerticalBlock"]{
    ============================================================ */
 section[data-testid="stSidebar"]{
     background:
-        linear-gradient(180deg,#071019 0%,#050A0F 100%) !important;
+        linear-gradient(180deg,#03080C 0%,#010405 100%) !important;
     border-right:1px solid #1E2B34 !important;
 }
 
@@ -861,7 +910,7 @@ section[data-testid="stSidebar"] [data-testid="stButton"] button:hover{
    FILTROS
    ============================================================ */
 div[data-testid="stVerticalBlockBorderWrapper"]{
-    background:linear-gradient(180deg,#0F1920,#0B141B) !important;
+    background:linear-gradient(180deg,#0C1318,#070C10) !important;
     border:1px solid #2A3944 !important;
     border-radius:10px !important;
     box-shadow:none !important;
@@ -873,7 +922,7 @@ div[data-testid="stVerticalBlockBorderWrapper"] > div{
 
 div[data-testid="stSelectbox"] label,
 div[data-testid="stDateInput"] label{
-    color:#BEC8CF !important;
+    color:#E2E8EC !important;
     font-size:10px !important;
     font-weight:750 !important;
 }
@@ -881,7 +930,7 @@ div[data-testid="stDateInput"] label{
 div[data-testid="stSelectbox"] > div > div,
 div[data-testid="stDateInput"] > div > div{
     min-height:44px !important;
-    background:#0A141B !important;
+    background:#060B0F !important;
     border:1px solid #31424E !important;
     border-radius:8px !important;
 }
@@ -898,10 +947,10 @@ div[data-testid="stDateInput"] > div > div{
 
 .dash-kpi{
     position:relative;
-    min-height:145px;
-    padding:16px 15px 13px 17px;
-    background:linear-gradient(145deg,#15232C,#0F1920);
-    border:1px solid #2E3F4A;
+    min-height:132px;
+    padding:15px 15px 12px 17px;
+    background:linear-gradient(145deg,#111A20,#090F13);
+    border:1px solid #293740;
     border-radius:10px;
     overflow:visible;
 }
@@ -1027,11 +1076,21 @@ div[data-testid="stDateInput"] > div > div{
     display:flex;
     align-items:center;
     gap:6px;
-    color:#FFC400;
+    color:#F5F7F8;
     font-size:12px;
     font-weight:850;
-    text-transform:uppercase;
+    text-transform:none;
     letter-spacing:.025em;
+}
+
+
+.card-title:before{
+    content:"";
+    width:3px;
+    height:16px;
+    border-radius:3px;
+    background:#FFC400;
+    flex:0 0 auto;
 }
 
 .card-sub{
@@ -1084,7 +1143,7 @@ div[data-testid="stDateInput"] > div > div{
     border:1px solid #2B3B46;
     border-radius:8px;
     padding:11px 12px;
-    background:#0B141A;
+    background:#070C10;
 }
 
 .inv-card strong{
@@ -1194,6 +1253,116 @@ div[data-testid="stDataFrame"]{
 }
 
 /* ============================================================
+   TABLAS HTML · INICIO
+   ============================================================ */
+.dash-table-wrap{
+    width:100%;
+    overflow:hidden;
+    border:1px solid #222B31;
+    border-radius:9px;
+    background:#050708;
+}
+
+.dash-table{
+    width:100%;
+    border-collapse:collapse;
+    table-layout:fixed;
+    font-size:9px;
+}
+
+.dash-table thead th{
+    padding:10px 10px;
+    background:#090D10;
+    color:#85939D;
+    border-bottom:1px solid #222B31;
+    text-transform:uppercase;
+    letter-spacing:.035em;
+    font-size:7.4px;
+    font-weight:850;
+    text-align:left;
+}
+
+.dash-table tbody td{
+    padding:10px 10px;
+    border-bottom:1px solid #182127;
+    color:#EAF0F3;
+    vertical-align:middle;
+}
+
+.dash-table tbody tr:last-child td{border-bottom:0;}
+.dash-table tbody tr:hover{background:#0A1014;}
+.dash-table th:nth-child(1), .dash-table td:nth-child(1){width:34px;}
+.dash-table th:nth-child(3), .dash-table td:nth-child(3){width:116px;text-align:right;}
+.dash-table th:nth-child(4), .dash-table td:nth-child(4){width:58px;text-align:right;}
+.dash-table-clients th:nth-child(1), .dash-table-clients td:nth-child(1){width:auto;}
+.dash-table-clients th:nth-child(2), .dash-table-clients td:nth-child(2){width:115px;text-align:right;}
+.dash-table-clients th:nth-child(3), .dash-table-clients td:nth-child(3){width:58px;text-align:right;}
+.dash-table-clients th:nth-child(4), .dash-table-clients td:nth-child(4){width:88px;text-align:right;}
+.dash-main-cell{font-weight:760;color:#F5F7F8 !important;}
+.dash-client-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.dash-money{color:#FFC400 !important;font-weight:850;text-align:right;}
+.dash-pct,.dash-num,.dash-date{color:#B7C1C8 !important;text-align:right;}
+.dash-rank{color:#7E8B94 !important;text-align:center;font-weight:850;}
+
+/* Charts Altair sin fondo azul heredado */
+div[data-testid="stVegaLiteChart"]{
+    background:#050708 !important;
+    border:1px solid #222B31;
+    border-radius:9px;
+    padding:6px 8px 2px;
+}
+
+div[data-testid="stVegaLiteChart"] canvas,
+div[data-testid="stVegaLiteChart"] svg{
+    background:#050708 !important;
+}
+
+/* Accesos rápidos más cercanos al mockup */
+div[data-testid="stHorizontalBlock"] div[data-testid="column"]:has(.quick-card-icon){
+    min-height:146px !important;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    background:#050708 !important;
+    border:1px solid #222B31 !important;
+    transition:.16s ease;
+}
+
+div[data-testid="stHorizontalBlock"] div[data-testid="column"]:has(.quick-card-icon):hover{
+    border-color:#FFC400 !important;
+    transform:translateY(-1px);
+}
+
+.quick-card-icon{
+    color:#FFC400 !important;
+    font-size:28px !important;
+    height:46px !important;
+    align-items:center !important;
+    margin:0 0 7px !important;
+}
+
+.quick-card-label{
+    min-height:30px !important;
+    color:#F5F7F8 !important;
+    font-size:9.5px !important;
+    font-weight:800 !important;
+}
+
+div[data-testid="stHorizontalBlock"] div[data-testid="column"] .quick-card-label + div[data-testid="stButton"] > button{
+    min-height:28px !important;
+    margin-top:8px !important;
+    background:transparent !important;
+    border:1px solid #30383D !important;
+    color:#8E9AA2 !important;
+}
+
+div[data-testid="stHorizontalBlock"] div[data-testid="column"] .quick-card-label + div[data-testid="stButton"] > button:hover{
+    background:#FFC400 !important;
+    border-color:#FFC400 !important;
+    color:#0A0A0A !important;
+}
+
+/* ============================================================
    RESPONSIVE
    ============================================================ */
 @media(max-width:1100px){
@@ -1254,7 +1423,7 @@ div[data-testid="stHorizontalBlock"] div[data-testid="column"] .quick-card-label
     min-height:30px !important;
     margin-top:4px !important;
     padding:0 !important;
-    background:#0D171E !important;
+    background:#080E12 !important;
     border:1px solid #30414C !important;
     border-radius:7px !important;
     color:#8FA0AB !important;
@@ -1269,7 +1438,7 @@ div[data-testid="stHorizontalBlock"] div[data-testid="column"] .quick-card-label
 
 /* Marco exterior visual de cada acceso */
 div[data-testid="stHorizontalBlock"] div[data-testid="column"]:has(.quick-card-icon){
-    background:linear-gradient(180deg,#101B23,#0C151B);
+    background:linear-gradient(180deg,#0D151A,#070C10);
     border:1px solid #30414C;
     border-radius:8px;
     padding:10px 8px 8px;
@@ -1278,7 +1447,7 @@ div[data-testid="stHorizontalBlock"] div[data-testid="column"]:has(.quick-card-i
 
 div[data-testid="stHorizontalBlock"] div[data-testid="column"]:has(.quick-card-icon):hover{
     border-color:#FFC400;
-    background:#111D25;
+    background:#10191F;
 }
 
 
@@ -1290,7 +1459,7 @@ section[data-testid="stSidebar"] div[data-testid="stButton"] button[data-testid=
 section[data-testid="stSidebar"] div[data-testid="stButton"] button[kind="primary"]{
     background:#FFC400 !important;
     border:1px solid #FFC400 !important;
-    border-left:4px solid #FFE16A !important;
+    border-left:4px solid #FFC400 !important;
     color:#080D11 !important;
     font-weight:800 !important;
     opacity:1 !important;
@@ -1309,6 +1478,17 @@ section[data-testid="stSidebar"] div[data-testid="stButton"] button[kind="primar
     border-color:#FFD02A !important;
     color:#080D11 !important;
 }
+
+
+/* MOCKUP NEGRO MARITEX · HOMOLOGACIÓN VISUAL */
+.stApp, [data-testid="stAppViewContainer"], [data-testid="stMain"]{background:#020608 !important;}
+[data-testid="stHeader"]{background:rgba(2,6,8,.92) !important;}
+[data-testid="stToolbar"]{right:1rem;}
+hr{border-color:#202C34 !important;}
+[data-testid="stCaptionContainer"], [data-testid="stCaptionContainer"] p{color:#91A0AA !important;}
+[data-testid="stAlert"]{background:#0A1116 !important;border:1px solid #2A3841 !important;color:#E9EEF1 !important;}
+[data-testid="stDataFrame"]{background:#050A0D !important;}
+button:focus{box-shadow:0 0 0 1px #FFC400 !important;}
 
 </style>
         """,
@@ -1633,7 +1813,14 @@ def render(ctx):
                         stroke=None
                     )
                     .configure(
-                        background="#0D161D"
+                        background="#050708",
+                        axis=alt.AxisConfig(
+                            labelColor="#AAB6BE",
+                            titleColor="#AAB6BE",
+                            gridColor="#1A2329",
+                            domainColor="#2A343A",
+                            tickColor="#2A343A",
+                        ),
                     )
                 )
 
@@ -1690,7 +1877,11 @@ def render(ctx):
                     )
                     .properties(height=285)
                     .configure_view(stroke=None)
-                    .configure(background="#0D161D")
+                    .configure(
+                        background="#050708",
+                        legend=alt.LegendConfig(labelColor="#DCE4E8", titleColor="#DCE4E8"),
+                        axis=alt.AxisConfig(labelColor="#AAB6BE", titleColor="#AAB6BE")
+                    )
                 )
 
                 st.altair_chart(
@@ -1723,29 +1914,7 @@ def render(ctx):
                 limit=6,
             )
 
-            if ranking.empty:
-                st.caption(
-                    "Sin datos de vendedores."
-                )
-            else:
-                st.dataframe(
-                    ranking,
-                    hide_index=True,
-                    use_container_width=True,
-                    height=255,
-                    column_config={
-                        "Ventas del período":
-                        st.column_config.NumberColumn(
-                            "Ventas del período",
-                            format="$ %.0f",
-                        ),
-                        "% Participación":
-                        st.column_config.NumberColumn(
-                            "% Participación",
-                            format="%.1f %%",
-                        ),
-                    },
-                )
+            _render_seller_ranking_html(ranking)
 
     with center2:
         with st.container(border=True):
@@ -1764,29 +1933,7 @@ def render(ctx):
                 limit=6,
             )
 
-            if clients.empty:
-                st.caption(
-                    "Sin datos de clientes."
-                )
-            else:
-                st.dataframe(
-                    clients,
-                    hide_index=True,
-                    use_container_width=True,
-                    height=255,
-                    column_config={
-                        "Ventas del período":
-                        st.column_config.NumberColumn(
-                            "Ventas del período",
-                            format="$ %.0f",
-                        ),
-                        "Pedidos":
-                        st.column_config.NumberColumn(
-                            "Pedidos",
-                            format="%d",
-                        ),
-                    },
-                )
+            _render_top_clients_html(clients)
 
     with right2:
         with st.container(border=True):
