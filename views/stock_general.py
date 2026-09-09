@@ -1,6 +1,7 @@
-from __future__ import annotations
+
 
 from html import escape
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import pandas as pd
@@ -75,6 +76,113 @@ def _clean_text(value) -> str:
     if value is None:
         return ""
     return str(value).strip()
+
+
+BOX_QTY_FILE = (
+    Path(__file__).resolve().parents[1]
+    / "data"
+    / "cantidad_caja_sku.csv"
+)
+
+
+@st.cache_data(show_spinner=False)
+def _load_box_qty_catalog() -> pd.DataFrame:
+    """
+    Catálogo SKU -> Cantidad por caja.
+
+    Cuando el reporte WMS contiene más de un embalaje para el mismo SKU,
+    se conservan todos los valores (ej. "15 / 30") en lugar de inventar
+    una única cantidad.
+    """
+    if not BOX_QTY_FILE.exists():
+        return pd.DataFrame(
+            columns=["Código", "Cant. por caja"]
+        )
+
+    try:
+        catalog = pd.read_csv(
+            BOX_QTY_FILE,
+            sep=";",
+            dtype=str,
+            encoding="utf-8-sig",
+        )
+    except Exception:
+        return pd.DataFrame(
+            columns=["Código", "Cant. por caja"]
+        )
+
+    if (
+        "Código" not in catalog.columns
+        or "Cant. por caja" not in catalog.columns
+    ):
+        return pd.DataFrame(
+            columns=["Código", "Cant. por caja"]
+        )
+
+    catalog["Código"] = (
+        catalog["Código"]
+        .fillna("")
+        .astype(str)
+        .str.strip()
+    )
+    catalog["Cant. por caja"] = (
+        catalog["Cant. por caja"]
+        .fillna("")
+        .astype(str)
+        .str.strip()
+    )
+
+    return (
+        catalog[
+            catalog["Código"].ne("")
+        ][["Código", "Cant. por caja"]]
+        .drop_duplicates("Código")
+        .reset_index(drop=True)
+    )
+
+
+def _add_box_qty(
+    df: pd.DataFrame | None,
+) -> pd.DataFrame | None:
+    if (
+        df is None
+        or df.empty
+        or "Código" not in df.columns
+    ):
+        return df
+
+    catalog = _load_box_qty_catalog()
+    if catalog.empty:
+        out = df.copy()
+        if "Cant. por caja" not in out.columns:
+            out["Cant. por caja"] = "—"
+        return out
+
+    out = df.copy()
+    out["Código"] = (
+        out["Código"]
+        .fillna("")
+        .astype(str)
+        .str.strip()
+    )
+
+    # Evitar duplicar columna si en el futuro la fuente ya la trae.
+    if "Cant. por caja" in out.columns:
+        out = out.drop(columns=["Cant. por caja"])
+
+    out = out.merge(
+        catalog,
+        on="Código",
+        how="left",
+    )
+
+    out["Cant. por caja"] = (
+        out["Cant. por caja"]
+        .fillna("—")
+        .replace("", "—")
+    )
+
+    return out
 
 
 def _options(
@@ -480,6 +588,7 @@ def _selected_product_detail(
         col
         for col in [
             "Bodega",
+            "Cant. por caja",
             "Stock físico",
             "Disponible",
             "Por llegar",
@@ -619,105 +728,6 @@ def _kpi_card(
     """
 
 
-
-def _status_badge(value: object) -> str:
-    text = _clean_text(value)
-    low = text.lower()
-
-    if "disponible" in low:
-        tone = "green"
-        label = "DISPONIBLE"
-    elif "stock bajo" in low:
-        tone = "yellow"
-        label = "STOCK BAJO"
-    elif "riesgo" in low:
-        tone = "orange"
-        label = "RIESGO"
-    elif "sin stock" in low or "negativo" in low:
-        tone = "red"
-        label = "SIN STOCK" if "sin stock" in low else "NEGATIVO"
-    elif "por llegar" in low:
-        tone = "blue"
-        label = "POR LLEGAR"
-    else:
-        tone = "neutral"
-        label = text or "—"
-
-    return (
-        f'<span class="sgx-badge {tone}">'
-        f'{escape(label)}'
-        f'</span>'
-    )
-
-
-def _inventory_table_html(
-    df: pd.DataFrame,
-    columns: list[str] | None = None,
-    max_rows: int | None = None,
-) -> str:
-    """Tabla HTML negra para evitar el fondo azul nativo de Streamlit."""
-    if df is None or df.empty:
-        return '<div class="sgx-empty-table">Sin registros para mostrar.</div>'
-
-    work = df.copy()
-
-    if columns:
-        visible = [column for column in columns if column in work.columns]
-        work = work[visible]
-
-    if max_rows is not None:
-        work = work.head(max_rows)
-
-    numeric_columns = {
-        "Stock físico",
-        "Disponible",
-        "Por llegar",
-        "Por despachar",
-        "Precio",
-    }
-
-    header_map = {
-        "Código": "SKU",
-    }
-
-    head = "".join(
-        f'<th class="{"num" if column in numeric_columns else ""}">'
-        f'{escape(header_map.get(column, column))}'
-        f'</th>'
-        for column in work.columns
-    )
-
-    body_rows = []
-    for _, row in work.iterrows():
-        cells = []
-        for column in work.columns:
-            value = row.get(column, "")
-
-            if column == "Estado":
-                cell = _status_badge(value)
-                cells.append(f'<td>{cell}</td>')
-                continue
-
-            if column in numeric_columns:
-                display = _fmt_int(value)
-                cells.append(f'<td class="num">{escape(display)}</td>')
-                continue
-
-            display = _clean_text(value) or "—"
-            cells.append(f'<td>{escape(display)}</td>')
-
-        body_rows.append("<tr>" + "".join(cells) + "</tr>")
-
-    return (
-        '<div class="sgx-table-wrap">'
-        '<table class="sgx-data-table">'
-        f'<thead><tr>{head}</tr></thead>'
-        f'<tbody>{"".join(body_rows)}</tbody>'
-        '</table>'
-        '</div>'
-    )
-
-
 # ============================================================
 # CSS
 # ============================================================
@@ -745,7 +755,7 @@ def _inject_css():
         }
 
         .sgx-title {
-            color:#F7F8FA;
+            color:#141a21;
             font-size:28px;
             font-weight:850;
             letter-spacing:-.8px;
@@ -755,7 +765,7 @@ def _inject_css():
         .sgx-subtitle {
             margin-top:7px;
             font-size:12px;
-            color:#9FB0C0;
+            color:#7d8791;
         }
 
         .sgx-update {
@@ -764,7 +774,7 @@ def _inject_css():
             gap:8px;
             white-space:nowrap;
             font-size:11px;
-            color:#8FA2B4;
+            color:#747e88;
             padding-top:5px;
         }
 
@@ -779,15 +789,15 @@ def _inject_css():
         .sgx-filter-label {
             font-size:9px;
             font-weight:800;
-            color:#8FA2B4;
+            color:#9199a1;
             letter-spacing:.42px;
             text-transform:uppercase;
             margin-bottom:2px;
         }
 
         .sgx-search-card {
-            background:#17232D;
-            border:1px solid #34414D;
+            background:#fff;
+            border:1px solid #e7ebef;
             border-radius:12px;
             padding:13px 14px 10px 14px;
             box-shadow:0 3px 12px rgba(20,30,45,.025);
@@ -804,14 +814,14 @@ def _inject_css():
 
         .sgx-search-head strong {
             display:block;
-            color:#F7F8FA;
+            color:#20272e;
             font-size:12px;
         }
 
         .sgx-search-head span {
             display:block;
             margin-top:2px;
-            color:#91A3B5;
+            color:#8b949d;
             font-size:9.5px;
         }
 
@@ -823,15 +833,15 @@ def _inject_css():
         }
 
         .sgx-product-meta > div {
-            background:#111C25;
-            border:1px solid #2C3A46;
+            background:#f8fafb;
+            border:1px solid #edf0f2;
             border-radius:8px;
             padding:8px 10px;
         }
 
         .sgx-product-meta span {
             display:block;
-            color:#8FA2B4;
+            color:#9aa2aa;
             font-size:8px;
             text-transform:uppercase;
             letter-spacing:.35px;
@@ -840,7 +850,7 @@ def _inject_css():
         .sgx-product-meta strong {
             display:block;
             margin-top:3px;
-            color:#F7F8FA;
+            color:#232a31;
             font-size:10.5px;
             white-space:nowrap;
             overflow:hidden;
@@ -860,9 +870,9 @@ def _inject_css():
             gap:12px;
             min-height:92px;
             padding:15px;
-            border:1px solid #34414D;
+            border:1px solid #e8ecef;
             border-radius:12px;
-            background:#17232D;
+            background:#fff;
             box-shadow:0 3px 12px rgba(20,30,45,.03);
         }
 
@@ -879,22 +889,22 @@ def _inject_css():
         }
 
         .sgx-kpi-icon.neutral {
-            background:#24323D;
-            color:#C4D0DA;
+            background:#f1f3f5;
+            color:#56616d;
         }
 
         .sgx-kpi-icon.green {
-            background:#173A2A;
+            background:#eaf7eb;
             color:#2d9f4a;
         }
 
         .sgx-kpi-icon.yellow {
-            background:#17232D6d8;
+            background:#fff6d8;
             color:#dea300;
         }
 
         .sgx-kpi-icon.red {
-            background:#17232D0ed;
+            background:#fff0ed;
             color:#df5147;
         }
 
@@ -904,14 +914,14 @@ def _inject_css():
 
         .sgx-kpi-copy > span {
             display:block;
-            color:#AFC0CF;
+            color:#505a64;
             font-size:10px;
             font-weight:650;
         }
 
         .sgx-kpi-copy > strong {
             display:block;
-            color:#FFFFFF;
+            color:#151b21;
             font-size:22px;
             font-weight:850;
             line-height:1;
@@ -923,7 +933,7 @@ def _inject_css():
             display:block;
             margin-top:6px;
             font-size:8.8px;
-            color:#8FA2B4;
+            color:#8c959e;
             font-weight:650;
         }
 
@@ -940,20 +950,20 @@ def _inject_css():
         }
 
         div[data-testid="stVerticalBlockBorderWrapper"] {
-            border-color:#34414D !important;
+            border-color:#e7ebef !important;
             border-radius:12px !important;
-            background:#17232D !important;
+            background:#fff !important;
             box-shadow:0 3px 12px rgba(20,30,45,.025);
         }
 
         .sgx-card-title {
             font-size:12.5px;
             font-weight:820;
-            color:#F7F8FA;
+            color:#20272e;
         }
 
         .sgx-card-sub {
-            color:#91A3B5;
+            color:#9099a2;
             font-size:9.5px;
             margin-top:2px;
         }
@@ -972,8 +982,8 @@ def _inject_css():
             height:112px;
             border-radius:50%;
             background:
-                radial-gradient(circle at center,#17232D 57%,transparent 58%),
-                conic-gradient(#8fc267 var(--p),#ffc400 var(--p),#2A3742 0);
+                radial-gradient(circle at center,#fff 57%,transparent 58%),
+                conic-gradient(#8fc267 var(--p),#ffc400 var(--p),#eef1f3 0);
             display:flex;
             align-items:center;
             justify-content:center;
@@ -986,14 +996,14 @@ def _inject_css():
         .sgx-ring strong {
             display:block;
             font-size:27px;
-            color:#FFFFFF;
+            color:#12181e;
             font-weight:880;
             line-height:1;
         }
 
         .sgx-ring span {
             display:block;
-            color:#9FB0C0;
+            color:#79838c;
             font-size:9.5px;
             margin-top:5px;
         }
@@ -1024,11 +1034,11 @@ def _inject_css():
         .sgx-status-row i.red { background:#eb5b50; }
 
         .sgx-status-row span {
-            color:#AFC0CF;
+            color:#5d6770;
         }
 
         .sgx-status-row strong {
-            color:#F7F8FA;
+            color:#252c33;
             font-size:10px;
         }
 
@@ -1036,8 +1046,8 @@ def _inject_css():
             margin-top:14px;
             padding:9px 10px;
             border-radius:7px;
-            background:#183326;
-            color:#7EDB91;
+            background:#eef8eb;
+            color:#43853b;
             font-size:9px;
         }
 
@@ -1056,7 +1066,7 @@ def _inject_css():
         }
 
         .sgx-wh-name {
-            color:#AFC0CF;
+            color:#59636d;
             font-size:9.8px;
             white-space:nowrap;
             overflow:hidden;
@@ -1066,7 +1076,7 @@ def _inject_css():
         .sgx-wh-track {
             height:13px;
             border-radius:999px;
-            background:#24323D;
+            background:#f1f3f5;
             overflow:hidden;
         }
 
@@ -1080,7 +1090,7 @@ def _inject_css():
         .sgx-wh-value {
             text-align:right;
             font-size:9.8px;
-            color:#F7F8FA;
+            color:#252d34;
             font-weight:780;
         }
 
@@ -1091,14 +1101,14 @@ def _inject_css():
             margin-top:15px;
             padding:9px 10px;
             border-radius:7px;
-            border:1px solid #2C3A46;
-            background:#111C25;
+            border:1px solid #edf0f2;
+            background:#f9fafb;
             font-size:9.2px;
-            color:#91A3B5;
+            color:#747e87;
         }
 
         .sgx-wh-total strong {
-            color:#F7F8FA;
+            color:#20272e;
         }
 
         .sgx-alert-list {
@@ -1114,7 +1124,7 @@ def _inject_css():
             gap:9px;
             align-items:center;
             min-height:48px;
-            border-bottom:1px solid #2C3A46;
+            border-bottom:1px solid #edf0f2;
         }
 
         .sgx-alert-row:last-child {
@@ -1133,12 +1143,12 @@ def _inject_css():
         }
 
         .sgx-alert-icon.red {
-            background:#17232D0ed;
+            background:#fff0ed;
             color:#e35348;
         }
 
         .sgx-alert-icon.yellow {
-            background:#17232D7dc;
+            background:#fff7dc;
             color:#e1a200;
         }
 
@@ -1155,19 +1165,19 @@ def _inject_css():
         .sgx-alert-row strong {
             display:block;
             font-size:10px;
-            color:#F7F8FA;
+            color:#26313d;
         }
 
         .sgx-alert-row span {
             display:block;
             margin-top:2px;
             font-size:8.7px;
-            color:#8FA2B4;
+            color:#939ca5;
         }
 
         .sgx-alert-value {
             font-size:9.5px;
-            color:#AFC0CF;
+            color:#56616a;
             font-weight:720;
         }
 
@@ -1183,18 +1193,18 @@ def _inject_css():
         .sgx-product-table th {
             text-align:left;
             padding:8px 9px;
-            color:#9FB0C0;
+            color:#6d7780;
             font-size:8.5px;
             text-transform:uppercase;
             letter-spacing:.25px;
-            border-bottom:1px solid #34414D;
+            border-bottom:1px solid #e7ebef;
         }
 
         .sgx-critical-table td,
         .sgx-product-table td {
             padding:9px;
-            color:#EAF0F5;
-            border-bottom:1px solid #2C3A46;
+            color:#2c343b;
+            border-bottom:1px solid #edf0f2;
         }
 
         .sgx-critical-table tr:last-child td,
@@ -1219,7 +1229,7 @@ def _inject_css():
         }
 
         .sgx-badge.yellow {
-            background:#17232D0bf;
+            background:#fff0bf;
             color:#9f6c00;
         }
 
@@ -1243,7 +1253,7 @@ def _inject_css():
 
         .sgx-detail-hero span {
             display:block;
-            color:#8FA2B4;
+            color:#9aa2aa;
             font-size:8.5px;
             text-transform:uppercase;
             letter-spacing:.35px;
@@ -1251,7 +1261,7 @@ def _inject_css():
 
         .sgx-detail-hero strong {
             display:block;
-            color:#F7F8FA;
+            color:#181e24;
             font-size:15px;
             margin-top:3px;
         }
@@ -1270,11 +1280,11 @@ def _inject_css():
 
         .sgx-detail-note {
             padding:11px 12px;
-            background:#17232D9e8;
-            border:1px solid #66571D;
+            background:#fff9e8;
+            border:1px solid #f2e6b9;
             border-radius:9px;
             font-size:9px;
-            color:#E6D88D;
+            color:#7c7358;
             line-height:1.5;
         }
 
@@ -1286,14 +1296,14 @@ def _inject_css():
         .sgx-section-head strong {
             display:block;
             font-size:13px;
-            color:#F7F8FA;
+            color:#1e252c;
         }
 
         .sgx-section-head span {
             display:block;
             margin-top:2px;
             font-size:9.5px;
-            color:#91A3B5;
+            color:#8f98a1;
         }
 
         .sgx-result {
@@ -1301,15 +1311,15 @@ def _inject_css():
             justify-content:space-between;
             gap:12px;
             padding:10px 12px;
-            background:#111C25;
-            border:1px solid #2C3A46;
+            background:#f8fafb;
+            border:1px solid #edf0f2;
             border-radius:9px;
         }
 
         .sgx-result span {
             display:block;
             font-size:8px;
-            color:#8FA2B4;
+            color:#929aa2;
             text-transform:uppercase;
             letter-spacing:.35px;
         }
@@ -1318,7 +1328,7 @@ def _inject_css():
             display:block;
             margin-top:3px;
             font-size:10.5px;
-            color:#F7F8FA;
+            color:#252d34;
         }
 
         .stButton > button,
@@ -1356,345 +1366,6 @@ def _inject_css():
                 grid-template-columns:1fr;
             }
         }
-
-        /* MARITEX · STOCK GENERAL DARK CORPORATIVO */
-        .sgx-title, .sgx-card-title, .sgx-section-head strong { color:#F7F8FA !important; }
-        .sgx-subtitle, .sgx-card-sub, .sgx-update { color:#9FB0C0 !important; }
-        div[data-testid="stVerticalBlockBorderWrapper"] { background:#111C25 !important; border-color:#34414D !important; box-shadow:none !important; }
-        div[data-baseweb="select"] > div, div[data-baseweb="input"] > div, .stTextInput input { background:#17232D !important; color:#F7F8FA !important; border-color:#34414D !important; }
-        div[data-baseweb="select"] *, .stTextInput input, label, .stMarkdown, .stCaption { color:#F7F8FA; }
-        [data-testid="stDataFrame"] { border:1px solid #34414D; border-radius:10px; overflow:hidden; }
-        .sgx-ring { background:radial-gradient(circle at center,#17232D 57%,transparent 58%),conic-gradient(#8fc267 var(--p),#ffc400 var(--p),#2A3742 0) !important; }
-        .sgx-wh-track { background:#2A3742 !important; }
-        .sgx-wh-total, .sgx-result { background:#111C25 !important; border-color:#34414D !important; }
-        .sgx-critical-table th,.sgx-product-table th,.sgx-critical-table td,.sgx-product-table td { border-color:#34414D !important; }
-        
-        /* ============================================================
-           STOCK GENERAL · MOCKUP NEGRO MARITEX
-           ============================================================ */
-        :root{
-            --sgx-bg:#000000;
-            --sgx-panel:#080808;
-            --sgx-panel-2:#0D0D0D;
-            --sgx-line:#2A2A2A;
-            --sgx-line-2:#383838;
-            --sgx-text:#FFFFFF;
-            --sgx-muted:#9A9A9A;
-            --sgx-yellow:#FFC400;
-        }
-
-        .stApp,
-        [data-testid="stAppViewContainer"],
-        [data-testid="stMain"],
-        section.main{
-            background:#000000 !important;
-        }
-
-        [data-testid="stHeader"]{
-            background:rgba(0,0,0,.96) !important;
-        }
-
-        section[data-testid="stSidebar"]{
-            background:#050505 !important;
-            border-right:1px solid #202020 !important;
-        }
-
-        .sgx-head{
-            padding:4px 2px 12px !important;
-            border-bottom:1px solid #1E1E1E;
-        }
-
-        .sgx-title{
-            color:#FFFFFF !important;
-            font-size:30px !important;
-        }
-
-        .sgx-title::before{
-            content:"";
-            display:inline-block;
-            width:4px;
-            height:29px;
-            margin-right:10px;
-            border-radius:3px;
-            background:#FFC400;
-            vertical-align:-5px;
-        }
-
-        .sgx-subtitle,
-        .sgx-update,
-        .sgx-card-sub,
-        .sgx-section-head span{
-            color:#8E8E8E !important;
-        }
-
-        .sgx-search-card,
-        .sgx-kpi,
-        div[data-testid="stVerticalBlockBorderWrapper"],
-        .sgx-product-meta > div,
-        .sgx-wh-total,
-        .sgx-result,
-        .sgx-detail-note{
-            background:#080808 !important;
-            border-color:#2C2C2C !important;
-            box-shadow:none !important;
-        }
-
-        .sgx-kpi{
-            position:relative;
-            border-radius:10px !important;
-            overflow:hidden;
-        }
-
-        .sgx-kpi::before{
-            content:"";
-            position:absolute;
-            left:0;
-            top:0;
-            bottom:0;
-            width:3px;
-            background:#FFC400;
-        }
-
-        .sgx-kpi-copy > span{
-            color:#B8B8B8 !important;
-        }
-
-        .sgx-kpi-copy > strong,
-        .sgx-card-title,
-        .sgx-section-head strong,
-        .sgx-product-meta strong,
-        .sgx-wh-value,
-        .sgx-alert-row strong{
-            color:#FFFFFF !important;
-        }
-
-        .sgx-kpi-icon.neutral{
-            background:#151515 !important;
-            color:#D6D6D6 !important;
-        }
-
-        .sgx-kpi-icon.green{
-            background:#082617 !important;
-            color:#26D77A !important;
-        }
-
-        .sgx-kpi-icon.yellow{
-            background:#312700 !important;
-            color:#FFC400 !important;
-        }
-
-        .sgx-kpi-icon.red{
-            background:#2F1010 !important;
-            color:#FF6660 !important;
-        }
-
-        .sgx-ring{
-            background:
-                radial-gradient(circle at center,#080808 57%,transparent 58%),
-                conic-gradient(#27D17C var(--p),#FFC400 var(--p),#242424 0) !important;
-        }
-
-        .sgx-wh-track{
-            background:#202020 !important;
-        }
-
-        .sgx-wh-fill{
-            background:#FFC400 !important;
-        }
-
-        .sgx-healthy-note{
-            background:#071A10 !important;
-            color:#72DCA2 !important;
-            border:1px solid #123D28;
-        }
-
-        .sgx-alert-row{
-            border-color:#242424 !important;
-        }
-
-        .sgx-alert-icon.red{
-            background:#2C1010 !important;
-            color:#FF716A !important;
-        }
-
-        .sgx-alert-icon.yellow{
-            background:#302600 !important;
-            color:#FFC400 !important;
-        }
-
-        .sgx-alert-icon.blue{
-            background:#0C2030 !important;
-            color:#66B7FF !important;
-        }
-
-        .sgx-alert-icon.green{
-            background:#082617 !important;
-            color:#45DC8E !important;
-        }
-
-        div[data-baseweb="select"] > div,
-        div[data-baseweb="input"] > div,
-        .stTextInput input,
-        input{
-            background:#090909 !important;
-            color:#FFFFFF !important;
-            border-color:#333333 !important;
-        }
-
-        div[data-baseweb="popover"],
-        div[data-baseweb="menu"]{
-            background:#090909 !important;
-        }
-
-        div[data-baseweb="menu"] li{
-            background:#090909 !important;
-            color:#FFFFFF !important;
-        }
-
-        div[data-baseweb="menu"] li:hover{
-            background:#171717 !important;
-        }
-
-        details,
-        details > summary{
-            background:#070707 !important;
-            border-color:#2A2A2A !important;
-            color:#FFFFFF !important;
-        }
-
-        .stButton > button,
-        .stDownloadButton > button{
-            background:#0A0A0A !important;
-            border:1px solid #333333 !important;
-            color:#FFFFFF !important;
-        }
-
-        .stButton > button:hover,
-        .stDownloadButton > button:hover{
-            border-color:#FFC400 !important;
-            color:#FFC400 !important;
-        }
-
-        .stDownloadButton > button[kind="primary"],
-        .stButton > button[kind="primary"]{
-            background:#FFC400 !important;
-            border-color:#FFC400 !important;
-            color:#111111 !important;
-        }
-
-        .sgx-badge.green{
-            background:#082617 !important;
-            color:#55E59A !important;
-            border:1px solid #174A30;
-        }
-
-        .sgx-badge.yellow{
-            background:#302600 !important;
-            color:#FFD23F !important;
-            border:1px solid #665300;
-        }
-
-        .sgx-badge.orange{
-            background:#321C0B !important;
-            color:#FFAD6A !important;
-            border:1px solid #633A18;
-        }
-
-        .sgx-badge.red{
-            background:#2C1010 !important;
-            color:#FF8B86 !important;
-            border:1px solid #5A2424;
-        }
-
-        .sgx-badge.blue{
-            background:#0C2030 !important;
-            color:#79C2FF !important;
-            border:1px solid #19425E;
-        }
-
-        .sgx-badge.neutral{
-            background:#151515 !important;
-            color:#CFCFCF !important;
-            border:1px solid #353535;
-        }
-
-        .sgx-table-wrap{
-            width:100%;
-            overflow:auto;
-            margin-top:10px;
-            border:1px solid #292929;
-            border-radius:10px;
-            background:#050505;
-            max-height:470px;
-        }
-
-        .sgx-data-table{
-            width:100%;
-            border-collapse:separate;
-            border-spacing:0;
-            min-width:820px;
-            font-size:10px;
-        }
-
-        .sgx-data-table thead th{
-            position:sticky;
-            top:0;
-            z-index:2;
-            background:#101010;
-            color:#A9A9A9;
-            text-align:left;
-            font-size:8.5px;
-            font-weight:800;
-            text-transform:uppercase;
-            letter-spacing:.04em;
-            padding:10px 11px;
-            border-bottom:1px solid #333333;
-            white-space:nowrap;
-        }
-
-        .sgx-data-table tbody td{
-            color:#F2F2F2;
-            padding:9px 11px;
-            border-bottom:1px solid #202020;
-            background:#070707;
-            white-space:nowrap;
-        }
-
-        .sgx-data-table tbody tr:nth-child(even) td{
-            background:#0B0B0B;
-        }
-
-        .sgx-data-table tbody tr:hover td{
-            background:#121212;
-        }
-
-        .sgx-data-table tbody tr:last-child td{
-            border-bottom:none;
-        }
-
-        .sgx-data-table .num{
-            text-align:right;
-            font-variant-numeric:tabular-nums;
-        }
-
-        .sgx-empty-table{
-            margin-top:10px;
-            padding:20px;
-            border:1px dashed #303030;
-            border-radius:9px;
-            color:#888888;
-            background:#060606;
-            text-align:center;
-            font-size:10px;
-        }
-
-        section[data-testid="stSidebar"] div[data-testid="stButton"] button[kind="primary"],
-        section[data-testid="stSidebar"] div[data-testid="stButton"] button[data-testid="stBaseButton-primary"]{
-            background:#FFC400 !important;
-            color:#080808 !important;
-            border-color:#FFC400 !important;
-        }
-
         </style>
         """,
         unsafe_allow_html=True,
@@ -1716,6 +1387,10 @@ def render(ctx):
         "stock_consolidated"
     )
     meta = ctx.get("stock_meta") or {}
+
+    # Cantidad por caja según SKU, tomada del catálogo WMS.
+    inventory = _add_box_qty(inventory)
+    consolidated = _add_box_qty(consolidated)
 
     render_html(
         f"""
@@ -1884,6 +1559,7 @@ def render(ctx):
         selected_name = "—"
         selected_family = "—"
         selected_subfamily = "—"
+        selected_box_qty = "—"
         selected_total = 0
 
         if not selected_rows.empty:
@@ -1905,6 +1581,13 @@ def render(ctx):
                 selected_subfamily = _clean_text(
                     selected_rows[
                         "Subfamilia"
+                    ].iloc[0]
+                ) or "—"
+
+            if "Cant. por caja" in selected_rows.columns:
+                selected_box_qty = _clean_text(
+                    selected_rows[
+                        "Cant. por caja"
                     ].iloc[0]
                 ) or "—"
 
@@ -1950,6 +1633,14 @@ def render(ctx):
                     </strong>
                 </div>
                 <div>
+                    <span>Cant. por caja</span>
+                    <strong>
+                        {escape(
+                            selected_box_qty
+                        )} UND
+                    </strong>
+                </div>
+                <div>
                     <span>Stock total disponible</span>
                     <strong>
                         {_fmt_int(
@@ -1973,7 +1664,7 @@ def render(ctx):
                 <div style="
                     margin-top:16px;
                     padding-top:14px;
-                    border-top:1px solid #2C3A46;
+                    border-top:1px solid #edf0f2;
                 ">
                     <div class="sgx-card-title">
                         Disponibilidad por Bodega
@@ -1997,18 +1688,44 @@ def render(ctx):
                         ascending=[False, True],
                     ).reset_index(drop=True)
 
-                render_html(
-                    _inventory_table_html(
-                        product_detail,
-                        columns=[
+                st.dataframe(
+                    product_detail,
+                    hide_index=True,
+                    width="stretch",
+                    height=min(
+                        300,
+                        44 + len(product_detail) * 35,
+                    ),
+                    column_config={
+                        "Bodega": st.column_config.TextColumn(
                             "Bodega",
+                            width="large",
+                        ),
+                        "Cant. por caja": st.column_config.TextColumn(
+                            "Cant. por caja",
+                            width="small",
+                        ),
+                        "Stock físico": st.column_config.NumberColumn(
                             "Stock físico",
+                            format="%d",
+                        ),
+                        "Disponible": st.column_config.NumberColumn(
                             "Disponible",
+                            format="%d",
+                        ),
+                        "Por llegar": st.column_config.NumberColumn(
                             "Por llegar",
+                            format="%d",
+                        ),
+                        "Por despachar": st.column_config.NumberColumn(
                             "Por despachar",
+                            format="%d",
+                        ),
+                        "Estado": st.column_config.TextColumn(
                             "Estado",
-                        ],
-                    )
+                            width="medium",
+                        ),
+                    },
                 )
 
     # --------------------------------------------------------
@@ -2280,7 +1997,7 @@ def render(ctx):
                         <div class="sgx-wh-value">
                             {_fmt_int(units)}
                             <span style="
-                                color:#8FA2B4;
+                                color:#9aa2aa;
                                 font-weight:500;
                             ">
                                 ({share:.0f}%)
@@ -2564,12 +2281,12 @@ def render(ctx):
                 ">
                     <div style="
                         padding:12px;
-                        border:1px solid #2C3A46;
+                        border:1px solid #edf0f2;
                         border-radius:9px;
-                        background:#111C25;
+                        background:#fafbfc;
                     ">
                         <span style="
-                            color:#8FA2B4;
+                            color:#929aa2;
                             font-size:8px;
                             text-transform:uppercase;
                         ">
@@ -2578,7 +2295,7 @@ def render(ctx):
                         <strong style="
                             display:block;
                             margin-top:4px;
-                            color:#FFFFFF;
+                            color:#1c2329;
                             font-size:21px;
                         ">
                             {_fmt_int(
@@ -2589,12 +2306,12 @@ def render(ctx):
 
                     <div style="
                         padding:12px;
-                        border:1px solid #2C3A46;
+                        border:1px solid #edf0f2;
                         border-radius:9px;
-                        background:#111C25;
+                        background:#fafbfc;
                     ">
                         <span style="
-                            color:#8FA2B4;
+                            color:#929aa2;
                             font-size:8px;
                             text-transform:uppercase;
                         ">
@@ -2603,7 +2320,7 @@ def render(ctx):
                         <strong style="
                             display:block;
                             margin-top:4px;
-                            color:#FFFFFF;
+                            color:#1c2329;
                             font-size:21px;
                         ">
                             {_fmt_int(
@@ -2665,7 +2382,7 @@ def render(ctx):
                 """
                 <div style="
                     padding:8px 2px 0 2px;
-                    color:#91A3B5;
+                    color:#9099a2;
                     font-size:9.5px;
                 ">
                     Busca por modelo o nombre para ver juntas todas sus tallas.
@@ -2818,6 +2535,7 @@ def render(ctx):
                 "Código",
                 "Producto",
                 "Bodega",
+                "Cant. por caja",
                 "Disponible",
                 "Stock físico",
                 "Por llegar",
@@ -2827,16 +2545,47 @@ def render(ctx):
             if col in display.columns
         ]
 
-        render_html(
-            _inventory_table_html(
-                display[visible_columns],
-                columns=visible_columns,
-                max_rows=250,
-            )
+        st.dataframe(
+            display[visible_columns],
+            hide_index=True,
+            width="stretch",
+            height=470,
+            column_config={
+                "Código": st.column_config.TextColumn(
+                    "SKU",
+                    width="medium",
+                ),
+                "Producto": st.column_config.TextColumn(
+                    "Producto",
+                    width="large",
+                ),
+                "Bodega": st.column_config.TextColumn(
+                    "Bodega",
+                    width="medium",
+                ),
+                "Cant. por caja": st.column_config.TextColumn(
+                    "Cant. por caja",
+                    width="small",
+                ),
+                "Stock físico": st.column_config.NumberColumn(
+                    "Stock físico",
+                    format="%d",
+                ),
+                "Disponible": st.column_config.NumberColumn(
+                    "Disponible",
+                    format="%d",
+                ),
+                "Por llegar": st.column_config.NumberColumn(
+                    "Por llegar",
+                    format="%d",
+                ),
+                "Por despachar": st.column_config.NumberColumn(
+                    "Por despachar",
+                    format="%d",
+                ),
+                "Estado": st.column_config.TextColumn(
+                    "Estado",
+                    width="medium",
+                ),
+            },
         )
-
-        if len(display) > 250:
-            st.caption(
-                f"Vista limitada a 250 registros de {_fmt_int(len(display))}. "
-                "El Excel conserva todos los resultados filtrados."
-            )
