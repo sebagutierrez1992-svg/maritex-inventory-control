@@ -33,6 +33,7 @@ from views import (
     resumen_ejecutivo,
     stock_general,
     inicio,
+    monitor_pedidos,
 )
 
 
@@ -389,6 +390,7 @@ PAGE_MAP = {
     "Métricas Vendedores": metricas_vendedores.render,
     "Resumen Ejecutivo": resumen_ejecutivo.render,
     "Plantillas": plantillas.render,
+    "Monitor Pedidos": monitor_pedidos.render,
 }
 
 STOCK_PAGES = {
@@ -820,6 +822,13 @@ with st.sidebar:
         "Marketplace",
         "nav_marketplace",
         ":material/storefront:",
+    )
+
+    sidebar_button(
+        "Monitor Pedidos",
+        "Monitor Pedidos",
+        "nav_monitor_pedidos",
+        ":material/package_2:",
     )
 
     sidebar_button(
