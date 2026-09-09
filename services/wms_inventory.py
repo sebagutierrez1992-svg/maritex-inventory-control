@@ -8,7 +8,31 @@ from dataclasses import dataclass
 from html.parser import HTMLParser
 from typing import Any, Iterable
 
+
 import requests
+
+def _resolve_secret(name: str, explicit: str | None = None) -> str:
+    """
+    Prioridad:
+    1) valor explícito
+    2) variable de entorno
+    3) st.secrets (si Streamlit está disponible)
+
+    Nunca imprime ni retorna credenciales fuera del proceso.
+    """
+    if explicit is not None and str(explicit):
+        return str(explicit)
+
+    env_value = os.getenv(name, "")
+    if env_value:
+        return env_value
+
+    try:
+        import streamlit as st
+        value = st.secrets.get(name, "")
+        return str(value) if value is not None else ""
+    except Exception:
+        return ""
 
 
 DEFAULT_WMS_BASE_URL = os.getenv(
@@ -605,10 +629,8 @@ def login_wms(
 
     No imprime ni persiste credenciales/cookies.
     """
-    user = (
-        username if username is not None else os.getenv("WMS_USERNAME", "")
-    ).strip()
-    pwd = password if password is not None else os.getenv("WMS_PASSWORD", "")
+    user = _resolve_secret("WMS_USERNAME", username).strip()
+    pwd = _resolve_secret("WMS_PASSWORD", password)
 
     if not user or not pwd:
         return False, "Faltan WMS_USERNAME y/o WMS_PASSWORD."
@@ -871,12 +893,8 @@ def get_inventory(
     try:
         # Si existen credenciales, autenticamos primero. Así evitamos el GET
         # anónimo al reporte que el servidor WMS puede responder con HTTP 500.
-        supplied_user = (
-            username if username is not None else os.getenv("WMS_USERNAME", "")
-        )
-        supplied_password = (
-            password if password is not None else os.getenv("WMS_PASSWORD", "")
-        )
+        supplied_user = _resolve_secret("WMS_USERNAME", username)
+        supplied_password = _resolve_secret("WMS_PASSWORD", password)
 
         if auto_login and str(supplied_user).strip() and str(supplied_password):
             login_ok, login_error = login_wms(
@@ -1203,3 +1221,242 @@ def get_available_stock(
         password=password,
         auto_login=auto_login,
     )
+
+
+# ============================================================
+# MARITEX · STOCK ALTERNATIVO PARA MONITOR CASA MATRIZ
+# ============================================================
+
+ALTERNATIVE_WMS_SITES = (
+    ("CD_LO_BOZA", "CD Lo Boza"),
+    ("PATRONATO", "Patronato"),
+    ("CONCEPCION", "Concepción"),
+)
+
+
+def _stock_total_from_result(result: dict[str, Any], sku: str) -> float:
+    """
+    Devuelve únicamente stock disponible real reportado por WMS para el SKU.
+    No inventa stock y no utiliza cantidad física como sustituto.
+    """
+    if not result or not result.get("ok"):
+        return 0.0
+
+    wanted = _clean(sku).upper()
+    total = 0.0
+
+    for row in result.get("rows") or []:
+        row_sku = _clean(row.get("sku")).upper()
+        if row_sku == wanted:
+            total += float(_to_number(row.get("cantidad_disponible")))
+
+    return total
+
+
+def get_alternative_stock(
+    sku: str,
+    *,
+    missing_qty: int | float = 0,
+    timeout: float = 20.0,
+    session: requests.Session | None = None,
+    cookie_header: str | None = None,
+    username: str | None = None,
+    password: str | None = None,
+    auto_login: bool = True,
+) -> dict[str, Any]:
+    """
+    Consulta bodegas alternativas para un faltante originado en CASA MATRIZ.
+
+    CASA_MATRIZ se excluye deliberadamente: este helper responde la pregunta
+    operacional "¿desde qué otra bodega puedo cubrir el faltante?".
+
+    Prioridad:
+        1. CD Lo Boza
+        2. Patronato
+        3. Concepción
+
+    La respuesta distingue:
+        - cubre_completo
+        - cubre_parcial
+        - sin_stock
+        - error
+
+    Las credenciales siguen viniendo de WMS_USERNAME/WMS_PASSWORD o de los
+    parámetros explícitos. Nunca se incluyen en la respuesta.
+    """
+    sku_clean = _clean(sku)
+    required = max(float(_to_number(missing_qty)), 0.0)
+
+    if not sku_clean:
+        return {
+            "ok": False,
+            "sku": "",
+            "faltan": required,
+            "bodegas": [],
+            "recomendacion": None,
+            "error": "SKU vacío.",
+        }
+
+    # Una sola sesión permite reutilizar autenticación/cookies entre sitios.
+    own_session = session is None
+    http = session or create_wms_session(cookie_header=cookie_header)
+
+    # Autenticamos una vez para toda la consulta.
+    if auto_login:
+        login_ok, login_error = login_wms(
+            http,
+            username=username,
+            password=password,
+            timeout=timeout,
+        )
+        if not login_ok:
+            if own_session:
+                http.close()
+            return {
+                "ok": False,
+                "sku": sku_clean,
+                "faltan": required,
+                "bodegas": [],
+                "recomendacion": None,
+                "error": login_error or "No fue posible autenticar en WMS.",
+            }
+
+    warehouses: list[dict[str, Any]] = []
+
+    try:
+        for site_code, site_label in ALTERNATIVE_WMS_SITES:
+            result = get_available_stock(
+                sku_clean,
+                site=site_code,
+                timeout=timeout,
+                session=http,
+                cookie_header=cookie_header,
+                username=username,
+                password=password,
+                # Ya autenticamos la sesión una vez arriba.
+                auto_login=False,
+            )
+
+            if not result.get("ok"):
+                warehouses.append(
+                    {
+                        "site": site_code,
+                        "bodega": site_label,
+                        "stock_disponible": None,
+                        "faltan": required,
+                        "cubre": 0,
+                        "estado": "error",
+                        "error": result.get("error") or "Consulta WMS fallida.",
+                    }
+                )
+                continue
+
+            available = _stock_total_from_result(result, sku_clean)
+
+            if available <= 0:
+                status = "sin_stock"
+                cover = 0.0
+            elif required > 0 and available >= required:
+                status = "cubre_completo"
+                cover = required
+            elif required > 0:
+                status = "cubre_parcial"
+                cover = min(available, required)
+            else:
+                status = "con_stock"
+                cover = available
+
+            warehouses.append(
+                {
+                    "site": site_code,
+                    "bodega": site_label,
+                    "stock_disponible": available,
+                    "faltan": required,
+                    "cubre": cover,
+                    "estado": status,
+                    "error": None,
+                }
+            )
+
+        valid = [
+            row for row in warehouses
+            if row.get("stock_disponible") is not None
+            and float(row.get("stock_disponible") or 0) > 0
+        ]
+
+        recommendation = None
+
+        # Primero preferimos una sola bodega que cubra todo, respetando el
+        # orden operativo definido en ALTERNATIVE_WMS_SITES.
+        if required > 0:
+            complete = [
+                row for row in valid
+                if float(row.get("stock_disponible") or 0) >= required
+            ]
+            if complete:
+                chosen = complete[0]
+                recommendation = {
+                    "tipo": "completo",
+                    "mensaje": (
+                        f"Cubrir {int(required) if required.is_integer() else required} "
+                        f"unidad(es) desde {chosen['bodega']}."
+                    ),
+                    "movimientos": [
+                        {
+                            "bodega": chosen["bodega"],
+                            "site": chosen["site"],
+                            "cantidad": required,
+                        }
+                    ],
+                }
+            else:
+                # Si ninguna cubre sola, proponemos combinación por prioridad.
+                remaining = required
+                movements = []
+                for row in valid:
+                    if remaining <= 0:
+                        break
+                    take = min(float(row["stock_disponible"]), remaining)
+                    if take > 0:
+                        movements.append(
+                            {
+                                "bodega": row["bodega"],
+                                "site": row["site"],
+                                "cantidad": take,
+                            }
+                        )
+                        remaining -= take
+
+                if movements:
+                    recommendation = {
+                        "tipo": "combinado" if remaining <= 0 else "parcial",
+                        "mensaje": (
+                            "El stock alternativo cubre el faltante combinando bodegas."
+                            if remaining <= 0
+                            else f"Stock alternativo insuficiente; aún faltan {remaining:g} unidad(es)."
+                        ),
+                        "movimientos": movements,
+                        "faltante_restante": max(remaining, 0),
+                    }
+
+        successful_queries = sum(
+            1 for row in warehouses if row.get("estado") != "error"
+        )
+
+        return {
+            "ok": successful_queries > 0,
+            "sku": sku_clean,
+            "faltan": required,
+            "bodegas": warehouses,
+            "recomendacion": recommendation,
+            "error": (
+                None
+                if successful_queries > 0
+                else "No fue posible consultar las bodegas alternativas."
+            ),
+        }
+
+    finally:
+        if own_session:
+            http.close()
+

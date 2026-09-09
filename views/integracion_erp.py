@@ -150,6 +150,39 @@ def _clear_pending_cache():
         st.cache_data.clear()
 
 
+AUTO_REFRESH_SECONDS = 30
+
+
+@st.fragment(run_every=f"{AUTO_REFRESH_SECONDS}s")
+def _pending_orders_auto_refresh():
+    """
+    Autoactualiza la lista de pedidos pendientes.
+
+    El TTL del caché por sí solo no refresca la pantalla. Este fragmento
+    despierta cada 30 segundos, limpia el caché y relanza la app completa.
+    """
+    now = datetime.now()
+    last_key = "erp_last_auto_refresh"
+    last_refresh = st.session_state.get(last_key)
+
+    if last_refresh is None:
+        st.session_state[last_key] = now
+        return
+
+    try:
+        elapsed = (now - last_refresh).total_seconds()
+    except Exception:
+        elapsed = AUTO_REFRESH_SECONDS
+
+    if elapsed >= AUTO_REFRESH_SECONDS:
+        st.session_state[last_key] = now
+        # Volver a la primera página permite ver inmediatamente pedidos nuevos.
+        channel = st.session_state.get("erp_channel", "B2C") or "B2C"
+        st.session_state[f"erp_page_{channel}"] = 1
+        _clear_pending_cache()
+        st.rerun(scope="app")
+
+
 # ============================================================
 # HELPERS GENERALES
 # ============================================================
@@ -545,9 +578,34 @@ def _build_rows(
             }
         )
 
-    return pd.DataFrame(
-        rows
-    )
+    result = pd.DataFrame(rows)
+
+    # V2 · Pedidos más recientes primero.
+    # El endpoint B2C puede venir ordenado de más antiguo a más nuevo
+    # (igual que el portal, donde los pedidos nuevos terminan en la última página).
+    # Para operación diaria mostramos siempre lo recién ingresado en la página 1.
+    if not result.empty:
+        result["_send_dt"] = pd.to_datetime(
+            [
+                orders[int(idx)].get("sendDate")
+                if 0 <= int(idx) < len(orders)
+                else None
+                for idx in result["_index"]
+            ],
+            errors="coerce",
+        )
+
+        result = (
+            result
+            .sort_values(
+                by=["_send_dt", "_index"],
+                ascending=[False, False],
+                na_position="last",
+            )
+            .reset_index(drop=True)
+        )
+
+    return result
 
 
 # ============================================================
@@ -1593,6 +1651,7 @@ def _render_summary_cards(
 def render():
     _ensure_state()
     _apply_view_styles()
+    _pending_orders_auto_refresh()
 
     st.markdown(
         """
@@ -1601,7 +1660,7 @@ def render():
                 <h1>Integración ERP</h1>
                 <p>Pedidos B2C, B2B y NOLK: diagnóstico operativo, stock alternativo y reinyección controlada.</p>
             </div>
-            <div class="erp-live-pill"><i></i>Conexión ERP activa</div>
+            <div class="erp-live-pill"><i></i>ERP activo · autoactualiza cada 30 s</div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -1636,6 +1695,8 @@ def render():
             use_container_width=True,
             icon=":material/refresh:",
         ):
+            st.session_state["erp_last_auto_refresh"] = datetime.now()
+            st.session_state[f"erp_page_{channel}"] = 1
             _clear_pending_cache()
             st.rerun()
 
@@ -1789,7 +1850,7 @@ def render():
         f"""
         <div class="erp-table-hint">
             <span><strong>{start_row + 1}–{end_row}</strong> de {total_filtered:,} pedidos visibles</span>
-            <span>Haz clic en una fila para revisar el pedido</span>
+            <span>Ordenado por fecha · más recientes primero</span>
         </div>
         """.replace(",", "."),
         unsafe_allow_html=True,
