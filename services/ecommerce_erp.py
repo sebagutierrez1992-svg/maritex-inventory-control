@@ -1,8 +1,10 @@
-from __future__ import annotations
+
 
 import json
 import os
 import re
+import socket
+import ssl
 import time
 import xml.etree.ElementTree as ET
 
@@ -246,6 +248,18 @@ def _login() -> str:
 
     except HTTPError as exc:
 
+        try:
+            detail = _decode_response(exc.read())
+        except Exception:
+            detail = None
+
+        # Nunca registrar payload, contraseña ni token.
+        print(
+            "[ERP AUTH] Login HTTP error "
+            f"status={exc.code} reason={exc.reason!s} "
+            f"detail={detail!r}"
+        )
+
         if exc.code in (
             400,
             401,
@@ -253,18 +267,54 @@ def _login() -> str:
         ):
 
             raise EcommerceERPError(
-                "Login ERP rechazado. "
+                f"Login ERP rechazado (HTTP {exc.code}). "
                 "Verifica email y contraseña."
             ) from exc
 
         raise EcommerceERPError(
-            f"Error HTTP {exc.code} durante el login."
+            f"Error HTTP {exc.code} durante el login: {exc.reason!s}"
         ) from exc
 
     except URLError as exc:
 
+        reason = getattr(exc, "reason", exc)
+        print(
+            "[ERP AUTH] No fue posible conectar con login "
+            f"url={LOGIN_URL} "
+            f"reason_type={type(reason).__name__} "
+            f"reason={reason!s}"
+        )
+
+        if isinstance(reason, socket.gaierror):
+            detail = "No fue posible resolver el dominio del ERP."
+        elif isinstance(reason, (TimeoutError, socket.timeout)):
+            detail = "El servicio de login excedió el tiempo de espera."
+        elif isinstance(reason, ssl.SSLError):
+            detail = "Falló la conexión SSL/TLS con el servicio de login."
+        else:
+            detail = f"No fue posible conectar con el servicio de login: {reason!s}"
+
+        raise EcommerceERPError(detail) from exc
+
+    except (TimeoutError, socket.timeout) as exc:
+
+        print(
+            "[ERP AUTH] Timeout conectando con login "
+            f"url={LOGIN_URL}"
+        )
         raise EcommerceERPError(
-            "No fue posible conectar con el servicio de login."
+            "El servicio de login excedió el tiempo de espera."
+        ) from exc
+
+    except Exception as exc:
+
+        print(
+            "[ERP AUTH] Error inesperado durante login "
+            f"type={type(exc).__name__} detail={exc!s}"
+        )
+        raise EcommerceERPError(
+            f"Error inesperado durante el login ERP: "
+            f"{type(exc).__name__}: {exc!s}"
         ) from exc
 
 
@@ -326,6 +376,46 @@ def get_auth_status() -> dict:
             _cached_token_is_valid()
         ),
     }
+
+
+def check_login_connection(
+    timeout: int = 10,
+) -> dict:
+    """
+    Prueba el login sin exponer credenciales ni tokens.
+    Útil para diagnóstico en Render.
+    """
+    try:
+        invalidate_access_token()
+        token = _get_token(force_login=True)
+
+        return {
+            "ok": bool(token),
+            "status": "connected",
+            "message": "Login ERP correcto.",
+            "login_url": LOGIN_URL,
+            "auth_mode": get_auth_status().get("mode"),
+        }
+
+    except EcommerceERPError as exc:
+        return {
+            "ok": False,
+            "status": "error",
+            "message": str(exc),
+            "login_url": LOGIN_URL,
+            "auth_mode": get_auth_status().get("mode"),
+        }
+
+    except Exception as exc:
+        return {
+            "ok": False,
+            "status": "error",
+            "message": (
+                f"{type(exc).__name__}: {exc!s}"
+            ),
+            "login_url": LOGIN_URL,
+            "auth_mode": get_auth_status().get("mode"),
+        }
 
 
 # ============================================================
