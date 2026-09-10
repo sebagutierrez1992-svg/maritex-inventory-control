@@ -4723,4 +4723,233 @@ div[data-testid="stVerticalBlockBorderWrapper"] > div{
 
         flex-wrap: wrap;
     }
+}/* ==========================================================
+   CLIENTES · KPI CARDS
+   Colores tipo Ficha 360°
+   ========================================================== */
+
+.crm-client-kpis{
+    display:grid !important;
+    grid-template-columns:repeat(4,minmax(0,1fr)) !important;
+    gap:12px !important;
+    margin:14px 0 18px !important;
+}
+
+
+/* Base de las cuatro tarjetas */
+.crm-client-kpis > .crm-kpi{
+    position:relative !important;
+    min-height:150px !important;
+    padding:22px 22px 20px 24px !important;
+
+    border:1px solid #30414A !important;
+    border-radius:11px !important;
+
+    box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.025),
+        0 8px 24px rgba(0,0,0,.18) !important;
+
+    overflow:hidden !important;
+}
+
+
+/* Barra amarilla Maritex */
+.crm-client-kpis > .crm-kpi::before{
+    content:"" !important;
+    position:absolute !important;
+
+    left:0 !important;
+    top:0 !important;
+    bottom:0 !important;
+
+    width:4px !important;
+
+    background:#FFD400 !important;
+    border-radius:11px 0 0 11px !important;
+}
+
+
+/* ----------------------------------------------------------
+   1 · CLIENTES TOTALES
+   VERDE
+   ---------------------------------------------------------- */
+
+.crm-client-kpis > .crm-kpi:nth-child(1){
+    background:
+        radial-gradient(
+            circle at 92% 15%,
+            rgba(0,210,145,.10),
+            transparent 35%
+        ),
+        linear-gradient(
+            135deg,
+            #073326 0%,
+            #08241C 48%,
+            #07110E 100%
+        ) !important;
+}
+
+
+/* ----------------------------------------------------------
+   2 · CLIENTES ACTIVOS
+   AZUL
+   ---------------------------------------------------------- */
+
+.crm-client-kpis > .crm-kpi:nth-child(2){
+    background:
+        radial-gradient(
+            circle at 92% 15%,
+            rgba(31,151,255,.12),
+            transparent 35%
+        ),
+        linear-gradient(
+            135deg,
+            #0A2942 0%,
+            #0A1F31 48%,
+            #071018 100%
+        ) !important;
+}
+
+
+/* ----------------------------------------------------------
+   3 · SIN COMPRA +90 DÍAS
+   MORADO
+   ---------------------------------------------------------- */
+
+.crm-client-kpis > .crm-kpi:nth-child(3){
+    background:
+        radial-gradient(
+            circle at 92% 15%,
+            rgba(175,88,255,.13),
+            transparent 35%
+        ),
+        linear-gradient(
+            135deg,
+            #321A46 0%,
+            #251532 48%,
+            #120B18 100%
+        ) !important;
+}
+
+
+/* ----------------------------------------------------------
+   4 · VENTA CARTERA
+   AMARILLO / OLIVA
+   ---------------------------------------------------------- */
+
+.crm-client-kpis > .crm-kpi:nth-child(4){
+    background:
+        radial-gradient(
+            circle at 92% 15%,
+            rgba(255,212,0,.12),
+            transparent 35%
+        ),
+        linear-gradient(
+            135deg,
+            #3B3108 0%,
+            #282106 48%,
+            #151204 100%
+        ) !important;
+}
+
+
+/* ==========================================================
+   TIPOGRAFÍA
+   ========================================================== */
+
+.crm-client-kpis .crm-kpi-label{
+    color:#C7D3DA !important;
+
+    font-size:11px !important;
+    font-weight:800 !important;
+
+    text-transform:uppercase !important;
+    letter-spacing:.04em !important;
+
+    margin-bottom:12px !important;
+}
+
+
+.crm-client-kpis .crm-kpi-value{
+    color:#FFFFFF !important;
+
+    font-size:30px !important;
+    line-height:1.05 !important;
+
+    font-weight:900 !important;
+    letter-spacing:-.03em !important;
+
+    margin-bottom:13px !important;
+
+    text-shadow:
+        0 1px 2px rgba(0,0,0,.35) !important;
+}
+
+
+.crm-client-kpis .crm-kpi-help{
+    color:#91A4AE !important;
+
+    font-size:11px !important;
+    line-height:1.4 !important;
+
+    font-weight:600 !important;
+}
+
+
+/* Quitamos colores heredados de otras tarjetas */
+.crm-client-kpis .crm-kpi.yellow .crm-kpi-value,
+.crm-client-kpis .crm-kpi.green .crm-kpi-value,
+.crm-client-kpis .crm-kpi.blue .crm-kpi-value,
+.crm-client-kpis .crm-kpi.purple .crm-kpi-value,
+.crm-client-kpis .crm-kpi.orange .crm-kpi-value{
+    color:#FFFFFF !important;
+}
+
+
+/* ==========================================================
+   HOVER
+   ========================================================== */
+
+.crm-client-kpis > .crm-kpi{
+    transition:
+        transform .16s ease,
+        border-color .16s ease,
+        box-shadow .16s ease !important;
+}
+
+
+.crm-client-kpis > .crm-kpi:hover{
+    transform:translateY(-2px) !important;
+
+    border-color:#465B66 !important;
+
+    box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.04),
+        0 12px 30px rgba(0,0,0,.30) !important;
+}
+
+
+/* ==========================================================
+   RESPONSIVE
+   ========================================================== */
+
+@media (max-width:1100px){
+
+    .crm-client-kpis{
+        grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+    }
+
+}
+
+
+@media (max-width:650px){
+
+    .crm-client-kpis{
+        grid-template-columns:1fr !important;
+    }
+
+    .crm-client-kpis > .crm-kpi{
+        min-height:125px !important;
+    }
+
 }

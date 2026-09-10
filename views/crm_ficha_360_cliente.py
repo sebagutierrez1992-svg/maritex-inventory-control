@@ -664,6 +664,125 @@ div[data-testid="stVegaLiteChart"]{
 .crm360-table th:last-child,.crm360-table td:last-child{border-right:0;}
 .crm360-table tbody tr:last-child td{border-bottom:0;}
 .crm360-table-money{color:#FFC400 !important;font-weight:800;}
+
+/* =========================================================
+   FICHA 360 · HOMOLOGACIÓN VISUAL CON INTEGRACIÓN ERP · V2
+   ========================================================= */
+.crm360-page-head{
+    min-height:78px !important;
+    padding:15px 18px 15px 22px !important;
+    border:1px solid #273740 !important;
+    border-left:0 !important;
+    border-radius:9px !important;
+    background:linear-gradient(135deg,#081116,#05090C 72%,#080C0E) !important;
+    position:relative !important;
+    overflow:hidden !important;
+}
+.crm360-page-head::before{
+    content:"" !important;
+    position:absolute !important;
+    left:0 !important;
+    top:14px !important;
+    bottom:14px !important;
+    width:4px !important;
+    border-radius:0 3px 3px 0 !important;
+    background:#FFC400 !important;
+}
+.crm360-page-title{
+    font-size:25px !important;
+    font-weight:900 !important;
+}
+.crm360-pill{
+    background:#071118 !important;
+    border-color:#2C3D47 !important;
+}
+.crm360-dot{
+    background:#28D17C !important;
+}
+
+/* Cliente seleccionado */
+.crm360-client-card{
+    padding:15px 17px !important;
+    border:1px solid #273740 !important;
+    border-left:3px solid #FFC400 !important;
+    border-radius:9px !important;
+    background:linear-gradient(135deg,#0B151A,#060B0E) !important;
+}
+.crm360-client-name{
+    font-size:21px !important;
+}
+
+/* KPI diferenciados */
+.crm360-kpis{
+    gap:10px !important;
+    margin-bottom:12px !important;
+}
+.crm360-kpi{
+    min-height:100px !important;
+    border-radius:9px !important;
+    border:1px solid #2B3942 !important;
+    padding:13px 14px !important;
+}
+.crm360-kpi:nth-child(1){
+    background:linear-gradient(135deg,#0C2D20,#08120D 68%,#080B0D) !important;
+}
+.crm360-kpi:nth-child(2){
+    background:linear-gradient(135deg,#102B46,#091620 68%,#080B0D) !important;
+}
+.crm360-kpi:nth-child(3){
+    background:linear-gradient(135deg,#39214D,#170F20 68%,#080B0D) !important;
+}
+.crm360-kpi:nth-child(4){
+    background:linear-gradient(135deg,#3B3008,#181405 68%,#080B0D) !important;
+}
+.crm360-kpi-label{
+    color:#C2CDD3 !important;
+    font-size:8.5px !important;
+}
+.crm360-kpi-value{
+    font-size:20px !important;
+}
+.crm360-kpi-note{
+    color:#81919B !important;
+}
+
+/* Actividad */
+.crm360-activity-item{
+    background:#071015 !important;
+    border-color:#273740 !important;
+    border-radius:8px !important;
+}
+.crm360-activity-value{
+    color:#FFC400 !important;
+}
+
+/* Gráficos / tablas */
+div[data-testid="stVegaLiteChart"]{
+    background:#050A0D !important;
+    border:1px solid #273740 !important;
+    border-radius:8px !important;
+}
+.crm360-table-wrap{
+    background:#050A0D !important;
+    border-color:#273740 !important;
+    border-radius:8px !important;
+}
+.crm360-table th{
+    background:#0A1217 !important;
+    color:#8FA0AA !important;
+    border-color:#273740 !important;
+}
+.crm360-table td{
+    background:#050A0D !important;
+    border-color:#1B272E !important;
+}
+.crm360-table tbody tr:nth-child(even) td{
+    background:#071015 !important;
+}
+.crm360-table tbody tr:hover td{
+    background:#0B151A !important;
+}
+
 </style>
         """,
         unsafe_allow_html=True,
@@ -713,8 +832,25 @@ def _render_360_table(df: pd.DataFrame, max_rows: int | None = None) -> None:
     )
     st.markdown(html, unsafe_allow_html=True)
 
+def _back_to_clients() -> None:
+    """Solicita volver a Clientes sin modificar directamente el widget crm_section."""
+    st.session_state["crm360_return_to_clients"] = False
+    st.session_state["crm_requested_section"] = "Clientes"
+
+
 def render_client_360(ctx: dict[str, Any]) -> None:
     _styles()
+
+    # Navegación de retorno cuando la ficha se abrió desde Clientes.
+    if st.session_state.get("crm360_return_to_clients"):
+        back_left, _ = st.columns([0.22, 0.78])
+        with back_left:
+            st.button(
+                "← Volver a Clientes",
+                key="crm360_back_to_clients",
+                use_container_width=True,
+                on_click=_back_to_clients,
+            )
 
     st.markdown(
         """
@@ -760,12 +896,30 @@ def render_client_360(ctx: dict[str, Any]) -> None:
         st.info("No se encontraron clientes con ese criterio.")
         return
 
+    # Si llegamos desde Clientes, seleccionamos automáticamente ese cliente.
+    preselected = _safe_str(st.session_state.get("crm360_preselected_client"))
+    selector_options = filtered["_crm360_client"].tolist()
+
+    if preselected and preselected in selector_options:
+        st.session_state["crm360_client_selector"] = preselected
+        # El buscador no debe ocultar al cliente enviado desde la cartera.
+        if st.session_state.get("crm360_search"):
+            st.session_state["crm360_search"] = ""
+
+    current_selected = st.session_state.get("crm360_client_selector")
+    if current_selected not in selector_options:
+        st.session_state["crm360_client_selector"] = selector_options[0]
+
     with selector_col:
         selected = st.selectbox(
             "Cliente",
-            filtered["_crm360_client"].tolist(),
+            selector_options,
             key="crm360_client_selector",
         )
+
+    # La preselección se consume una vez; luego el selector queda libre.
+    if preselected and selected == preselected:
+        st.session_state["crm360_preselected_client"] = ""
 
     client_row = filtered[filtered["_crm360_client"] == selected].iloc[0]
     client_df = _client_sales_detail(base, selected)

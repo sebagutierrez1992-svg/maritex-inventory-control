@@ -1490,6 +1490,291 @@ hr{border-color:#202C34 !important;}
 [data-testid="stDataFrame"]{background:#050A0D !important;}
 button:focus{box-shadow:0 0 0 1px #FFC400 !important;}
 
+
+/* ============================================================
+   INICIO · MARITEX ERP VISUAL V2
+   Capa final: homologa Inicio con Integración ERP sin tocar lógica.
+   ============================================================ */
+.block-container{
+    max-width:1720px !important;
+    padding:1.15rem 1.35rem 2.2rem !important;
+}
+.dash-head{
+    padding:4px 0 16px !important;
+    margin-bottom:10px !important;
+}
+.dash-title-mark{height:40px !important;width:5px !important;}
+.dash-title{font-size:36px !important;font-weight:900 !important;}
+.dash-sub{font-size:12px !important;color:#8FA2AE !important;}
+.dash-live{
+    border-radius:24px !important;
+    padding:10px 16px !important;
+    background:#071017 !important;
+    border-color:#263945 !important;
+}
+
+/* Period filter: compact operational toolbar */
+div[data-testid="stVerticalBlockBorderWrapper"]:has(div[data-testid="stDateInput"]){
+    background:#070C10 !important;
+    border:1px solid #24343E !important;
+    border-radius:10px !important;
+}
+div[data-testid="stVerticalBlockBorderWrapper"]:has(div[data-testid="stDateInput"]) > div{
+    padding:.65rem .8rem !important;
+}
+
+/* KPI row: colored ERP cards instead of five nearly identical cards */
+.dash-kpis{
+    gap:10px !important;
+    margin:10px 0 12px !important;
+}
+.dash-kpi{
+    min-height:126px !important;
+    padding:14px !important;
+    border-radius:9px !important;
+    border:1px solid #2A3942 !important;
+    box-shadow:0 10px 28px rgba(0,0,0,.18) !important;
+}
+.dash-kpi:before{display:none !important;}
+.dash-kpi:nth-child(1){background:linear-gradient(135deg,#0D2D20 0%,#091510 62%,#080E11 100%) !important;}
+.dash-kpi:nth-child(2){background:linear-gradient(135deg,#102D49 0%,#0A1823 62%,#080E11 100%) !important;}
+.dash-kpi:nth-child(3){background:linear-gradient(135deg,#34204B 0%,#171021 62%,#080E11 100%) !important;}
+.dash-kpi:nth-child(4){background:linear-gradient(135deg,#3A3008 0%,#1A1708 62%,#080E11 100%) !important;}
+.dash-kpi:nth-child(5){background:linear-gradient(135deg,#40201D 0%,#1B100F 62%,#080E11 100%) !important;}
+.dash-kpi-top{align-items:center !important;}
+.dash-kpi-icon{
+    width:42px !important;height:42px !important;border-radius:9px !important;
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.08) !important;
+}
+.dash-kpi-value{
+    margin:10px 0 5px 52px !important;
+    font-size:26px !important;
+}
+.dash-kpi-sub,.dash-kpi-foot{margin-left:52px !important;}
+.dash-kpi-label{font-size:8.7px !important;}
+
+/* Operational panels */
+div[data-testid="stVerticalBlockBorderWrapper"]{
+    background:linear-gradient(180deg,#081015 0%,#050A0D 100%) !important;
+    border:1px solid #273740 !important;
+    border-radius:9px !important;
+}
+.card-title{
+    font-size:13px !important;
+    font-weight:850 !important;
+}
+.card-title:before{
+    width:4px !important;height:19px !important;
+}
+.card-sub{
+    color:#78909D !important;
+    margin:4px 0 10px !important;
+}
+
+/* Summary rows become compact ERP-style metric rows */
+.summary-table td{
+    padding:9px 5px !important;
+    border-bottom:1px solid #20303A !important;
+}
+.summary-table td:nth-child(2){color:#FFC400 !important;}
+
+/* Charts: flatter, darker and visually integrated with the cards */
+div[data-testid="stVegaLiteChart"]{
+    background:#050A0D !important;
+    border:0 !important;
+    border-radius:7px !important;
+    padding:4px 5px 0 !important;
+}
+div[data-testid="stVegaLiteChart"] canvas,
+div[data-testid="stVegaLiteChart"] svg{
+    background:#050A0D !important;
+}
+
+/* Tables */
+.dash-table-wrap{
+    border-color:#273740 !important;
+    background:#050A0D !important;
+}
+.dash-table thead th{
+    background:#0B141A !important;
+    color:#8FA0AA !important;
+}
+.dash-table tbody tr:hover{background:#0C171D !important;}
+
+/* Inventory / alert cards */
+.inv-card{
+    background:#071015 !important;
+    border-color:#263842 !important;
+}
+.alert-row{
+    background:#071015 !important;
+    border:1px solid #1F3039 !important;
+    border-radius:7px !important;
+    padding:8px 10px !important;
+    margin-bottom:5px !important;
+}
+
+/* Quick access: compact module tiles, no giant button feeling */
+div[data-testid="stHorizontalBlock"] div[data-testid="column"]:has(.quick-card-icon){
+    min-height:112px !important;
+    padding:9px 8px 7px !important;
+    background:#071015 !important;
+    border:1px solid #263842 !important;
+    border-radius:9px !important;
+}
+.quick-card-icon{
+    height:38px !important;
+    font-size:23px !important;
+    margin:1px 0 4px !important;
+}
+.quick-card-label{
+    min-height:25px !important;
+    font-size:9px !important;
+}
+div[data-testid="stHorizontalBlock"] div[data-testid="column"] .quick-card-label + div[data-testid="stButton"] > button{
+    min-height:25px !important;
+    height:25px !important;
+    margin-top:4px !important;
+    background:#0A141A !important;
+    border-color:#263842 !important;
+    font-size:8px !important;
+}
+div[data-testid="stHorizontalBlock"] div[data-testid="column"]:has(.quick-card-icon):hover{
+    border-color:#FFC400 !important;
+    box-shadow:0 0 0 1px rgba(255,196,0,.10) !important;
+}
+
+/* Stronger desktop hierarchy */
+@media(min-width:1200px){
+    .dash-kpis{grid-template-columns:1.15fr 1fr 1fr 1fr 1fr !important;}
+}
+
+
+/* ============================================================
+   INICIO V3 · ACCESOS RÁPIDOS
+   Mejora exclusiva de esta sección.
+   ============================================================ */
+div[data-testid="stHorizontalBlock"] div[data-testid="column"]:has(.quick-card-icon){
+    min-height:128px !important;
+    padding:13px 10px 9px !important;
+    background:linear-gradient(145deg,#0B141A,#050A0D) !important;
+    border:1px solid #263842 !important;
+    border-radius:10px !important;
+    position:relative !important;
+    overflow:hidden !important;
+}
+div[data-testid="stHorizontalBlock"] div[data-testid="column"]:has(.quick-card-icon)::before{
+    content:"" !important;
+    position:absolute !important;
+    left:0 !important;
+    top:0 !important;
+    right:0 !important;
+    height:3px !important;
+    background:#FFC400 !important;
+    opacity:.9 !important;
+}
+div[data-testid="stHorizontalBlock"] div[data-testid="column"]:has(.quick-card-icon):hover{
+    border-color:#6C5A0A !important;
+    background:linear-gradient(145deg,#101B21,#070D11) !important;
+    transform:translateY(-2px) !important;
+    box-shadow:0 10px 24px rgba(0,0,0,.22) !important;
+}
+
+.quick-card-icon{
+    width:42px !important;
+    height:42px !important;
+    margin:2px auto 8px !important;
+    display:flex !important;
+    align-items:center !important;
+    justify-content:center !important;
+    border-radius:9px !important;
+    color:#FFC400 !important;
+    background:linear-gradient(145deg,#352D08,#181505) !important;
+    border:1px solid #51430A !important;
+    font-size:22px !important;
+    font-weight:900 !important;
+    line-height:1 !important;
+    box-shadow:inset 0 0 16px rgba(255,196,0,.05) !important;
+}
+.quick-card-label{
+    min-height:27px !important;
+    display:flex !important;
+    align-items:center !important;
+    justify-content:center !important;
+    color:#F3F6F8 !important;
+    font-size:9.5px !important;
+    font-weight:800 !important;
+    line-height:1.15 !important;
+    text-align:center !important;
+    margin-bottom:5px !important;
+}
+div[data-testid="stHorizontalBlock"] div[data-testid="column"] .quick-card-label + div[data-testid="stButton"] > button{
+    min-height:29px !important;
+    height:29px !important;
+    margin-top:3px !important;
+    border-radius:6px !important;
+    background:#091116 !important;
+    border:1px solid #2B3C46 !important;
+    color:#AEBAC1 !important;
+    font-size:8.5px !important;
+    font-weight:700 !important;
+}
+div[data-testid="stHorizontalBlock"] div[data-testid="column"] .quick-card-label + div[data-testid="stButton"] > button:hover{
+    background:#FFC400 !important;
+    border-color:#FFC400 !important;
+    color:#080B0D !important;
+}
+
+
+/* ============================================================
+   INICIO V4 · ICONOS LINEALES EN ACCESOS RÁPIDOS
+   ============================================================ */
+.quick-card-icon{
+    width:46px !important;
+    height:46px !important;
+    margin:1px auto 8px !important;
+    padding:10px !important;
+    box-sizing:border-box !important;
+    border-radius:11px !important;
+    background:linear-gradient(145deg,#332A07,#171305) !important;
+    border:1px solid #5A4807 !important;
+    box-shadow:inset 0 0 18px rgba(255,196,0,.04) !important;
+}
+.quick-card-icon svg{
+    width:100% !important;
+    height:100% !important;
+    display:block !important;
+    fill:none !important;
+    stroke:#FFC400 !important;
+    stroke-width:1.8 !important;
+    stroke-linecap:round !important;
+    stroke-linejoin:round !important;
+}
+.quick-card-label{
+    min-height:28px !important;
+    font-size:9.5px !important;
+    letter-spacing:.01em !important;
+}
+div[data-testid="stHorizontalBlock"] div[data-testid="column"]:has(.quick-card-icon){
+    min-height:132px !important;
+    padding:13px 9px 9px !important;
+}
+div[data-testid="stHorizontalBlock"] div[data-testid="column"] .quick-card-label + div[data-testid="stButton"] > button{
+    min-height:28px !important;
+    height:28px !important;
+    margin-top:4px !important;
+    font-size:8.4px !important;
+    font-weight:750 !important;
+    color:#AEBBC3 !important;
+    background:#081116 !important;
+    border-color:#263842 !important;
+}
+div[data-testid="stHorizontalBlock"] div[data-testid="column"] .quick-card-label + div[data-testid="stButton"] > button:hover{
+    background:#FFC400 !important;
+    border-color:#FFC400 !important;
+    color:#080B0D !important;
+}
+
 </style>
         """,
         unsafe_allow_html=True,
@@ -2076,12 +2361,75 @@ def render(ctx):
             q1, q2, q3, q4, q5, q6 = st.columns(6, gap="small")
 
             quick_items = [
-                (q1, "▥", "Resumen Ejecutivo", "dash_quick_exec", "Resumen Ejecutivo"),
-                (q2, "♙", "Clientes", "dash_quick_clients", "CRM"),
-                (q3, "□", "Oportunidades", "dash_quick_opps", "CRM"),
-                (q4, "○", "CRM", "dash_quick_crm", "CRM"),
-                (q5, "⌁", "Métricas Vendedores", "dash_quick_sellers", "Métricas Vendedores"),
-                (q6, "▤", "Plantillas", "dash_quick_templates", "Plantillas"),
+                (
+                    q1,
+                    """<svg viewBox="0 0 24 24" aria-hidden="true">
+                        <rect x="3" y="3" width="7" height="7" rx="1.5"/>
+                        <rect x="14" y="3" width="7" height="7" rx="1.5"/>
+                        <rect x="3" y="14" width="7" height="7" rx="1.5"/>
+                        <rect x="14" y="14" width="7" height="7" rx="1.5"/>
+                    </svg>""",
+                    "Resumen Ejecutivo",
+                    "dash_quick_exec",
+                    "Resumen Ejecutivo",
+                ),
+                (
+                    q2,
+                    """<svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+                        <circle cx="9" cy="7" r="4"/>
+                        <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                    </svg>""",
+                    "Clientes",
+                    "dash_quick_clients",
+                    "CRM",
+                ),
+                (
+                    q3,
+                    """<svg viewBox="0 0 24 24" aria-hidden="true">
+                        <circle cx="12" cy="12" r="9"/>
+                        <circle cx="12" cy="12" r="5"/>
+                        <circle cx="12" cy="12" r="1.6"/>
+                    </svg>""",
+                    "Oportunidades",
+                    "dash_quick_opps",
+                    "CRM",
+                ),
+                (
+                    q4,
+                    """<svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M7 7h10a3 3 0 0 1 3 3v7a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3v-7a3 3 0 0 1 3-3Z"/>
+                        <path d="M8 7V5a4 4 0 0 1 8 0v2"/>
+                        <circle cx="9" cy="13" r="1.6"/>
+                        <path d="M13 12h4M13 15h4"/>
+                    </svg>""",
+                    "CRM",
+                    "dash_quick_crm",
+                    "CRM",
+                ),
+                (
+                    q5,
+                    """<svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M3 3v18h18"/>
+                        <path d="m7 16 4-5 3 3 5-7"/>
+                        <path d="M18 7h1v1"/>
+                    </svg>""",
+                    "Métricas Vendedores",
+                    "dash_quick_sellers",
+                    "Métricas Vendedores",
+                ),
+                (
+                    q6,
+                    """<svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/>
+                        <path d="M14 2v6h6"/>
+                        <path d="M8 13h8M8 17h5"/>
+                    </svg>""",
+                    "Plantillas",
+                    "dash_quick_templates",
+                    "Plantillas",
+                ),
             ]
 
             for col, icon, label, key, page in quick_items:
@@ -2095,7 +2443,7 @@ def render(ctx):
                     )
 
                     st.button(
-                        "Abrir",
+                        "Ver módulo →",
                         key=key,
                         use_container_width=True,
                         on_click=_go_to,
