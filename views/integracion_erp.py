@@ -92,6 +92,288 @@ def _apply_view_styles():
         .erp-page-indicator strong{color:var(--erp-yellow);margin:0 4px}
         h1,h2,h3,h4,h5{color:#fff!important}
         p, .stCaption{color:#9eabb5}
+
+        /* =====================================================
+           MARITEX ERP · V3 · MOCKUP FIEL
+           ===================================================== */
+        [data-testid="stMainBlockContainer"]{
+            max-width:1680px!important;
+            padding-top:.8rem!important;
+            padding-left:1.35rem!important;
+            padding-right:1.35rem!important;
+        }
+
+        .erp-page-head{
+            display:flex!important;
+            align-items:center!important;
+            justify-content:space-between!important;
+            padding:6px 0 14px!important;
+            margin-bottom:8px!important;
+        }
+        .erp-page-head h1{
+            font-size:2.25rem!important;
+            font-weight:900!important;
+            letter-spacing:-.045em!important;
+        }
+        .erp-page-head p{
+            font-size:.88rem!important;
+            color:#9fb1bd!important;
+        }
+
+        .erp-top-info{
+            display:flex;
+            justify-content:flex-end;
+            align-items:center;
+            gap:18px;
+            margin-bottom:4px;
+        }
+        .erp-last-update{
+            color:#8c9aa5;
+            font-size:.68rem;
+            line-height:1.35;
+            text-align:right;
+        }
+        .erp-last-update strong{
+            color:#d9e1e7;
+            display:block;
+            margin-top:2px;
+            font-size:.72rem;
+        }
+
+        .erp-kpi-card{
+            position:relative;
+            min-height:100px;
+            padding:14px 14px;
+            border:1px solid #28343d;
+            border-radius:10px;
+            background:linear-gradient(145deg,#131c24,#0a1015);
+            overflow:hidden;
+        }
+        .erp-kpi-card.credit{background:linear-gradient(145deg,#3a1f23,#25161a)}
+        .erp-kpi-card.stock{background:linear-gradient(145deg,#3b3515,#24200d)}
+        .erp-kpi-card.payment{background:linear-gradient(145deg,#193453,#10243a)}
+        .erp-kpi-card.client{background:linear-gradient(145deg,#2e214a,#211835)}
+        .erp-kpi-card.integrated{background:linear-gradient(145deg,#153c2c,#0d281d)}
+        .erp-kpi-card.unclassified{background:linear-gradient(145deg,#27313a,#1b232a)}
+
+        .erp-kpi-label{
+            color:#d6dde3;
+            font-size:.72rem;
+            font-weight:800;
+        }
+        .erp-kpi-value{
+            margin-top:6px;
+            color:#fff;
+            font-size:1.7rem;
+            font-weight:900;
+            line-height:1;
+        }
+        .erp-kpi-hint{
+            color:#92a0ab;
+            font-size:.66rem;
+            margin-top:7px;
+        }
+
+        .erp-toolbar{
+            margin-top:10px;
+            padding-top:10px;
+            border-top:1px solid #222c33;
+        }
+
+        .erp-table-shell{
+            border:1px solid #26323b;
+            border-radius:10px;
+            overflow:hidden;
+            background:#071016;
+        }
+        .erp-table-head{
+            display:grid;
+            grid-template-columns:1.45fr .85fr 1fr .95fr 1.7fr .8fr .65fr;
+            gap:0;
+            background:#0c141b;
+            border-bottom:1px solid #2a353e;
+            color:#a9b8c3;
+            font-size:.68rem;
+            font-weight:850;
+            text-transform:uppercase;
+            letter-spacing:.025em;
+        }
+        .erp-table-head > div{
+            padding:10px 10px;
+            border-right:1px solid #202a31;
+        }
+        .erp-table-head > div:last-child{border-right:0}
+
+        .erp-row{
+            display:grid;
+            grid-template-columns:1.45fr .85fr 1fr .95fr 1.7fr .8fr .65fr;
+            gap:0;
+            min-height:46px;
+            align-items:center;
+            border-bottom:1px solid #202a31;
+            background:#091118;
+        }
+        .erp-row:last-child{border-bottom:0}
+        .erp-row:hover{background:#0d171f}
+        .erp-row.selected{
+            background:linear-gradient(90deg,rgba(255,196,0,.18),rgba(255,196,0,.04));
+            box-shadow:inset 3px 0 0 #ffc400;
+        }
+        .erp-cell{
+            padding:9px 10px;
+            color:#e5ebef;
+            font-size:.73rem;
+            border-right:1px solid #202a31;
+            overflow:hidden;
+            text-overflow:ellipsis;
+            white-space:nowrap;
+        }
+        .erp-cell:last-child{border-right:0}
+
+        .erp-badge{
+            display:inline-flex;
+            align-items:center;
+            justify-content:center;
+            padding:4px 9px;
+            border-radius:999px;
+            font-size:.65rem;
+            font-weight:850;
+            color:#071014;
+        }
+        .erp-badge.credit{background:#ff7b83}
+        .erp-badge.stock{background:#ffd52a}
+        .erp-badge.payment{background:#67adff}
+        .erp-badge.client{background:#c17dff}
+        .erp-badge.integrated{background:#45da91}
+        .erp-badge.unclassified{background:#9ba9b5}
+        .erp-badge.other{background:#d9e1e7}
+
+        .erp-state-dot{
+            display:inline-block;
+            width:8px;
+            height:8px;
+            border-radius:50%;
+            margin-right:6px;
+            vertical-align:middle;
+        }
+        .erp-state-dot.ok{background:#38d98e}
+        .erp-state-dot.err{background:#ff4d5b}
+
+        .erp-detail-panel{
+            border:1px solid #26323b;
+            border-radius:10px;
+            background:#071016;
+            padding:16px;
+            min-height:620px;
+        }
+        .erp-detail-title{
+            color:#fff;
+            font-weight:850;
+            font-size:1rem;
+            margin-bottom:8px;
+        }
+        .erp-detail-order{
+            color:#fff;
+            font-size:1.3rem;
+            font-weight:900;
+            margin-bottom:3px;
+        }
+        .erp-detail-meta{
+            color:#8b9aa5;
+            font-size:.68rem;
+            margin-bottom:14px;
+        }
+        .erp-detail-grid{
+            display:grid;
+            grid-template-columns:1fr 1fr;
+            gap:7px 14px;
+            margin-bottom:14px;
+        }
+        .erp-detail-item{
+            display:flex;
+            justify-content:space-between;
+            gap:10px;
+            color:#91a0ac;
+            font-size:.7rem;
+        }
+        .erp-detail-item b{
+            color:#f2f5f7;
+            font-weight:750;
+            text-align:right;
+        }
+        .erp-error-box{
+            margin:12px 0;
+            padding:12px 13px;
+            border-radius:9px;
+            border:1px solid rgba(255,93,100,.22);
+            background:linear-gradient(90deg,rgba(255,93,100,.22),rgba(255,93,100,.07));
+        }
+        .erp-error-box .k{color:#e0bfc2;font-size:.65rem}
+        .erp-error-box .v{color:#fff;font-size:.82rem;font-weight:800;margin-top:3px}
+
+        .erp-message-box{
+            border:1px solid #26323b;
+            border-radius:8px;
+            background:#0a1218;
+            padding:11px 12px;
+            color:#d6e0e6;
+            font-size:.7rem;
+            line-height:1.45;
+            min-height:72px;
+        }
+
+        .erp-stock-alt{
+            margin-top:12px;
+            border:1px solid #26323b;
+            border-radius:9px;
+            background:#091118;
+            overflow:hidden;
+        }
+        .erp-stock-alt-title{
+            padding:10px 12px;
+            color:#fff;
+            font-size:.78rem;
+            font-weight:850;
+            border-bottom:1px solid #26323b;
+        }
+        .erp-stock-alt-row{
+            display:grid;
+            grid-template-columns:.8fr 1.35fr 1fr 1.3fr;
+            gap:8px;
+            padding:9px 12px;
+            border-bottom:1px solid #202a31;
+            color:#d7e0e6;
+            font-size:.67rem;
+        }
+        .erp-stock-alt-row:last-child{border-bottom:0}
+        .erp-pill{
+            display:inline-block;
+            padding:3px 8px;
+            border-radius:999px;
+            background:#43d98e;
+            color:#071014;
+            font-weight:850;
+            margin-right:5px;
+            margin-bottom:3px;
+        }
+        .erp-pill.zero{background:#7d8a94;color:#fff}
+
+        /* compact native widgets */
+        [data-testid="stTextInput"] input,
+        [data-testid="stSelectbox"] div[data-baseweb="select"] > div{
+            min-height:42px!important;
+            background:#0a1218!important;
+        }
+        .stButton > button{
+            min-height:40px!important;
+            border-radius:8px!important;
+        }
+        button[data-testid="stBaseButton-primary"]{
+            background:#ffc400!important;
+            color:#060606!important;
+            border-color:#ffc400!important;
+            font-weight:900!important;
+        }
         </style>
         """,
         unsafe_allow_html=True,
@@ -1621,27 +1903,49 @@ def _render_summary_cards(
         return
 
     states = rows["Estado"].fillna("").astype(str).str.lower()
-
     total = len(rows)
-    stock_count = int(states.str.contains("stock", regex=False).sum())
+
     credit_count = int(
         (
             states.str.contains("crédito", regex=False)
             | states.str.contains("credito", regex=False)
         ).sum()
     )
-    other_count = max(total - stock_count - credit_count, 0)
+    stock_count = int(states.str.contains("stock", regex=False).sum())
+    payment_count = int(states.str.contains("pago", regex=False).sum())
+    client_count = int(states.str.contains("cliente", regex=False).sum())
+    integrated_count = int(states.str.contains("integrado", regex=False).sum())
+    unclassified_count = int(states.str.contains("sin clasificar", regex=False).sum())
 
-    c1, c2, c3, c4 = st.columns(4, gap="small")
+    def _pct(value: int) -> str:
+        if total <= 0:
+            return "0% del total"
+        return f"{round((value / total) * 100)}% del total"
 
-    with c1:
-        st.metric("Pendientes", total)
-    with c2:
-        st.metric("Con problema de stock", stock_count)
-    with c3:
-        st.metric("Con problema de crédito", credit_count)
-    with c4:
-        st.metric("Otros diagnósticos", other_count)
+    cards = [
+        ("Pedidos pendientes", total, "Total en ERP", ""),
+        ("Crédito", credit_count, _pct(credit_count), "credit"),
+        ("Stock", stock_count, _pct(stock_count), "stock"),
+        ("Pago", payment_count, _pct(payment_count), "payment"),
+        ("Cliente", client_count, _pct(client_count), "client"),
+        ("Integrados", integrated_count, _pct(integrated_count), "integrated"),
+        ("Sin clasificar", unclassified_count, _pct(unclassified_count), "unclassified"),
+    ]
+
+    cols = st.columns(7, gap="small")
+
+    for col, (label, value, hint, cls) in zip(cols, cards):
+        with col:
+            st.markdown(
+                f"""
+                <div class="erp-kpi-card {cls}">
+                    <div class="erp-kpi-label">{label}</div>
+                    <div class="erp-kpi-value">{value:,}</div>
+                    <div class="erp-kpi-hint">{hint}</div>
+                </div>
+                """.replace(",", "."),
+                unsafe_allow_html=True,
+            )
 
 
 # ============================================================
@@ -1666,33 +1970,36 @@ def render():
         unsafe_allow_html=True,
     )
 
-    top1, top2 = st.columns(
-        [3, 1]
-    )
+    top1, top2 = st.columns([3.2, 1], gap="large")
 
     with top1:
         channel = st.segmented_control(
             "Canal",
             options=list(CHANNELS),
             default="B2C",
-            format_func=lambda value: CHANNEL_LABELS.get(
-                value,
-                value,
-            ),
+            format_func=lambda value: CHANNEL_LABELS.get(value, value),
             key="erp_channel",
         )
-
         if not channel:
             channel = "B2C"
 
     with top2:
-        st.write("")
-        st.write("")
-
+        st.markdown(
+            f"""
+            <div class="erp-top-info">
+                <div class="erp-last-update">
+                    Última actualización
+                    <strong>{datetime.now().strftime("%d-%m-%Y %H:%M")}</strong>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
         if st.button(
             "Actualizar",
             key="erp_refresh",
             use_container_width=True,
+            type="primary",
             icon=":material/refresh:",
         ):
             st.session_state["erp_last_auto_refresh"] = datetime.now()
@@ -1700,53 +2007,39 @@ def render():
             _clear_pending_cache()
             st.rerun()
 
-    with st.spinner(
-        f"Consultando pedidos {channel}..."
-    ):
-        result = _load_pending_orders(
-            channel
-        )
+    with st.spinner(f"Consultando pedidos {channel}..."):
+        result = _load_pending_orders(channel)
 
-    if not getattr(
-        result,
-        "ok",
-        False,
-    ):
+    if not getattr(result, "ok", False):
         st.error(
             _safe_text(
-                getattr(
-                    result,
-                    "message",
-                    None,
-                ),
+                getattr(result, "message", None),
                 "No fue posible consultar los pedidos pendientes.",
             )
         )
         return
 
     orders = extract_orders(
-        getattr(
-            result,
-            "data",
-            None,
-        )
+        getattr(result, "data", None)
     )
 
     if not orders:
-        st.success(
-            f"No existen pedidos pendientes para {channel}."
-        )
+        st.success(f"No existen pedidos pendientes para {channel}.")
         return
 
-    rows = _build_rows(
-        orders
-    )
+    rows = _build_rows(orders)
+    _render_summary_cards(rows)
 
-    _render_summary_cards(
-        rows
-    )
+    st.markdown("<div class='erp-toolbar'></div>", unsafe_allow_html=True)
 
-    st.markdown("")
+    f1, f2, f3 = st.columns([2.0, 1.0, .8], gap="small")
+
+    with f1:
+        search = st.text_input(
+            "Buscar pedido",
+            placeholder="Pedido VTEX, cliente, documento ERP o motivo...",
+            key="erp_search",
+        )
 
     categories = [
         "Todas",
@@ -1758,35 +2051,25 @@ def render():
         "Sin clasificar",
     ]
 
-    f1, f2 = st.columns(
-        [2, 1]
-    )
-
-    with f1:
-        search = st.text_input(
-            "Buscar pedido",
-            placeholder=(
-                "Pedido VTEX, cliente, documento ERP o motivo..."
-            ),
-            key="erp_search",
-        )
-
     with f2:
         category_filter = st.selectbox(
-            "Tipo de diagnóstico",
+            "Categoría",
             categories,
             key="erp_category_filter",
+        )
+
+    with f3:
+        only_errors = st.selectbox(
+            "Estado",
+            ["Todos", "Con error", "Integrados"],
+            key="erp_status_filter_v3",
         )
 
     filtered = rows.copy()
 
     if search:
         query = str(search).strip().lower()
-
-        mask = pd.Series(
-            False,
-            index=filtered.index,
-        )
+        mask = pd.Series(False, index=filtered.index)
 
         for column in (
             "Pedido VTEX",
@@ -1801,15 +2084,9 @@ def render():
                 .fillna("")
                 .astype(str)
                 .str.lower()
-                .str.contains(
-                    query,
-                    regex=False,
-                )
+                .str.contains(query, regex=False)
             )
-
-        filtered = filtered[
-            mask
-        ]
+        filtered = filtered[mask]
 
     if category_filter != "Todas":
         filtered = filtered[
@@ -1821,16 +2098,26 @@ def render():
             )
         ]
 
+    if only_errors == "Con error":
+        filtered = filtered[
+            ~filtered["Estado"].fillna("").astype(str).str.lower().str.contains(
+                "integrado",
+                regex=False,
+            )
+        ]
+    elif only_errors == "Integrados":
+        filtered = filtered[
+            filtered["Estado"].fillna("").astype(str).str.lower().str.contains(
+                "integrado",
+                regex=False,
+            )
+        ]
+
     if filtered.empty:
-        st.info(
-            "No hay pedidos que coincidan con los filtros."
-        )
+        st.info("No hay pedidos que coincidan con los filtros.")
         return
 
-    # --------------------------------------------------------
-    # TABLA OPERATIVA PAGINADA
-    # --------------------------------------------------------
-    page_size = 25
+    page_size = 10
     total_filtered = len(filtered)
     total_pages = max((total_filtered + page_size - 1) // page_size, 1)
     page_key = f"erp_page_{channel}"
@@ -1838,239 +2125,250 @@ def render():
     if page_key not in st.session_state:
         st.session_state[page_key] = 1
 
-    current_page = int(st.session_state.get(page_key, 1) or 1)
-    current_page = max(1, min(current_page, total_pages))
+    current_page = max(
+        1,
+        min(
+            int(st.session_state.get(page_key, 1) or 1),
+            total_pages,
+        ),
+    )
     st.session_state[page_key] = current_page
 
     start_row = (current_page - 1) * page_size
     end_row = min(start_row + page_size, total_filtered)
     page_filtered = filtered.iloc[start_row:end_row].copy()
 
-    st.markdown(
-        f"""
-        <div class="erp-table-hint">
-            <span><strong>{start_row + 1}–{end_row}</strong> de {total_filtered:,} pedidos visibles</span>
-            <span>Ordenado por fecha · más recientes primero</span>
-        </div>
-        """.replace(",", "."),
-        unsafe_allow_html=True,
+    persisted_order_id = _safe_text(
+        st.session_state.erp_selected_order_by_channel.get(channel),
+        "",
     )
 
-    display = page_filtered[
-        [
-            "Pedido VTEX",
-            "Cliente",
-            "Fecha",
-            "Estado",
-            "Documento ERP",
-            "Motivo",
-        ]
-    ].copy()
+    if not persisted_order_id:
+        persisted_order_id = _safe_text(
+            page_filtered.iloc[0]["Pedido VTEX"],
+            "",
+        )
+        st.session_state.erp_selected_order_by_channel[channel] = persisted_order_id
 
-    # La causa completa se conserva en el dataframe original y en el
-    # diagnóstico. En la grilla mostramos una versión compacta para evitar
-    # scroll horizontal.
-    display["Motivo"] = (
-        display["Motivo"]
-        .fillna("")
-        .astype(str)
-        .apply(lambda value: value if len(value) <= 58 else value[:55].rstrip() + "…")
-    )
+    left, right = st.columns([1.62, 1.0], gap="small")
 
-    table_event = st.dataframe(
-        display,
-        hide_index=True,
-        use_container_width=True,
-        height=min(
-            430,
-            38 + len(display) * 35,
-        ),
-        key=f"erp_orders_table_{channel}_{current_page}",
-        on_select="rerun",
-        selection_mode="single-row",
-        column_config={
-            "Pedido VTEX": st.column_config.TextColumn(
-                "Pedido",
-                width="medium",
-            ),
-            "Cliente": st.column_config.TextColumn(
-                "Cliente",
-                width="small",
-            ),
-            "Fecha": st.column_config.TextColumn(
-                "Fecha",
-                width="small",
-            ),
-            "Estado": st.column_config.TextColumn(
-                "Estado",
-                width="small",
-            ),
-            "Documento ERP": st.column_config.TextColumn(
-                "Documento",
-                width="small",
-            ),
-            "Motivo": st.column_config.TextColumn(
-                "Motivo",
-                width="medium",
-            ),
-        },
-    )
-
-    # Navegación por páginas. La selección sigue siendo nativa de Streamlit,
-    # por lo que conserva el clic de fila para abrir diagnóstico/reinyección.
-    nav_left, nav_center, nav_right = st.columns([1, 2, 1], gap="small")
-
-    with nav_left:
-        if st.button(
-            "‹ Anterior",
-            key=f"erp_prev_{channel}",
-            disabled=current_page <= 1,
-            use_container_width=True,
-        ):
-            st.session_state[page_key] = current_page - 1
-            st.rerun()
-
-    with nav_center:
+    # =========================================================
+    # LEFT · TABLE
+    # =========================================================
+    with left:
         st.markdown(
-            f'<div class="erp-page-indicator">Página <strong>{current_page}</strong> de {total_pages}</div>',
+            f"""
+            <div class="erp-table-hint">
+                <span><strong>{start_row + 1}–{end_row}</strong> de {total_filtered:,} pedidos</span>
+                <span>Más recientes primero</span>
+            </div>
+            """.replace(",", "."),
             unsafe_allow_html=True,
         )
 
-    with nav_right:
-        if st.button(
-            "Siguiente ›",
-            key=f"erp_next_{channel}",
-            disabled=current_page >= total_pages,
-            use_container_width=True,
-        ):
-            st.session_state[page_key] = current_page + 1
-            st.rerun()
-
-    selected_position = None
-    selected_order_id = None
-
-    try:
-        selected_rows = list(
-            table_event.selection.rows
+        st.markdown(
+            """
+            <div class="erp-table-shell">
+                <div class="erp-table-head">
+                    <div>VTEX ORDER</div>
+                    <div>FECHA</div>
+                    <div>RUT CLIENTE</div>
+                    <div>CATEGORÍA</div>
+                    <div>MOTIVO PRINCIPAL</div>
+                    <div>ESTADO</div>
+                    <div>ACCIÓN</div>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
         )
-        if selected_rows:
-            selected_position = int(
-                selected_rows[0]
+
+        # native rows + buttons to preserve stable interaction
+        for pos, (_, row) in enumerate(page_filtered.iterrows()):
+            order_id = _safe_text(row["Pedido VTEX"])
+            category = _safe_text(row["Estado"], "Sin clasificar")
+            reason = _safe_text(row["Motivo"])
+            client = _safe_text(row["Cliente"])
+            date_text = _safe_text(row["Fecha"])
+            is_integrated = "integrado" in category.lower()
+
+            cat_norm = category.lower()
+            if "crédito" in cat_norm or "credito" in cat_norm:
+                badge_cls = "credit"
+            elif "stock" in cat_norm:
+                badge_cls = "stock"
+            elif "pago" in cat_norm:
+                badge_cls = "payment"
+            elif "cliente" in cat_norm:
+                badge_cls = "client"
+            elif "integrado" in cat_norm:
+                badge_cls = "integrated"
+            elif "sin clasificar" in cat_norm:
+                badge_cls = "unclassified"
+            else:
+                badge_cls = "other"
+
+            selected_cls = "selected" if order_id == persisted_order_id else ""
+
+            rc = st.columns([1.45, .85, 1.0, .95, 1.7, .8, .65], gap="small")
+
+            with rc[0]:
+                st.markdown(
+                    f"<div class='erp-cell {selected_cls}'><b>{order_id}</b></div>",
+                    unsafe_allow_html=True,
+                )
+            with rc[1]:
+                st.markdown(
+                    f"<div class='erp-cell'>{date_text}</div>",
+                    unsafe_allow_html=True,
+                )
+            with rc[2]:
+                st.markdown(
+                    f"<div class='erp-cell'>{client}</div>",
+                    unsafe_allow_html=True,
+                )
+            with rc[3]:
+                st.markdown(
+                    f"<div class='erp-cell'><span class='erp-badge {badge_cls}'>{category}</span></div>",
+                    unsafe_allow_html=True,
+                )
+            with rc[4]:
+                short_reason = reason if len(reason) <= 46 else reason[:43].rstrip() + "…"
+                st.markdown(
+                    f"<div class='erp-cell'>{short_reason}</div>",
+                    unsafe_allow_html=True,
+                )
+            with rc[5]:
+                state_cls = "ok" if is_integrated else "err"
+                state_text = "OK" if is_integrated else "Error"
+                st.markdown(
+                    f"<div class='erp-cell'><span class='erp-state-dot {state_cls}'></span>{state_text}</div>",
+                    unsafe_allow_html=True,
+                )
+            with rc[6]:
+                if st.button(
+                    "Ver",
+                    key=f"erp_row_open_{channel}_{current_page}_{pos}_{order_id}",
+                    use_container_width=True,
+                    type="primary" if order_id == persisted_order_id else "secondary",
+                ):
+                    st.session_state.erp_selected_order_by_channel[channel] = order_id
+                    st.rerun()
+
+        n1, n2, n3 = st.columns([1, 2, 1], gap="small")
+        with n1:
+            if st.button(
+                "‹",
+                key=f"erp_prev_{channel}",
+                disabled=current_page <= 1,
+                use_container_width=True,
+            ):
+                st.session_state[page_key] = current_page - 1
+                st.rerun()
+
+        with n2:
+            st.markdown(
+                f'<div class="erp-page-indicator">Página <strong>{current_page}</strong> de {total_pages}</div>',
+                unsafe_allow_html=True,
             )
-    except Exception:
-        selected_position = None
 
-    # La posición seleccionada corresponde a la página actual, no al
-    # dataframe filtrado completo.
-    if selected_position is not None:
-        if (
-            selected_position < 0
-            or selected_position >= len(page_filtered)
-        ):
-            st.error(
-                "No fue posible resolver el pedido seleccionado."
-            )
-            return
+        with n3:
+            if st.button(
+                "›",
+                key=f"erp_next_{channel}",
+                disabled=current_page >= total_pages,
+                use_container_width=True,
+            ):
+                st.session_state[page_key] = current_page + 1
+                st.rerun()
 
-        selected_order_id = _safe_text(
-            page_filtered.iloc[
-                selected_position
-            ]["Pedido VTEX"],
-            "",
-        )
-
-        if selected_order_id:
-            st.session_state.erp_selected_order_by_channel[
-                channel
-            ] = selected_order_id
-
-    # Si no hay clic activo en la tabla (por ejemplo después de un rerun),
-    # recuperamos el pedido persistido para este canal.
-    if not selected_order_id:
-        persisted_order_id = _safe_text(
-            st.session_state.erp_selected_order_by_channel.get(
-                channel
-            ),
-            "",
-        )
-
-        if persisted_order_id:
-            matches = filtered[
-                filtered["Pedido VTEX"].astype(str)
-                == persisted_order_id
-            ]
-
-            if not matches.empty:
-                selected_order_id = persisted_order_id
-
-    # Solo usamos la primera fila cuando el usuario aún no ha seleccionado
-    # ningún pedido en este canal.
-    if not selected_order_id:
-        selected_order_id = _safe_text(
-            filtered.iloc[0]["Pedido VTEX"],
-            "",
-        )
-
-        if selected_order_id:
-            st.session_state.erp_selected_order_by_channel[
-                channel
-            ] = selected_order_id
-
-    # Resolver el índice real del pedido desde el dataframe completo.
+    # =========================================================
+    # RIGHT · DETAIL
+    # =========================================================
     selected_matches = rows[
-        rows["Pedido VTEX"].astype(str)
-        == str(selected_order_id)
+        rows["Pedido VTEX"].astype(str) == str(persisted_order_id)
     ]
 
     if selected_matches.empty:
-        # El pedido pudo desaparecer de pendientes después de verificar.
-        # En ese caso mostramos el resultado de verificación y no saltamos
-        # silenciosamente a otro pedido.
-        verification_key = (
-            f"{channel}:{selected_order_id}"
+        st.session_state.erp_selected_order_by_channel[channel] = _safe_text(
+            filtered.iloc[0]["Pedido VTEX"],
+            "",
         )
-
-        verification = st.session_state.erp_verification.get(
-            verification_key
-        )
-
-        if verification:
-            st.divider()
-            st.markdown(
-                f"### Resultado de verificación · {channel} · {selected_order_id}"
-            )
-            _render_reinjection_status(
-                channel,
-                selected_order_id,
-            )
-            return
-
-        st.error(
-            "El pedido seleccionado ya no está disponible en la lista actual."
-        )
-        return
+        st.rerun()
 
     selected_index = int(
         selected_matches.iloc[0]["_index"]
     )
 
-    if (
-        selected_index < 0
-        or selected_index >= len(orders)
-    ):
-        st.error(
-            "No fue posible resolver el pedido seleccionado."
-        )
+    if selected_index < 0 or selected_index >= len(orders):
+        st.error("No fue posible resolver el pedido seleccionado.")
         return
 
-    selected_order = orders[
-        selected_index
-    ]
-
-    st.divider()
-
-    _render_order_detail(
-        channel,
-        selected_order,
+    selected_order = orders[selected_index]
+    diagnosis = _get_order_diagnosis(selected_order)
+    category = _diagnosis_category(diagnosis)
+    reason = _diagnosis_reason(diagnosis)
+    order_id = _get_order_vtex_id(selected_order)
+    rut = _safe_text(selected_order.get("rutCliente"))
+    send_date = _format_date(selected_order.get("sendDate"))
+    erp_status = _safe_text(
+        diagnosis.get("erp_status")
+        or diagnosis.get("status")
     )
+    document_type = _safe_text(
+        diagnosis.get("document_type")
+    )
+    document_number = _safe_text(
+        diagnosis.get("document_number")
+        or diagnosis.get("numero")
+        or diagnosis.get("correlative")
+    )
+    message = _safe_text(
+        diagnosis.get("message")
+        or diagnosis.get("summary")
+        or reason
+    )
+
+    with right:
+        detail_html = (
+            f'<div class="erp-detail-panel">'
+            f'<div class="erp-detail-title">Detalle del pedido</div>'
+            f'<div class="erp-detail-order">{order_id}</div>'
+            f'<div class="erp-detail-meta">{channel} &nbsp; | &nbsp; {send_date}</div>'
+            f'<div class="erp-detail-grid">'
+            f'<div class="erp-detail-item"><span>RUT Cliente</span><b>{rut}</b></div>'
+            f'<div class="erp-detail-item"><span>Estado ERP</span><b>{erp_status}</b></div>'
+            f'<div class="erp-detail-item"><span>Categoría</span><b>{category}</b></div>'
+            f'<div class="erp-detail-item"><span>Documento ERP</span><b>{document_type}</b></div>'
+            f'<div class="erp-detail-item"><span>N° Documento</span><b>{document_number}</b></div>'
+            f'</div>'
+            f'<div class="erp-error-box">'
+            f'<div class="k">Motivo del error</div>'
+            f'<div class="v">{reason}</div>'
+            f'</div>'
+            f'<div class="erp-message-box">{message}</div>'
+            f'</div>'
+        )
+        st.markdown(
+            detail_html,
+            unsafe_allow_html=True,
+        )
+
+        # Existing functionality preserved below the compact summary
+        st.markdown("")
+        _render_diagnosis_cards(
+            channel,
+            selected_order,
+            diagnosis,
+        )
+
+        _render_reinjection(
+            channel,
+            selected_order,
+            diagnosis,
+        )
+
+        with st.expander("Ver diagnóstico completo", expanded=False):
+            _render_operational_info(selected_order)
+            _render_technical_details(selected_order)
 
