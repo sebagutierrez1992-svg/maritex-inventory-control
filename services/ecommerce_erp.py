@@ -3,17 +3,15 @@
 import json
 import os
 import re
-import socket
-import ssl
 import time
 import xml.etree.ElementTree as ET
 
 from dataclasses import dataclass
 from threading import Lock
 from typing import Any
-from urllib.error import HTTPError, URLError
 from urllib.parse import quote
-from urllib.request import Request, urlopen
+
+import requests
 
 
 # ============================================================
@@ -160,7 +158,6 @@ def _login() -> str:
     password = _get_password()
 
     if not email or not password:
-
         raise EcommerceERPError(
             "No están configuradas "
             "MARITEX_ERP_EMAIL y "
@@ -174,148 +171,108 @@ def _login() -> str:
         "twoFactorRecoveryCode": "",
     }
 
-    body = json.dumps(
-        payload
-    ).encode("utf-8")
-
-    request = Request(
-        LOGIN_URL,
-        data=body,
-        method="POST",
-        headers={
-            "Accept": "application/json, text/plain, */*",
-            "Content-Type": "application/json",
-            "User-Agent": "Maritex-Inventory-Control/1.0",
-        },
-    )
+    headers = {
+        "Accept": "application/json, text/plain, */*",
+        "Content-Type": "application/json",
+        "User-Agent": "Maritex-Inventory-Control/1.0",
+    }
 
     try:
-
-        with urlopen(
-            request,
+        response = requests.post(
+            LOGIN_URL,
+            json=payload,
+            headers=headers,
             timeout=DEFAULT_TIMEOUT,
-        ) as response:
+        )
 
-            data = _decode_response(
-                response.read()
+    except requests.exceptions.ConnectTimeout as exc:
+        raise EcommerceERPError(
+            "Timeout de conexión con el servicio de login."
+        ) from exc
+
+    except requests.exceptions.ReadTimeout as exc:
+        raise EcommerceERPError(
+            "El servicio de login demoró demasiado en responder."
+        ) from exc
+
+    except requests.exceptions.SSLError as exc:
+        raise EcommerceERPError(
+            "Falló la conexión SSL/TLS con el servicio de login."
+        ) from exc
+
+    except requests.exceptions.ConnectionError as exc:
+        raise EcommerceERPError(
+            f"No fue posible conectar con el servicio de login: {exc}"
+        ) from exc
+
+    except requests.exceptions.RequestException as exc:
+        raise EcommerceERPError(
+            f"Error de red durante el login ERP: {type(exc).__name__}: {exc}"
+        ) from exc
+
+    try:
+        data = response.json()
+    except ValueError:
+        data = response.text.strip()
+
+    if response.status_code in (400, 401, 403):
+        raise EcommerceERPError(
+            f"Login ERP rechazado (HTTP {response.status_code}). "
+            "Verifica email y contraseña."
+        )
+
+    if not response.ok:
+        detail = (
+            data
+            if isinstance(data, str)
+            else json.dumps(data, ensure_ascii=False)
+        )
+        raise EcommerceERPError(
+            f"Error HTTP {response.status_code} durante el login"
+            + (f": {detail[:300]}" if detail else ".")
+        )
+
+    if not isinstance(data, dict):
+        raise EcommerceERPError(
+            "Respuesta de login con formato inesperado."
+        )
+
+    access_token = str(
+        data.get("accessToken")
+        or ""
+    ).strip()
+
+    refresh_token = str(
+        data.get("refreshToken")
+        or ""
+    ).strip()
+
+    try:
+        expires_in = int(
+            data.get(
+                "expiresIn",
+                3600,
             )
-
-            if not isinstance(
-                data,
-                dict,
-            ):
-                raise EcommerceERPError(
-                    "Respuesta de login con formato inesperado."
-                )
-
-            access_token = str(
-                data.get("accessToken")
-                or ""
-            ).strip()
-
-            refresh_token = str(
-                data.get("refreshToken")
-                or ""
-            ).strip()
-
-            try:
-                expires_in = int(
-                    data.get(
-                        "expiresIn",
-                        3600,
-                    )
-                )
-            except Exception:
-                expires_in = 3600
-
-            if not access_token:
-                raise EcommerceERPError(
-                    "Azure no entregó accessToken."
-                )
-
-            _ACCESS_TOKEN = access_token
-            _REFRESH_TOKEN = refresh_token
-
-            _ACCESS_TOKEN_EXPIRES_AT = (
-                time.time()
-                + max(
-                    expires_in,
-                    60,
-                )
-            )
-
-            return _ACCESS_TOKEN
-
-    except HTTPError as exc:
-
-        try:
-            detail = _decode_response(exc.read())
-        except Exception:
-            detail = None
-
-        # Nunca registrar payload, contraseña ni token.
-        print(
-            "[ERP AUTH] Login HTTP error "
-            f"status={exc.code} reason={exc.reason!s} "
-            f"detail={detail!r}"
         )
+    except Exception:
+        expires_in = 3600
 
-        if exc.code in (
-            400,
-            401,
-            403,
-        ):
-
-            raise EcommerceERPError(
-                f"Login ERP rechazado (HTTP {exc.code}). "
-                "Verifica email y contraseña."
-            ) from exc
-
+    if not access_token:
         raise EcommerceERPError(
-            f"Error HTTP {exc.code} durante el login: {exc.reason!s}"
-        ) from exc
-
-    except URLError as exc:
-
-        reason = getattr(exc, "reason", exc)
-        print(
-            "[ERP AUTH] No fue posible conectar con login "
-            f"url={LOGIN_URL} "
-            f"reason_type={type(reason).__name__} "
-            f"reason={reason!s}"
+            "Azure no entregó accessToken."
         )
 
-        if isinstance(reason, socket.gaierror):
-            detail = "No fue posible resolver el dominio del ERP."
-        elif isinstance(reason, (TimeoutError, socket.timeout)):
-            detail = "El servicio de login excedió el tiempo de espera."
-        elif isinstance(reason, ssl.SSLError):
-            detail = "Falló la conexión SSL/TLS con el servicio de login."
-        else:
-            detail = f"No fue posible conectar con el servicio de login: {reason!s}"
-
-        raise EcommerceERPError(detail) from exc
-
-    except (TimeoutError, socket.timeout) as exc:
-
-        print(
-            "[ERP AUTH] Timeout conectando con login "
-            f"url={LOGIN_URL}"
+    _ACCESS_TOKEN = access_token
+    _REFRESH_TOKEN = refresh_token
+    _ACCESS_TOKEN_EXPIRES_AT = (
+        time.time()
+        + max(
+            expires_in,
+            60,
         )
-        raise EcommerceERPError(
-            "El servicio de login excedió el tiempo de espera."
-        ) from exc
+    )
 
-    except Exception as exc:
-
-        print(
-            "[ERP AUTH] Error inesperado durante login "
-            f"type={type(exc).__name__} detail={exc!s}"
-        )
-        raise EcommerceERPError(
-            f"Error inesperado durante el login ERP: "
-            f"{type(exc).__name__}: {exc!s}"
-        ) from exc
+    return _ACCESS_TOKEN
 
 
 def _get_token(
@@ -378,46 +335,6 @@ def get_auth_status() -> dict:
     }
 
 
-def check_login_connection(
-    timeout: int = 10,
-) -> dict:
-    """
-    Prueba el login sin exponer credenciales ni tokens.
-    Útil para diagnóstico en Render.
-    """
-    try:
-        invalidate_access_token()
-        token = _get_token(force_login=True)
-
-        return {
-            "ok": bool(token),
-            "status": "connected",
-            "message": "Login ERP correcto.",
-            "login_url": LOGIN_URL,
-            "auth_mode": get_auth_status().get("mode"),
-        }
-
-    except EcommerceERPError as exc:
-        return {
-            "ok": False,
-            "status": "error",
-            "message": str(exc),
-            "login_url": LOGIN_URL,
-            "auth_mode": get_auth_status().get("mode"),
-        }
-
-    except Exception as exc:
-        return {
-            "ok": False,
-            "status": "error",
-            "message": (
-                f"{type(exc).__name__}: {exc!s}"
-            ),
-            "login_url": LOGIN_URL,
-            "auth_mode": get_auth_status().get("mode"),
-        }
-
-
 # ============================================================
 # HTTP
 # ============================================================
@@ -463,7 +380,6 @@ def _request(
         headers = _build_headers()
 
     except EcommerceERPError as exc:
-
         return APIResult(
             ok=False,
             status_code=None,
@@ -472,149 +388,135 @@ def _request(
             url=url,
         )
 
-    request = Request(
-        url,
-        method=method.upper(),
-        headers=headers,
-    )
+    try:
+        response = requests.request(
+            method=method.upper(),
+            url=url,
+            headers=headers,
+            timeout=timeout,
+        )
+
+    except requests.exceptions.ConnectTimeout:
+        return APIResult(
+            ok=False,
+            status_code=None,
+            data=None,
+            message="Timeout de conexión con Azure.",
+            url=url,
+        )
+
+    except requests.exceptions.ReadTimeout:
+        return APIResult(
+            ok=False,
+            status_code=None,
+            data=None,
+            message="Azure demoró demasiado en responder.",
+            url=url,
+        )
+
+    except requests.exceptions.SSLError as exc:
+        return APIResult(
+            ok=False,
+            status_code=None,
+            data=None,
+            message=f"Error SSL/TLS con Azure: {exc}",
+            url=url,
+        )
+
+    except requests.exceptions.ConnectionError as exc:
+        return APIResult(
+            ok=False,
+            status_code=None,
+            data=None,
+            message=f"No fue posible conectar con Azure: {exc}",
+            url=url,
+        )
+
+    except requests.exceptions.RequestException as exc:
+        return APIResult(
+            ok=False,
+            status_code=None,
+            data=None,
+            message=f"Error de red con Azure: {type(exc).__name__}: {exc}",
+            url=url,
+        )
 
     try:
+        data = response.json()
+    except ValueError:
+        data = response.text.strip() or None
 
-        with urlopen(
-            request,
-            timeout=timeout,
-        ) as response:
-
-            data = _decode_response(
-                response.read()
-            )
-
-            message = "OK"
-
-            if (
-                isinstance(data, str)
-                and data
-            ):
-                message = data
-
-            return APIResult(
-                ok=(
-                    200
-                    <= response.status
-                    < 300
-                ),
-                status_code=response.status,
-                data=data,
-                message=message,
-                url=url,
-            )
-
-    except HTTPError as exc:
-
-        if (
-            exc.code == 401
-            and _retry_auth
-            and has_login_credentials()
-        ):
-
-            try:
-
-                invalidate_access_token()
-
-                _get_token(
-                    force_login=True
-                )
-
-            except Exception as auth_exc:
-
-                return APIResult(
-                    ok=False,
-                    status_code=401,
-                    data=None,
-                    message=(
-                        "La sesión ERP expiró "
-                        "y no fue posible renovarla: "
-                        f"{auth_exc}"
-                    ),
-                    url=url,
-                )
-
-            return _request(
-                method=method,
-                url=url,
-                timeout=timeout,
-                _retry_auth=False,
-            )
-
+    if (
+        response.status_code == 401
+        and _retry_auth
+        and has_login_credentials()
+    ):
         try:
-            detail = _decode_response(
-                exc.read()
+            invalidate_access_token()
+            _get_token(force_login=True)
+
+        except Exception as auth_exc:
+            return APIResult(
+                ok=False,
+                status_code=401,
+                data=None,
+                message=(
+                    "La sesión ERP expiró "
+                    "y no fue posible renovarla: "
+                    f"{auth_exc}"
+                ),
+                url=url,
             )
 
-        except Exception:
-            detail = None
+        return _request(
+            method=method,
+            url=url,
+            timeout=timeout,
+            _retry_auth=False,
+        )
 
-        if exc.code == 401:
-            message = "HTTP 401: No autorizado."
+    if response.status_code == 401:
+        message = "HTTP 401: No autorizado."
 
-        elif exc.code == 403:
-            message = (
-                "HTTP 403: Sin permisos para esta operación."
-            )
+    elif response.status_code == 403:
+        message = "HTTP 403: Sin permisos para esta operación."
 
-        else:
-            message = (
-                str(detail)
-                if detail
-                else (
-                    f"HTTP {exc.code}: "
-                    f"{exc.reason}"
+    elif response.ok:
+        message = (
+            data
+            if isinstance(data, str) and data
+            else "OK"
+        )
+
+    else:
+        detail = (
+            data
+            if isinstance(data, str)
+            else (
+                json.dumps(
+                    data,
+                    ensure_ascii=False,
                 )
+                if data is not None
+                else ""
             )
-
-        return APIResult(
-            ok=False,
-            status_code=exc.code,
-            data=detail,
-            message=message,
-            url=url,
+        )
+        message = (
+            detail
+            if detail
+            else (
+                f"HTTP {response.status_code}: "
+                f"{response.reason}"
+            )
         )
 
-    except URLError as exc:
-
-        return APIResult(
-            ok=False,
-            status_code=None,
-            data=None,
-            message=(
-                "No fue posible conectar "
-                f"con Azure: {exc.reason}"
-            ),
-            url=url,
-        )
-
-    except TimeoutError:
-
-        return APIResult(
-            ok=False,
-            status_code=None,
-            data=None,
-            message=(
-                "La conexión con Azure "
-                "superó el tiempo de espera."
-            ),
-            url=url,
-        )
-
-    except Exception as exc:
-
-        return APIResult(
-            ok=False,
-            status_code=None,
-            data=None,
-            message=f"Error inesperado: {exc}",
-            url=url,
-        )
+    return APIResult(
+        ok=response.ok,
+        status_code=response.status_code,
+        data=data,
+        message=message,
+        url=url,
+    )
 
 
 # ============================================================
