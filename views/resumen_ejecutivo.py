@@ -772,6 +772,451 @@ def render(ctx):
         .re-goal-master-dark span,
         .re-goal-master-dark small{color:#b8c1ca !important;}
 
+
+        /* =========================================================
+           MARITEX · RESUMEN EJECUTIVO · ERP V2 ESTRUCTURAL
+           ========================================================= */
+        [data-testid="stMainBlockContainer"]{
+            max-width:1720px!important;
+            padding:14px 18px 28px!important;
+        }
+
+        .re-head{
+            display:flex!important;
+            align-items:center!important;
+            justify-content:space-between!important;
+            padding:8px 0 16px!important;
+            margin-bottom:12px!important;
+            border-bottom:1px solid #202a31!important;
+        }
+        .re-title{
+            color:#fff!important;
+            font-size:2.15rem!important;
+            font-weight:900!important;
+            letter-spacing:-.045em!important;
+        }
+        .re-sub{
+            color:#89a9bd!important;
+            font-size:.86rem!important;
+            font-weight:500!important;
+        }
+        .re-status-pill{
+            display:inline-flex;
+            align-items:center;
+            gap:8px;
+            border:1px solid rgba(255,196,0,.35);
+            background:#0b0f12;
+            border-radius:999px;
+            padding:8px 12px;
+            color:#eef3f6;
+            font-size:.72rem;
+            font-weight:800;
+        }
+        .re-status-pill i{
+            width:8px;height:8px;border-radius:50%;
+            background:#ffc400;
+            box-shadow:0 0 0 4px rgba(255,196,0,.09);
+        }
+
+        .re-filter-shell{
+            background:linear-gradient(180deg,#0a1015,#080d11);
+            border:1px solid #26323b;
+            border-radius:12px;
+            padding:12px 12px 4px;
+            margin-bottom:10px;
+        }
+        .re-filter-title{
+            color:#fff;
+            font-size:.8rem;
+            font-weight:850;
+            margin-bottom:8px;
+        }
+
+        div[data-testid="stSelectbox"] label,
+        div[data-testid="stDateInput"] label,
+        div[data-testid="stNumberInput"] label,
+        div[data-testid="stMultiSelect"] label,
+        div[data-testid="stToggle"] label{
+            color:#aebbc5!important;
+            font-size:.69rem!important;
+            font-weight:800!important;
+        }
+        div[data-baseweb="select"] > div,
+        div[data-testid="stDateInput"] input,
+        div[data-testid="stNumberInput"] input,
+        div[data-testid="stTextInput"] input{
+            min-height:42px!important;
+            background:#0c141b!important;
+            color:#f4f7f9!important;
+            border:1px solid #2a3741!important;
+            border-radius:9px!important;
+        }
+
+        div[data-testid="stDownloadButton"] button,
+        div[data-testid="stButton"] button{
+            min-height:42px!important;
+            background:#0b1218!important;
+            color:#eef3f6!important;
+            border:1px solid #2a3741!important;
+            border-radius:9px!important;
+            box-shadow:none!important;
+            font-weight:800!important;
+        }
+        div[data-testid="stDownloadButton"] button:hover,
+        div[data-testid="stButton"] button:hover{
+            border-color:#ffc400!important;
+            color:#ffc400!important;
+        }
+
+        .re-info{
+            background:#0a1117!important;
+            border:1px solid #26323b!important;
+            color:#92a2ad!important;
+            box-shadow:none!important;
+            margin:10px 0 12px!important;
+        }
+        .re-info strong{color:#ffc400!important;}
+
+        .re-kpi-grid{
+            grid-template-columns:repeat(5,minmax(0,1fr))!important;
+            gap:10px!important;
+            margin:12px 0 8px!important;
+        }
+        .re-kpi{
+            position:relative;
+            min-height:118px!important;
+            padding:15px 15px 12px!important;
+            border-radius:12px!important;
+            border:1px solid #2a3640!important;
+            box-shadow:0 10px 28px rgba(0,0,0,.16)!important;
+            overflow:hidden;
+        }
+        .re-kpi:nth-child(1){background:linear-gradient(145deg,#123421,#0b2117)!important;}
+        .re-kpi:nth-child(2){background:linear-gradient(145deg,#173555,#10263e)!important;}
+        .re-kpi:nth-child(3){background:linear-gradient(145deg,#31234d,#211936)!important;}
+        .re-kpi:nth-child(4){background:linear-gradient(145deg,#3a3415,#24200e)!important;}
+        .re-kpi:nth-child(5){background:linear-gradient(145deg,#3a2023,#28171a)!important;}
+        .re-kpi:before{
+            content:"";
+            position:absolute;
+            inset:0 auto 0 0;
+            width:3px;
+            background:#ffc400;
+        }
+        .re-kpi-label{
+            color:#d0d9df!important;
+            font-size:.67rem!important;
+        }
+        .re-kpi-value{
+            color:#fff!important;
+            font-size:1.55rem!important;
+            margin-top:5px!important;
+        }
+        .re-kpi-foot{
+            color:#93a0aa!important;
+            font-size:.64rem!important;
+            margin-top:10px!important;
+        }
+        .re-icon{
+            width:38px!important;
+            height:38px!important;
+            min-width:38px!important;
+            border-radius:9px!important;
+            border:1px solid rgba(255,255,255,.08)!important;
+        }
+
+        .re-section-shell{
+            border:1px solid #26323b;
+            border-radius:12px;
+            background:linear-gradient(180deg,#091016,#070c10);
+            padding:14px;
+        }
+        .re-section-head{
+            display:flex;
+            justify-content:space-between;
+            align-items:flex-start;
+            gap:12px;
+            margin-bottom:10px;
+        }
+        .re-section-title{
+            color:#fff;
+            font-weight:900;
+            font-size:.9rem;
+        }
+        .re-section-sub{
+            color:#84939e;
+            font-size:.67rem;
+            margin-top:3px;
+        }
+
+        div[data-testid="stVerticalBlockBorderWrapper"]{
+            border:1px solid #26323b!important;
+            border-radius:12px!important;
+            background:linear-gradient(180deg,#091016,#070c10)!important;
+            box-shadow:none!important;
+        }
+        div[data-testid="stVerticalBlockBorderWrapper"] > div{background:transparent!important;}
+        .re-card-title{color:#fff!important;font-size:.82rem!important;font-weight:900!important;}
+        .re-card-sub{color:#84939e!important;font-size:.67rem!important;}
+
+        .re-client-head,.re-rank-head{
+            color:#84939e!important;
+            border-bottom-color:#26323b!important;
+        }
+        .re-client-row,.re-rank-row{
+            color:#e2e8ec!important;
+            border-bottom-color:#202a31!important;
+        }
+        .re-client-value,.re-rank-name{color:#fff!important;}
+        .re-rank-row.current{
+            background:rgba(255,196,0,.10)!important;
+            border:1px solid rgba(255,196,0,.18)!important;
+        }
+
+        .re-goal-master-dark{
+            background:
+                radial-gradient(circle at 86% 0%,rgba(255,196,0,.055),transparent 30%),
+                linear-gradient(135deg,#111920 0%,#091016 100%)!important;
+            border-color:#2a3640!important;
+            box-shadow:none!important;
+        }
+
+        div[data-testid="stDataFrame"]{
+            border:1px solid #26323b!important;
+            border-radius:10px!important;
+            overflow:hidden!important;
+            background:#091016!important;
+            --gdg-bg-cell:#0b1218;
+            --gdg-bg-header:#091016;
+            --gdg-text-dark:#f4f7f9;
+            --gdg-border-color:#26323b;
+        }
+        div[data-testid="stDataFrame"] > div,
+        div[data-testid="stDataFrame"] canvas{background:#0b1218!important;}
+
+        .re-detail-pill{
+            background:#101820!important;
+            border-color:#2a3640!important;
+            color:#b7c3cc!important;
+        }
+
+        .re-goal{
+            background:#091016!important;
+            border-color:#26323b!important;
+            box-shadow:none!important;
+        }
+        .re-goal-title{color:#9ba9b4!important;}
+        .re-goal-title strong{color:#fff!important;}
+        .re-goal-track{background:#1a242c!important;}
+        .re-goal-fill{background:#ffc400!important;}
+        .re-goal-pct{color:#fff!important;}
+        .re-projection{color:#9ba9b4!important;}
+        .re-projection strong{color:#35d889!important;}
+
+        h1,h2,h3,h4,h5{color:#fff!important;}
+        .stCaption,p,small{color:#8d9ba6;}
+
+        /* =========================================================
+           V3 · PANELES CENTRALES E INFERIORES TIPO INTEGRACIÓN ERP
+           ========================================================= */
+        .re-panel-head{
+            display:flex;
+            align-items:center;
+            justify-content:space-between;
+            gap:12px;
+            margin-bottom:10px;
+        }
+        .re-panel-title{
+            color:#fff;
+            font-size:.84rem;
+            font-weight:900;
+            letter-spacing:-.01em;
+        }
+        .re-panel-sub{
+            margin-top:3px;
+            color:#7f909c;
+            font-size:.66rem;
+        }
+        .re-panel-chip{
+            display:inline-flex;
+            align-items:center;
+            gap:6px;
+            padding:5px 8px;
+            border:1px solid #2a3640;
+            border-radius:999px;
+            background:#0c141b;
+            color:#aab8c2;
+            font-size:.63rem;
+            font-weight:800;
+            white-space:nowrap;
+        }
+        .re-panel-chip.yellow{
+            color:#ffc400;
+            border-color:rgba(255,196,0,.28);
+            background:rgba(255,196,0,.06);
+        }
+
+        .re-doc-breakdown{
+            display:grid;
+            gap:7px;
+            margin-top:4px;
+        }
+        .re-doc-row{
+            display:grid;
+            grid-template-columns:10px 1fr auto auto;
+            gap:8px;
+            align-items:center;
+            padding:7px 8px;
+            border:1px solid #202c34;
+            border-radius:8px;
+            background:#0a1218;
+            color:#dfe6eb;
+            font-size:.66rem;
+        }
+        .re-doc-dot{
+            width:8px;height:8px;border-radius:50%;
+        }
+        .re-doc-name{font-weight:800;color:#eaf0f4}
+        .re-doc-value{font-weight:850;color:#fff}
+        .re-doc-pct{color:#8998a3;min-width:42px;text-align:right}
+        .re-net-formula{
+            margin-top:8px;
+            padding:8px 10px;
+            border:1px solid rgba(255,196,0,.18);
+            border-radius:8px;
+            background:rgba(255,196,0,.055);
+            color:#c8d2d9;
+            font-size:.64rem;
+        }
+        .re-net-formula strong{color:#ffc400}
+
+        .re-client-head{
+            grid-template-columns:34px 1fr 100px!important;
+        }
+        .re-client-row{
+            grid-template-columns:34px 1fr 100px!important;
+            position:relative;
+            padding:9px 4px!important;
+        }
+        .re-client-rank{
+            display:flex;
+            width:24px;height:24px;
+            align-items:center;justify-content:center;
+            border-radius:7px;
+            background:#101922;
+            border:1px solid #293640;
+            color:#ffc400!important;
+            font-weight:900;
+        }
+        .re-client-value{
+            text-align:right;
+            font-weight:900!important;
+        }
+        .re-client-bar{
+            grid-column:2 / 4;
+            height:3px;
+            background:#172129;
+            border-radius:999px;
+            overflow:hidden;
+            margin-top:1px;
+        }
+        .re-client-bar > i{
+            display:block;
+            height:100%;
+            background:#ffc400;
+            border-radius:999px;
+        }
+
+        .re-sales-table{
+            border:1px solid #26323b;
+            border-radius:9px;
+            overflow:hidden;
+            background:#091118;
+        }
+        .re-sales-head,
+        .re-sales-row{
+            display:grid;
+            grid-template-columns:.82fr .95fr .75fr 1.75fr .95fr 1fr 1fr;
+            align-items:center;
+        }
+        .re-sales-head{
+            background:#0c141b;
+            color:#8fa0ac;
+            font-size:.61rem;
+            font-weight:850;
+            text-transform:uppercase;
+            border-bottom:1px solid #293640;
+        }
+        .re-sales-row{
+            min-height:38px;
+            color:#e7edf1;
+            font-size:.65rem;
+            border-bottom:1px solid #202b33;
+        }
+        .re-sales-row:last-child{border-bottom:0}
+        .re-sales-row:hover{background:#0d171f}
+        .re-sales-head > div,
+        .re-sales-row > div{
+            padding:8px 8px;
+            overflow:hidden;
+            white-space:nowrap;
+            text-overflow:ellipsis;
+            border-right:1px solid #202b33;
+        }
+        .re-sales-head > div:last-child,
+        .re-sales-row > div:last-child{border-right:0}
+        .re-money{text-align:right;font-weight:850;color:#fff}
+        .re-money.nc{color:#ff777f}
+        .re-sale-type{
+            display:inline-flex;
+            padding:3px 7px;
+            border-radius:999px;
+            background:#15212a;
+            color:#c9d4dc;
+            font-size:.60rem;
+            font-weight:800;
+        }
+
+        .re-rank-head{
+            grid-template-columns:34px 1.45fr .8fr .7fr!important;
+        }
+        .re-rank-row{
+            grid-template-columns:34px 1.45fr .8fr .7fr!important;
+            position:relative;
+            padding:9px 8px!important;
+        }
+        .re-rank-pos{
+            display:flex;
+            width:24px;height:24px;
+            align-items:center;justify-content:center;
+            border-radius:7px;
+            background:#101922;
+            border:1px solid #293640;
+            color:#ffc400;
+            font-weight:900;
+        }
+        .re-rank-bar{
+            grid-column:2 / 5;
+            height:3px;
+            background:#172129;
+            border-radius:999px;
+            overflow:hidden;
+            margin-top:2px;
+        }
+        .re-rank-bar > i{
+            display:block;
+            height:100%;
+            background:linear-gradient(90deg,#ffc400,#e0a900);
+            border-radius:999px;
+        }
+        .re-rank-var{
+            display:inline-flex;
+            justify-content:flex-end;
+            align-items:center;
+            gap:4px;
+        }
+        .re-rank-var.up{color:#35d889!important}
+        .re-rank-var.down{color:#ff6672!important}
         </style>
         """,
         unsafe_allow_html=True,
@@ -783,9 +1228,10 @@ def render(ctx):
         """
         <div class="re-head">
           <div>
-            <div class="re-title">RESUMEN EJECUTIVO</div>
-            <div class="re-sub">Desempeño de ventas</div>
+            <div class="re-title">Resumen Ejecutivo</div>
+            <div class="re-sub">Desempeño comercial, clientes, documentos y vendedores.</div>
           </div>
+          <div class="re-status-pill"><i></i>ERP Ventas cargado</div>
         </div>
         """
     )
@@ -837,6 +1283,7 @@ def render(ctx):
     ]
 
     # ------------------------- filtros superiores -------------------------
+    render_html("<div class='re-filter-shell'><div class='re-filter-title'>Filtros comerciales</div>")
     f1, f2, f3, f4 = st.columns([1.35, 1.35, 1.0, .72], gap="small")
 
     with f1:
@@ -936,6 +1383,7 @@ def render(ctx):
             mime="text/csv",
             width="stretch",
         )
+    render_html("</div>")
 
     render_html(
         "<div class='re-info'>ⓘ Los valores de venta neta consideran: "
@@ -1147,8 +1595,11 @@ def render(ctx):
     with left:
         with st.container(border=True):
             render_html(
-                "<div class='re-card-title'>Evolución de Ventas Netas (CLP)</div>"
-                "<div class='re-card-sub'>Este período vs período anterior</div>"
+                "<div class='re-panel-head'>"
+                "<div><div class='re-panel-title'>Evolución de ventas netas</div>"
+                "<div class='re-panel-sub'>Comportamiento diario del período seleccionado</div></div>"
+                "<div class='re-panel-chip yellow'>● Venta neta</div>"
+                "</div>"
             )
 
             current_daily = current.copy()
@@ -1187,7 +1638,7 @@ def render(ctx):
                         y=alt.Y(
                             "Venta:Q",
                             title=None,
-                            axis=alt.Axis(format="~s", grid=True, gridColor="#edf0f4"),
+                            axis=alt.Axis(format="~s", grid=True, gridColor="#26323b"),
                         ),
                         color=alt.Color(
                             "Serie:N",
@@ -1224,7 +1675,7 @@ def render(ctx):
     # Composición
     with middle:
         with st.container(border=True):
-            render_html("<div class='re-card-title'>Ventas Netas por Tipo de Documento</div>")
+            render_html("<div class='re-panel-head'><div><div class='re-panel-title'>Composición de documentos</div><div class='re-panel-sub'>Participación por tipo de documento</div></div><div class='re-panel-chip'>Mix comercial</div></div>")
 
             inv = _group_amount(current, "Factura", no_vat)
             bol = _group_amount(current, "Boleta", no_vat)
@@ -1270,16 +1721,28 @@ def render(ctx):
 
             render_html(
                 f"""
-                <div style="font-size:10px;line-height:1.9;color:#303744">
-                  <div>🟡 <strong>Facturas</strong> &nbsp; {format_clp(inv)}
-                    <span style="float:right">{_fmt_pct(inv_pct, False)}</span></div>
-                  <div>🔵 <strong>Boletas</strong> &nbsp; {format_clp(bol)}
-                    <span style="float:right">{_fmt_pct(bol_pct, False)}</span></div>
-                  <div>🔴 <strong>Notas de Crédito</strong> &nbsp; -{format_clp(nc)}
-                    <span style="float:right">-{_fmt_pct(nc_pct, False)}</span></div>
-                  <div style="margin-top:10px;padding:8px 9px;background:#fff9e9;border-radius:7px;">
-                    Venta neta = Facturas + Boletas - Notas de crédito
+                <div class="re-doc-breakdown">
+                  <div class="re-doc-row">
+                    <span class="re-doc-dot" style="background:#ffc400"></span>
+                    <span class="re-doc-name">Facturas</span>
+                    <span class="re-doc-value">{format_clp(inv)}</span>
+                    <span class="re-doc-pct">{_fmt_pct(inv_pct, False)}</span>
                   </div>
+                  <div class="re-doc-row">
+                    <span class="re-doc-dot" style="background:#3b82f6"></span>
+                    <span class="re-doc-name">Boletas</span>
+                    <span class="re-doc-value">{format_clp(bol)}</span>
+                    <span class="re-doc-pct">{_fmt_pct(bol_pct, False)}</span>
+                  </div>
+                  <div class="re-doc-row">
+                    <span class="re-doc-dot" style="background:#ef3d34"></span>
+                    <span class="re-doc-name">Notas de crédito</span>
+                    <span class="re-doc-value">-{format_clp(nc)}</span>
+                    <span class="re-doc-pct">-{_fmt_pct(nc_pct, False)}</span>
+                  </div>
+                </div>
+                <div class="re-net-formula">
+                  <strong>Venta neta</strong> = Facturas + Boletas − Notas de crédito
                 </div>
                 """
             )
@@ -1287,20 +1750,24 @@ def render(ctx):
     # Top clientes
     with right:
         with st.container(border=True):
-            render_html("<div class='re-card-title'>Top 5 Clientes por Venta Neta</div>")
+            render_html("<div class='re-panel-head'><div><div class='re-panel-title'>Top clientes</div><div class='re-panel-sub'>Clientes con mayor venta neta</div></div><div class='re-panel-chip'>Top 5</div></div>")
             clients = _client_table(current, no_vat, client_col, legal_col).head(5)
 
             if clients.empty:
                 st.info("Sin clientes identificados.")
             else:
                 rows = []
+                max_client_value = float(clients["Venta neta"].max()) if not clients.empty else 0.0
                 for idx, row in enumerate(clients.itertuples(index=False), start=1):
+                    row_value = float(row[1])
+                    width = (row_value / max_client_value * 100) if max_client_value > 0 else 0
                     rows.append(
                         f"""
                         <div class="re-client-row">
                           <div class="re-client-rank">{idx}</div>
                           <div class="re-client-name">{html.escape(str(row[0]))}</div>
-                          <div class="re-client-value">{format_clp(float(row[1]))}</div>
+                          <div class="re-client-value">{format_clp(row_value)}</div>
+                          <div class="re-client-bar"><i style="width:{width:.1f}%"></i></div>
                         </div>
                         """
                     )
@@ -1318,28 +1785,58 @@ def render(ctx):
 
     with lower_left:
         with st.container(border=True):
-            render_html("<div class='re-card-title'>Últimas Ventas</div>")
+            render_html(
+                "<div class='re-panel-head'>"
+                "<div><div class='re-panel-title'>Últimas ventas</div>"
+                "<div class='re-panel-sub'>Documentos comerciales más recientes del período</div></div>"
+                "<div class='re-panel-chip'>Últimos 8</div>"
+                "</div>"
+            )
             latest = _latest_sales(current, no_vat, client_col)
             if latest.empty:
                 st.info("Sin ventas para mostrar.")
             else:
-                st.dataframe(
-                    latest,
-                    hide_index=True,
-                    width="stretch",
-                    height=270,
-                    column_config={
-                        "Monto Bruto": st.column_config.NumberColumn("Monto Bruto", format="$%d"),
-                        "Notas de Crédito": st.column_config.NumberColumn("Notas de Crédito", format="$%d"),
-                        "Venta Neta": st.column_config.NumberColumn("Venta Neta", format="$%d"),
-                    },
+                sales_rows = []
+                for item in latest.itertuples(index=False):
+                    sales_rows.append(
+                        f"""
+                        <div class="re-sales-row">
+                          <div>{html.escape(str(item[0]))}</div>
+                          <div>{html.escape(str(item[1]))}</div>
+                          <div><span class="re-sale-type">{html.escape(str(item[2]))}</span></div>
+                          <div title="{html.escape(str(item[3]))}">{html.escape(str(item[3]))}</div>
+                          <div class="re-money">{format_clp(float(item[4]))}</div>
+                          <div class="re-money nc">{format_clp(float(item[5]))}</div>
+                          <div class="re-money">{format_clp(float(item[6]))}</div>
+                        </div>
+                        """
+                    )
+
+                render_html(
+                    """
+                    <div class="re-sales-table">
+                      <div class="re-sales-head">
+                        <div>Fecha</div>
+                        <div>Documento</div>
+                        <div>Tipo</div>
+                        <div>Cliente</div>
+                        <div>Monto bruto</div>
+                        <div>Notas crédito</div>
+                        <div>Venta neta</div>
+                      </div>
+                    """
+                    + "".join(sales_rows)
+                    + "</div>"
                 )
 
     with lower_right:
         with st.container(border=True):
             render_html(
-                f"<div class='re-card-title'>Ranking de Vendedores por Venta Neta</div>"
-                f"<div class='re-card-sub'>Período: {pd.Timestamp(start_date).strftime('%d/%m/%Y')} - {pd.Timestamp(end_date).strftime('%d/%m/%Y')}</div>"
+                f"<div class='re-panel-head'>"
+                f"<div><div class='re-panel-title'>Ranking de vendedores</div>"
+                f"<div class='re-panel-sub'>Período: {pd.Timestamp(start_date).strftime('%d/%m/%Y')} - {pd.Timestamp(end_date).strftime('%d/%m/%Y')}</div></div>"
+                f"<div class='re-panel-chip yellow'>Venta neta</div>"
+                f"</div>"
             )
 
             # Ranking usa todos los vendedores/canales del grupo seleccionado,
@@ -1383,18 +1880,21 @@ def render(ctx):
                     """
                 )
                 rank_rows = []
+                max_rank_value = float(ranking["Venta"].max()) if not ranking.empty else 0.0
                 for i, row in ranking.iterrows():
                     is_current = selected_code and row["_VendedorCodigo"] == selected_code
                     cls = "re-rank-row current" if is_current else "re-rank-row"
                     var_cls = "up" if row["Variacion"] >= 0 else "down"
                     arrow = "▲" if row["Variacion"] >= 0 else "▼"
+                    width = (float(row["Venta"]) / max_rank_value * 100) if max_rank_value > 0 else 0
                     rank_rows.append(
                         f"""
                         <div class="{cls}">
-                          <div>{i + 1}</div>
+                          <div class="re-rank-pos">{i + 1}</div>
                           <div class="re-rank-name">{html.escape(str(row['_VendedorNombre']))}</div>
                           <div class="re-rank-value">{format_clp(float(row['Venta']))}</div>
                           <div class="re-rank-var {var_cls}">{arrow} {_fmt_pct(abs(row['Variacion']), False)}</div>
+                          <div class="re-rank-bar"><i style="width:{width:.1f}%"></i></div>
                         </div>
                         """
                     )
