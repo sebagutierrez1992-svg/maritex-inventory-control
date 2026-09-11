@@ -86,6 +86,23 @@ def _go_to(page: str) -> None:
     st.session_state.page = page
 
 
+
+def _go_to_crm_section(section: str) -> None:
+    st.session_state["page"] = "CRM"
+    st.session_state["crm_requested_section"] = section
+
+
+def _open_crm_alert(section: str, alert_filter: str) -> None:
+    st.session_state["page"] = "CRM"
+    st.session_state["crm_requested_section"] = section
+    st.session_state["crm_requested_filter"] = alert_filter
+
+
+def _open_stock_alert(alert_filter: str) -> None:
+    st.session_state["page"] = "Métricas de Stock"
+    st.session_state["stock_requested_filter"] = alert_filter
+
+
 def _normalize_seller_code(value) -> str:
     text = str(value or "").strip()
 
@@ -704,6 +721,48 @@ def _sales_by_branch(work: pd.DataFrame) -> pd.DataFrame:
     result["Venta"] = pd.to_numeric(result["Venta"], errors="coerce").fillna(0.0)
 
     return result
+
+
+
+def _inactive_client_count(
+    work: pd.DataFrame,
+    days: int = 90,
+) -> int:
+    """Cuenta clientes cuya última compra está a >= days de la última fecha ERP."""
+    if work is None or work.empty or "Fecha_dt" not in work.columns:
+        return 0
+
+    client_col = find_client_column(work)
+    if not client_col or client_col not in work.columns:
+        return 0
+
+    temp = work[[client_col, "Fecha_dt"]].copy()
+    temp["Fecha_dt"] = pd.to_datetime(
+        temp["Fecha_dt"],
+        errors="coerce",
+    )
+    temp = temp.dropna(
+        subset=[client_col, "Fecha_dt"],
+    )
+
+    if temp.empty:
+        return 0
+
+    last_erp_date = temp["Fecha_dt"].max().normalize()
+
+    last_purchase = (
+        temp.groupby(client_col)["Fecha_dt"]
+        .max()
+        .dt.normalize()
+    )
+
+    inactive_days = (
+        last_erp_date - last_purchase
+    ).dt.days
+
+    return int(
+        inactive_days.ge(days).sum()
+    )
 
 
 # ============================================================
@@ -1775,6 +1834,94 @@ div[data-testid="stHorizontalBlock"] div[data-testid="column"] .quick-card-label
     color:#080B0D !important;
 }
 
+
+/* ============================================================
+   INICIO · HEADER TIPO CRM
+   ============================================================ */
+.dash-head-home{
+    min-height:160px !important;
+    box-sizing:border-box !important;
+    display:flex !important;
+    align-items:center !important;
+    justify-content:space-between !important;
+    gap:28px !important;
+    padding:30px 28px 24px 32px !important;
+    margin:0 0 14px !important;
+    background:linear-gradient(135deg,#091217 0%,#07100D 100%) !important;
+    border:1px solid #30414A !important;
+    border-left:6px solid #FFC400 !important;
+    border-radius:12px !important;
+}
+
+.dash-head-home .dash-title{
+    color:#FFFFFF !important;
+    font-size:36px !important;
+    line-height:1 !important;
+    font-weight:900 !important;
+    letter-spacing:-.8px !important;
+}
+
+.dash-head-home .dash-sub{
+    margin-top:30px !important;
+    color:#A6B5BE !important;
+    font-size:12px !important;
+}
+
+.dash-head-home .dash-head-status{
+    display:flex !important;
+    flex-direction:column !important;
+    align-items:flex-end !important;
+    justify-content:center !important;
+}
+
+.dash-head-home .dash-live{
+    display:flex !important;
+    align-items:center !important;
+    gap:9px !important;
+    padding:10px 15px !important;
+    border:1px solid #304550 !important;
+    border-radius:24px !important;
+    background:#071118 !important;
+    color:#F1F5F7 !important;
+    font-size:10px !important;
+    font-weight:750 !important;
+    white-space:nowrap !important;
+}
+
+.dash-head-home .dash-live i{
+    width:10px !important;
+    height:10px !important;
+    background:#22D58A !important;
+    box-shadow:0 0 0 4px rgba(34,213,138,.12) !important;
+}
+
+.dash-head-home .dash-updated{
+    margin-top:8px !important;
+    text-align:right !important;
+    font-size:9px !important;
+    color:#718792 !important;
+}
+
+@media(max-width:800px){
+    .dash-head-home{
+        min-height:auto !important;
+        flex-direction:column !important;
+        align-items:flex-start !important;
+        padding:24px 22px !important;
+    }
+    .dash-head-home .dash-head-status{
+        width:100% !important;
+        align-items:flex-start !important;
+    }
+    .dash-head-home .dash-sub{
+        margin-top:16px !important;
+    }
+    .dash-head-home .dash-updated{
+        text-align:left !important;
+        margin-top:7px !important;
+    }
+}
+
 </style>
         """,
         unsafe_allow_html=True,
@@ -1824,23 +1971,20 @@ def render(ctx):
     # --------------------------------------------------------
     render_html(
         f"""
-<div class="dash-head">
-    <div>
-        <div class="dash-title-line">
-            <span class="dash-title-mark"></span>
-            <div class="dash-title">Dashboard</div>
-        </div>
+<div class="dash-head dash-head-home">
+    <div class="dash-head-copy">
+        <div class="dash-title">INICIO</div>
         <div class="dash-sub">
-            Resumen general del negocio · ventas, inventario y gestión comercial.
+            Centro de control de inventario, ventas, CRM y operación comercial.
         </div>
     </div>
 
-    <div>
+    <div class="dash-head-status">
         <div class="dash-live">
             <i></i>
-            ERP + CRM conectados
+            ERP + Stock + CRM conectados
         </div>
-        <div class="dash-sub" style="text-align:right;margin-top:6px;">
+        <div class="dash-sub dash-updated">
             Última actualización: {updated}
         </div>
     </div>
@@ -1902,6 +2046,20 @@ def render(ctx):
     )
 
     crm = _crm_alerts()
+
+    # --------------------------------------------------------
+    # VARIABLES CENTRO DE ALERTAS
+    # --------------------------------------------------------
+    # Por ahora tomamos los estados operativos consolidados de stock.
+    predictive = {
+        "critical": int(stock.get("zero", 0) or 0),
+        "risk": int(stock.get("low", 0) or 0),
+    }
+
+    inactive_count = _inactive_client_count(
+        sales_all,
+        days=90,
+    )
 
     source_name = _safe_text(
         (ctx.get("sales_meta") or {}).get("filename"),
@@ -2294,60 +2452,144 @@ def render(ctx):
             render_html(
                 f"""
 <div class="card-title">
-    Alertas y pendientes
-    {_help("Resumen de alertas operativas provenientes de inventario y CRM.")}
+    Centro de alertas
+    {_help("Alertas operativas con acceso directo a los módulos relacionados.")}
 </div>
-<div class="card-sub">Elementos que requieren revisión</div>
-
-<div class="alert-list">
-
-    <div class="alert-row">
-        <div class="alert-copy">
-            <div class="alert-icon">!</div>
-            <div>
-                <strong>Seguimientos vencidos</strong>
-                <small>CRM · requiere gestión comercial</small>
-            </div>
-        </div>
-        <div class="alert-value">{crm["overdue_followups"]:,}</div>
-    </div>
-
-    <div class="alert-row">
-        <div class="alert-copy">
-            <div class="alert-icon">◷</div>
-            <div>
-                <strong>Seguimientos pendientes</strong>
-                <small>CRM · actividades por realizar</small>
-            </div>
-        </div>
-        <div class="alert-value">{crm["pending_followups"]:,}</div>
-    </div>
-
-    <div class="alert-row">
-        <div class="alert-copy">
-            <div class="alert-icon">▣</div>
-            <div>
-                <strong>SKU con stock bajo</strong>
-                <small>Inventario · revisar reposición</small>
-            </div>
-        </div>
-        <div class="alert-value">{stock["low"]:,}</div>
-    </div>
-
-    <div class="alert-row">
-        <div class="alert-copy">
-            <div class="alert-icon">×</div>
-            <div>
-                <strong>SKU sin stock</strong>
-                <small>Inventario · sin disponibilidad</small>
-            </div>
-        </div>
-        <div class="alert-value">{stock["zero"]:,}</div>
-    </div>
-
-</div>
+<div class="card-sub">Qué requiere acción primero</div>
                 """
             )
+
+            a1, a2, a3, a4, a5 = st.container(), st.container(), st.container(), st.container(), st.container()
+
+            with a1:
+                c1, b1 = st.columns([5, 1], gap="small")
+                with c1:
+                    render_html(
+                        f"""
+<div class="alert-row">
+    <div class="alert-copy">
+        <div class="alert-icon">×</div>
+        <div>
+            <strong>SKU con quiebre / cobertura crítica</strong>
+            <small>Stock predictivo · 14 días o menos</small>
+        </div>
+    </div>
+    <div class="alert-value">{predictive.get("critical", 0):,}</div>
+</div>
+                        """
+                    )
+                with b1:
+                    st.button(
+                        "Abrir",
+                        key="alert_open_critical",
+                        use_container_width=True,
+                        on_click=_open_stock_alert,
+                        args=("critical",),
+                    )
+
+            with a2:
+                c2, b2 = st.columns([5, 1], gap="small")
+                with c2:
+                    render_html(
+                        f"""
+<div class="alert-row">
+    <div class="alert-copy">
+        <div class="alert-icon">△</div>
+        <div>
+            <strong>SKU con riesgo 15–30 días</strong>
+            <small>Stock predictivo · revisar reposición</small>
+        </div>
+    </div>
+    <div class="alert-value">{predictive.get("risk", 0):,}</div>
+</div>
+                        """
+                    )
+                with b2:
+                    st.button(
+                        "Abrir",
+                        key="alert_open_risk",
+                        use_container_width=True,
+                        on_click=_open_stock_alert,
+                        args=("risk_15_30",),
+                    )
+
+            with a3:
+                c3, b3 = st.columns([5, 1], gap="small")
+                with c3:
+                    render_html(
+                        f"""
+<div class="alert-row">
+    <div class="alert-copy">
+        <div class="alert-icon">♟</div>
+        <div>
+            <strong>Clientes para reactivar</strong>
+            <small>ERP Ventas · 90+ días sin compra</small>
+        </div>
+    </div>
+    <div class="alert-value">{inactive_count:,}</div>
+</div>
+                        """
+                    )
+                with b3:
+                    st.button(
+                        "Abrir",
+                        key="alert_open_inactive_clients",
+                        use_container_width=True,
+                        on_click=_open_crm_alert,
+                        args=("Clientes", "inactive_90"),
+                    )
+
+            with a4:
+                c4, b4 = st.columns([5, 1], gap="small")
+                with c4:
+                    render_html(
+                        f"""
+<div class="alert-row">
+    <div class="alert-copy">
+        <div class="alert-icon">!</div>
+        <div>
+            <strong>Seguimientos vencidos</strong>
+            <small>CRM · requiere gestión comercial</small>
+        </div>
+    </div>
+    <div class="alert-value">{crm.get("overdue_followups", 0):,}</div>
+</div>
+                        """
+                    )
+                with b4:
+                    st.button(
+                        "Abrir",
+                        key="alert_open_overdue_followups",
+                        use_container_width=True,
+                        on_click=_open_crm_alert,
+                        args=("Seguimientos", "overdue"),
+                    )
+
+            with a5:
+                c5, b5 = st.columns([5, 1], gap="small")
+                with c5:
+                    render_html(
+                        f"""
+<div class="alert-row">
+    <div class="alert-copy">
+        <div class="alert-icon">◎</div>
+        <div>
+            <strong>Oportunidades abiertas</strong>
+            <small>CRM · pipeline comercial</small>
+        </div>
+    </div>
+    <div class="alert-value">{crm.get("open_opportunities", 0):,}</div>
+</div>
+                        """
+                    )
+                with b5:
+                    st.button(
+                        "Abrir",
+                        key="alert_open_opportunities",
+                        use_container_width=True,
+                        on_click=_open_crm_alert,
+                        args=("Tubería", "open"),
+                    )
 
     with quick_col:
         with st.container(border=True):

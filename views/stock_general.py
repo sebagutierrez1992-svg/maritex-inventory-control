@@ -10,7 +10,7 @@ import pandas as pd
 import streamlit as st
 
 from analytics.stock_metrics import consolidate_inventory
-from ui.components import render_html
+from ui.components import page_header, render_html
 from utils.excel import dataframe_to_excel_bytes
 
 
@@ -2707,26 +2707,28 @@ def render(ctx):
     )
     healthy_pct = summary["available"] / total_states * 100
 
-    # ---------- HEADER ----------
-    h1, h2 = st.columns([4.6, 1.4], gap="small")
-    with h1:
-        render_html(
-            """
-            <div class="sg17-title">Stock General</div>
-            <div class="sg17-sub">
-                Visión completa del inventario por bodega, familia, subfamilia y estado.
-            </div>
-            """
-        )
-    with h2:
-        render_html(
-            f"""
-            <div class="sg17-date">
-                <span>ÚLTIMA ACTUALIZACIÓN</span>
-                <strong>{_friendly_datetime(meta.get("generatedAt") or meta.get("loaded_at"))}</strong>
-            </div>
-            """
-        )
+    # ---------- HEADER GLOBAL ----------
+    updated = _friendly_datetime(
+        meta.get("generatedAt")
+        or meta.get("loaded_at")
+    )
+
+    page_header(
+        title="STOCK GENERAL",
+        subtitle=(
+            "Visión completa del inventario por bodega, "
+            "familia, subfamilia y estado."
+        ),
+        status="Inventario + WMS conectados",
+        updated=updated,
+    )
+
+    refresh_col, spacer_col = st.columns(
+        [1.35, 4.65],
+        gap="small",
+    )
+
+    with refresh_col:
         if st.button(
             "↻  Actualizar datos",
             key="sg17_refresh",

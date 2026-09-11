@@ -18,6 +18,8 @@ from services.erp_stock_helper import (
     build_stock_resolution,
 )
 
+from ui.components import page_header
+
 
 # ============================================================
 # ESTILO VISUAL DE LA VISTA
@@ -1957,17 +1959,13 @@ def render():
     _apply_view_styles()
     _pending_orders_auto_refresh()
 
-    st.markdown(
-        """
-        <div class="erp-page-head">
-            <div>
-                <h1>Integración ERP</h1>
-                <p>Pedidos B2C, B2B y NOLK: diagnóstico operativo, stock alternativo y reinyección controlada.</p>
-            </div>
-            <div class="erp-live-pill"><i></i>ERP activo · autoactualiza cada 30 s</div>
-        </div>
-        """,
-        unsafe_allow_html=True,
+    page_header(
+        title="INTEGRACIÓN ERP",
+        subtitle=(
+            "Pedidos B2C, B2B y NOLK: diagnóstico operativo, "
+            "stock alternativo y reinyección controlada."
+        ),
+        status="ERP activo · autoactualiza cada 30 s",
     )
 
     top1, top2 = st.columns([3.2, 1], gap="large")
@@ -2371,4 +2369,3 @@ def render():
         with st.expander("Ver diagnóstico completo", expanded=False):
             _render_operational_info(selected_order)
             _render_technical_details(selected_order)
-

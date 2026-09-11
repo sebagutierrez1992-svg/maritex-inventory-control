@@ -11,7 +11,7 @@ from services.commercial_dashboard_service import (
     filter_commercial_view,
     prepare_commercial_base,
 )
-from ui.components import render_html
+from ui.components import page_header, render_html
 from utils.dates import available_months, month_bounds, month_label_es
 from utils.numbers import format_clp
 
@@ -1224,16 +1224,13 @@ def render(ctx):
 
     df = ctx.get("sales_df")
 
-    render_html(
-        """
-        <div class="re-head">
-          <div>
-            <div class="re-title">Resumen Ejecutivo</div>
-            <div class="re-sub">Desempeño comercial, clientes, documentos y vendedores.</div>
-          </div>
-          <div class="re-status-pill"><i></i>ERP Ventas cargado</div>
-        </div>
-        """
+    page_header(
+        title="RESUMEN EJECUTIVO",
+        subtitle=(
+            "Desempeño comercial, clientes, documentos "
+            "y vendedores."
+        ),
+        status="ERP Ventas conectado",
     )
 
     if df is None or df.empty:

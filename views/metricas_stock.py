@@ -1,4 +1,4 @@
-
+from __future__ import annotations
 
 from datetime import date
 from html import escape
@@ -293,12 +293,6 @@ def _sales_intelligence(
                 days=29
             )
         )
-        start_60 = (
-            max_date
-            - pd.Timedelta(
-                days=59
-            )
-        )
         start_90 = (
             max_date
             - pd.Timedelta(
@@ -314,14 +308,6 @@ def _sales_intelligence(
             )
         ].copy()
 
-        s60 = sales[
-            sales["_fecha"].between(
-                start_60,
-                max_date,
-                inclusive="both",
-            )
-        ].copy()
-
         s90 = sales[
             sales["_fecha"].between(
                 start_90,
@@ -331,7 +317,6 @@ def _sales_intelligence(
         ].copy()
     else:
         s30 = sales.copy()
-        s60 = sales.copy()
         s90 = sales.copy()
 
     g30 = (
@@ -345,23 +330,6 @@ def _sales_intelligence(
                 "sum",
             ),
             Unidades_30d=(
-                "_qty",
-                "sum",
-            ),
-        )
-    )
-
-    g60 = (
-        s60.groupby(
-            "_sku_key",
-            as_index=False,
-        )
-        .agg(
-            Venta_60d=(
-                "_amount",
-                "sum",
-            ),
-            Unidades_60d=(
                 "_qty",
                 "sum",
             ),
@@ -399,11 +367,6 @@ def _sales_intelligence(
             how="left",
         )
         .merge(
-            g60,
-            on="_sku_key",
-            how="left",
-        )
-        .merge(
             g90,
             on="_sku_key",
             how="left",
@@ -413,8 +376,6 @@ def _sales_intelligence(
     for col in [
         "Venta_30d",
         "Unidades_30d",
-        "Venta_60d",
-        "Unidades_60d",
         "Venta_90d",
         "Unidades_90d",
     ]:
@@ -428,25 +389,6 @@ def _sales_intelligence(
         .clip(
             lower=0
         )
-    )
-
-    out["Unidades_60d_demanda"] = (
-        out["Unidades_60d"]
-        .clip(lower=0)
-    )
-
-    out["Unidades_90d_demanda"] = (
-        out["Unidades_90d"]
-        .clip(lower=0)
-    )
-
-    # Forecast mensual inicial: pondera el ritmo reciente sin inventar
-    # demanda. 30d pesa 50%, 60d mensualizado 30% y 90d
-    # mensualizado 20%.
-    out["Forecast mensual"] = (
-        0.50 * out["Unidades_30d_demanda"]
-        + 0.30 * (out["Unidades_60d_demanda"] / 2.0)
-        + 0.20 * (out["Unidades_90d_demanda"] / 3.0)
     )
 
     out["Venta_90d_abc"] = (
@@ -1386,130 +1328,6 @@ def _transfer_recommendations(
     )
 
 
-def _purchase_forecast(
-    intel_imports: pd.DataFrame,
-    target_months: int = 4,
-    safety_days: int = 15,
-) -> pd.DataFrame:
-    """
-    Convierte ventas + stock + importaciones en una propuesta de compra.
-
-    Forecast mensual =
-        50% ritmo 30d + 30% ritmo 60d + 20% ritmo 90d.
-
-    Compra sugerida =
-        demanda para cobertura objetivo + stock de seguridad
-        - stock actual - importaciones publicadas.
-    """
-    if intel_imports is None or intel_imports.empty:
-        return pd.DataFrame()
-
-    out = intel_imports.copy()
-
-    for col in [
-        "Disponible",
-        "Importación_unidades",
-        "Unidades_30d",
-        "Unidades_60d",
-        "Unidades_90d",
-        "Forecast mensual",
-    ]:
-        if col not in out.columns:
-            out[col] = 0.0
-        out[col] = pd.to_numeric(
-            out[col],
-            errors="coerce",
-        ).fillna(0.0)
-
-    out["Disponible"] = out["Disponible"].clip(lower=0)
-    out["Importación_unidades"] = out["Importación_unidades"].clip(lower=0)
-    out["Forecast mensual"] = out["Forecast mensual"].clip(lower=0)
-
-    out["Stock futuro"] = (
-        out["Disponible"]
-        + out["Importación_unidades"]
-    )
-
-    daily_forecast = out["Forecast mensual"] / 30.0
-    moving = daily_forecast > 0
-
-    out["Cobertura forecast días"] = 0.0
-    out.loc[moving, "Cobertura forecast días"] = (
-        out.loc[moving, "Disponible"]
-        / daily_forecast[moving]
-    )
-    out.loc[
-        ~moving & (out["Disponible"] > 0),
-        "Cobertura forecast días",
-    ] = 9999.0
-
-    out["Cobertura futura días"] = 0.0
-    out.loc[moving, "Cobertura futura días"] = (
-        out.loc[moving, "Stock futuro"]
-        / daily_forecast[moving]
-    )
-    out.loc[
-        ~moving & (out["Stock futuro"] > 0),
-        "Cobertura futura días",
-    ] = 9999.0
-
-    target_days = max(int(target_months), 1) * 30
-    safety_days = max(int(safety_days), 0)
-    effective_days = target_days + safety_days
-
-    out["Cobertura objetivo días"] = float(target_days)
-    out["Stock seguridad"] = (
-        daily_forecast * safety_days
-    )
-    out["Stock objetivo"] = (
-        daily_forecast * effective_days
-    )
-    out["Compra sugerida"] = (
-        out["Stock objetivo"]
-        - out["Stock futuro"]
-    ).clip(lower=0).round(0)
-
-    def _forecast_status(row):
-        forecast = float(row.get("Forecast mensual", 0) or 0)
-        coverage = float(row.get("Cobertura futura días", 0) or 0)
-        purchase = float(row.get("Compra sugerida", 0) or 0)
-        stock_future = float(row.get("Stock futuro", 0) or 0)
-
-        if forecast <= 0:
-            if stock_future > 0:
-                return "⚪ SIN ROTACIÓN"
-            return "⚪ SIN DEMANDA"
-        if coverage < 30:
-            return "🔴 RIESGO QUIEBRE"
-        if purchase > 0:
-            return "🟡 COMPRAR"
-        if coverage > max(effective_days * 1.5, effective_days + 90):
-            return "🔵 SOBRESTOCK"
-        return "🟢 COBERTURA OK"
-
-    out["Estado forecast"] = out.apply(
-        _forecast_status,
-        axis=1,
-    )
-
-    priority = {
-        "🔴 RIESGO QUIEBRE": 1,
-        "🟡 COMPRAR": 2,
-        "🟢 COBERTURA OK": 3,
-        "🔵 SOBRESTOCK": 4,
-        "⚪ SIN ROTACIÓN": 5,
-        "⚪ SIN DEMANDA": 6,
-    }
-    out["_forecast_priority"] = (
-        out["Estado forecast"].map(priority).fillna(99)
-    )
-
-    return out.sort_values(
-        ["_forecast_priority", "Compra sugerida", "Cobertura futura días"],
-        ascending=[True, False, True],
-    )
-
-
 def _decision_engine(
     intel_imports: pd.DataFrame,
 ) -> pd.DataFrame:
@@ -1739,6 +1557,11 @@ def _kpi(
 # ============================================================
 
 def render(ctx):
+    requested_stock_filter = st.session_state.pop(
+        "stock_requested_filter",
+        None,
+    )
+
     raw = ctx.get(
         "stock_normalized"
     )
@@ -1772,8 +1595,8 @@ def render(ctx):
                     Métricas de Stock
                 </div>
                 <div class="ms-subtitle">
-                    Forecast de demanda, cobertura proyectada,
-                    reposición, redistribución e importaciones.
+                    Disponibilidad, cobertura, rotación,
+                    redistribución e importaciones.
                 </div>
             </div>
             <div class="ms-head-badge">
@@ -2031,50 +1854,6 @@ def render(ctx):
         )
     )
 
-    # --------------------------------------------------------
-    # PARÁMETROS Y FORECAST DE COMPRAS
-    # --------------------------------------------------------
-    forecast_controls = st.columns(
-        [1.5, 1.0, 1.0],
-        gap="small",
-    )
-
-    with forecast_controls[0]:
-        render_html(
-            """
-            <div class="ms-card-head">
-                <div>
-                    <strong>Forecast de compras</strong>
-                    <span>Demanda 30/60/90d + stock + importaciones</span>
-                </div>
-            </div>
-            """
-        )
-
-    with forecast_controls[1]:
-        target_months = st.selectbox(
-            "Cobertura objetivo",
-            options=[2, 3, 4, 5, 6],
-            index=2,
-            format_func=lambda x: f"{x} meses",
-            key="ms_forecast_target_months_v1",
-        )
-
-    with forecast_controls[2]:
-        safety_days = st.selectbox(
-            "Stock de seguridad",
-            options=[0, 15, 30, 45],
-            index=1,
-            format_func=lambda x: f"{x} días",
-            key="ms_forecast_safety_days_v1",
-        )
-
-    forecast = _purchase_forecast(
-        intel_imports,
-        target_months=target_months,
-        safety_days=safety_days,
-    )
-
     state = (
         filtered[
             "Estado"
@@ -2168,300 +1947,135 @@ def render(ctx):
     )
 
     # --------------------------------------------------------
-    # KPIs FORECAST
+    # KPIs DE DECISIÓN
     # --------------------------------------------------------
     decision_preview = _decision_engine(
         intel_imports
     )
 
-    if not forecast.empty:
-        total_forecast_month = float(
-            forecast["Forecast mensual"].sum()
+    decision_focus = decision_preview.copy()
+
+    if (
+        requested_stock_filter in {"critical", "risk_15_30"}
+        and not decision_preview.empty
+    ):
+        coverage = pd.to_numeric(
+            decision_preview["Cobertura días"],
+            errors="coerce",
+        ).fillna(0.0)
+        demand = pd.to_numeric(
+            decision_preview["Unidades_30d_demanda"],
+            errors="coerce",
+        ).fillna(0.0)
+
+        if requested_stock_filter == "critical":
+            focus_mask = (
+                coverage.lt(15)
+                & demand.gt(0)
+            )
+            focus_label = "SKU con cobertura menor a 15 días"
+        else:
+            focus_mask = (
+                coverage.ge(15)
+                & coverage.le(30)
+                & demand.gt(0)
+            )
+            focus_label = "SKU con cobertura entre 15 y 30 días"
+
+        decision_focus = decision_preview[
+            focus_mask
+        ].copy()
+
+        st.info(
+            f"Filtro aplicado desde Centro de alertas: {focus_label}."
         )
-        purchase_units = _safe_int(
-            forecast["Compra sugerida"].sum()
-        )
-        purchase_skus = int(
-            (forecast["Compra sugerida"] > 0).sum()
-        )
-        forecast_risk = int(
-            forecast["Estado forecast"].eq(
-                "🔴 RIESGO QUIEBRE"
+
+    risk_break = (
+        int(
+            (
+                (decision_preview["Cobertura días"] < 15)
+                & (decision_preview["Unidades_30d_demanda"] > 0)
             ).sum()
         )
-        forecast_overstock = int(
-            forecast["Estado forecast"].eq(
+        if not decision_preview.empty
+        else 0
+    )
+
+    overstock_count = (
+        int(
+            decision_preview[
+                "Recomendación"
+            ].eq(
                 "🔵 SOBRESTOCK"
             ).sum()
         )
-        total_future_stock = float(
-            forecast["Stock futuro"].sum()
+        if not decision_preview.empty
+        else 0
+    )
+
+    no_rotation_count = (
+        int(
+            decision_preview[
+                "Recomendación"
+            ].eq(
+                "⚪ SIN ROTACIÓN"
+            ).sum()
         )
-        future_coverage = (
-            total_future_stock / (total_forecast_month / 30.0)
-            if total_forecast_month > 0
-            else 0.0
-        )
-    else:
-        total_forecast_month = 0.0
-        purchase_units = 0
-        purchase_skus = 0
-        forecast_risk = 0
-        forecast_overstock = 0
-        future_coverage = 0.0
+        if not decision_preview.empty
+        else 0
+    )
 
     render_html(
         f"""
         <div class="ms-kpi-grid">
             {_kpi(
-                "FORECAST MENSUAL",
+                "COBERTURA GLOBAL",
                 (
-                    f"{_fmt_int(total_forecast_month)} un."
+                    f"{coverage_total:.0f} días"
                     if sales_meta["enabled"]
+                    and coverage_total > 0
                     else "—"
                 ),
-                "demanda mensual ponderada 30/60/90d",
-                "↗",
+                (
+                    "stock actual según demanda 30d"
+                    if sales_meta["enabled"]
+                    else "requiere cruce con ventas"
+                ),
+                "↻",
                 "blue",
             )}
             {_kpi(
-                "COMPRA SUGERIDA",
-                f"{_fmt_int(purchase_units)} un.",
-                f"{_fmt_int(purchase_skus)} SKU requieren compra",
-                "+",
-                "lime",
-            )}
-            {_kpi(
                 "RIESGO DE QUIEBRE",
-                _fmt_int(forecast_risk),
-                "SKU con menos de 30 días futuros",
+                _fmt_int(risk_break),
+                "SKU con menos de 15 días",
                 "!",
                 "orange",
             )}
             {_kpi(
-                "COBERTURA FUTURA",
-                (
-                    f"{future_coverage:.0f} días"
-                    if future_coverage > 0
-                    else "—"
-                ),
-                "stock actual + importaciones",
-                "↻",
+                "SOBRESTOCK",
+                _fmt_int(overstock_count),
+                "SKU con más de 90 días",
+                "↑",
+                "purple",
+            )}
+            {_kpi(
+                "SIN ROTACIÓN",
+                _fmt_int(no_rotation_count),
+                "SKU con stock y sin venta 30d",
+                "—",
                 "green",
             )}
             {_kpi(
-                "SOBRESTOCK",
-                _fmt_int(forecast_overstock),
-                "SKU sobre cobertura objetivo",
-                "↑",
-                "purple",
+                "IMPORTACIONES",
+                _fmt_int(import_units),
+                f"{_fmt_int(import_orders)} órdenes publicadas",
+                "⇢",
+                "lime",
             )}
         </div>
         """
     )
 
-    # ========================================================
-    # FORECAST DE COMPRAS / PROPUESTA POR SKU
-    # ========================================================
-    if sales_meta["enabled"] and not forecast.empty:
-        render_html(
-            f"""
-            <div class="ms-section-head">
-                <div>
-                    <strong>Forecast de compras por SKU</strong>
-                    <span>
-                        50% ritmo 30d + 30% ritmo 60d + 20% ritmo 90d ·
-                        objetivo {target_months} meses + {safety_days} días de seguridad
-                    </span>
-                </div>
-                <div class="ms-section-count">
-                    {_fmt_int(purchase_skus)} SKU a comprar
-                </div>
-            </div>
-            """
-        )
-
-        forecast_action = forecast[
-            forecast["Estado forecast"].isin(
-                [
-                    "🔴 RIESGO QUIEBRE",
-                    "🟡 COMPRAR",
-                    "🔵 SOBRESTOCK",
-                ]
-            )
-        ].copy()
-
-        fc1, fc2 = st.columns(
-            [0.85, 1.65],
-            gap="medium",
-        )
-
-        with fc1:
-            with st.container(border=True):
-                render_html(
-                    """
-                    <div class="ms-card-head">
-                        <div>
-                            <strong>Estado del forecast</strong>
-                            <span>SKU según cobertura futura</span>
-                        </div>
-                    </div>
-                    """
-                )
-
-                status_order = [
-                    "🔴 RIESGO QUIEBRE",
-                    "🟡 COMPRAR",
-                    "🟢 COBERTURA OK",
-                    "🔵 SOBRESTOCK",
-                    "⚪ SIN ROTACIÓN",
-                    "⚪ SIN DEMANDA",
-                ]
-                status_df = (
-                    forecast.groupby(
-                        "Estado forecast",
-                        as_index=False,
-                    )
-                    .agg(SKU=("Código", "nunique"))
-                )
-
-                chart = (
-                    alt.Chart(status_df)
-                    .mark_bar(
-                        cornerRadiusEnd=5,
-                        color="#27313b",
-                    )
-                    .encode(
-                        y=alt.Y(
-                            "Estado forecast:N",
-                            sort=status_order,
-                            title=None,
-                            axis=alt.Axis(
-                                labelColor="#66717c",
-                                domain=False,
-                                ticks=False,
-                                labelLimit=180,
-                            ),
-                        ),
-                        x=alt.X(
-                            "SKU:Q",
-                            title=None,
-                            axis=alt.Axis(
-                                labelColor="#7c8792",
-                                domain=False,
-                                gridColor="#eef1f4",
-                            ),
-                        ),
-                        tooltip=[
-                            "Estado forecast:N",
-                            alt.Tooltip("SKU:Q", format=","),
-                        ],
-                    )
-                    .properties(height=270)
-                )
-                st.altair_chart(
-                    chart,
-                    use_container_width=True,
-                )
-
-        with fc2:
-            with st.container(border=True):
-                render_html(
-                    """
-                    <div class="ms-card-head">
-                        <div>
-                            <strong>Propuesta de compra</strong>
-                            <span>Prioriza riesgo de quiebre y unidades sugeridas</span>
-                        </div>
-                    </div>
-                    """
-                )
-
-                purchase_table = forecast[
-                    forecast["Compra sugerida"] > 0
-                ].head(60).copy()
-
-                purchase_cols = [
-                    col
-                    for col in [
-                        "Código",
-                        "Producto",
-                        "Disponible",
-                        "Unidades_30d",
-                        "Unidades_60d",
-                        "Unidades_90d",
-                        "Forecast mensual",
-                        "Importación_unidades",
-                        "ETA_más_próxima",
-                        "Cobertura futura días",
-                        "Compra sugerida",
-                        "Estado forecast",
-                    ]
-                    if col in purchase_table.columns
-                ]
-
-                if purchase_table.empty:
-                    st.success(
-                        "Con la cobertura objetivo seleccionada no hay compras sugeridas."
-                    )
-                else:
-                    st.dataframe(
-                        purchase_table[purchase_cols],
-                        hide_index=True,
-                        use_container_width=True,
-                        height=360,
-                        column_config={
-                            "Código": st.column_config.TextColumn("SKU", width="small"),
-                            "Producto": st.column_config.TextColumn("Producto", width="large"),
-                            "Disponible": st.column_config.NumberColumn("Stock", format="%d"),
-                            "Unidades_30d": st.column_config.NumberColumn("Vta 30d", format="%.0f"),
-                            "Unidades_60d": st.column_config.NumberColumn("Vta 60d", format="%.0f"),
-                            "Unidades_90d": st.column_config.NumberColumn("Vta 90d", format="%.0f"),
-                            "Forecast mensual": st.column_config.NumberColumn("Forecast/mes", format="%.1f"),
-                            "Importación_unidades": st.column_config.NumberColumn("En camino", format="%.0f"),
-                            "ETA_más_próxima": st.column_config.DateColumn("ETA", format="DD/MM/YYYY"),
-                            "Cobertura futura días": st.column_config.NumberColumn("Cob. futura", format="%.0f días"),
-                            "Compra sugerida": st.column_config.NumberColumn("Comprar", format="%.0f"),
-                            "Estado forecast": st.column_config.TextColumn("Estado", width="medium"),
-                        },
-                    )
-
-        with st.expander(
-            "Ver forecast completo por SKU",
-            expanded=False,
-        ):
-            complete_cols = [
-                col
-                for col in [
-                    "Código",
-                    "Producto",
-                    "Disponible",
-                    "Unidades_30d",
-                    "Unidades_60d",
-                    "Unidades_90d",
-                    "Forecast mensual",
-                    "Importación_unidades",
-                    "Stock futuro",
-                    "Cobertura forecast días",
-                    "Cobertura futura días",
-                    "Stock seguridad",
-                    "Stock objetivo",
-                    "Compra sugerida",
-                    "Estado forecast",
-                ]
-                if col in forecast.columns
-            ]
-            st.dataframe(
-                forecast[complete_cols],
-                hide_index=True,
-                use_container_width=True,
-                height=480,
-            )
-
-    elif not sales_meta["enabled"]:
-        st.info(
-            "El Forecast de Compras requiere ERP Ventas para calcular demanda por SKU."
-        )
 
     # ========================================================
     # SALUD DEL INVENTARIO / MOTOR DE DECISIÓN
@@ -2600,9 +2214,15 @@ def render(ctx):
                     """
                 )
 
+                action_source = (
+                    decision_focus
+                    if requested_stock_filter in {"critical", "risk_15_30"}
+                    else decision_preview
+                )
+
                 action_table = (
-                    decision_preview[
-                        decision_preview[
+                    action_source[
+                        action_source[
                             "Recomendación"
                         ].ne(
                             "🟢 SALUDABLE"

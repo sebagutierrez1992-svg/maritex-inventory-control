@@ -14,7 +14,7 @@ try:
     from services.wms_inventory import get_alternative_stock
 except Exception:
     get_alternative_stock = None
-from ui.components import render_html
+from ui.components import page_header, render_html
 
 
 PAGE_SIZE = 10
@@ -4118,17 +4118,13 @@ def _render_detail(row: pd.Series) -> None:
 def render(ctx: dict | None = None) -> None:
     _apply_styles()
 
-    render_html(
-        """
-<div class="v32-breadcrumb">OPERACIONES &nbsp;/&nbsp; <b>WMS</b></div>
-<div class="v32-head">
-    <div>
-        <h1 class="v32-title">Monitor de Pedidos WMS</h1>
-        <div class="v32-sub">Seguimiento operativo en línea de pedidos comerciales y eCommerce.</div>
-    </div>
-    <div class="v32-live"><i></i> WMS Online</div>
-</div>
-"""
+    page_header(
+        title="MONITOR DE PEDIDOS WMS",
+        subtitle=(
+            "Seguimiento operativo en línea de pedidos "
+            "comerciales y eCommerce."
+        ),
+        status="WMS Online",
     )
 
     refresh_col, source_col = st.columns([1.25, 6.75], vertical_alignment="center")

@@ -3403,7 +3403,16 @@ def _render_clients(
             key="crm_client_order_v4",
         )
 
-    filtered = work.copy()
+    requested_filter = st.session_state.pop("crm_requested_filter", None)
+
+    if requested_filter == "inactive_90":
+        filtered = work[inactive_mask].copy()
+        st.info(
+            "Filtro aplicado desde Centro de alertas: "
+            "clientes con más de 90 días sin compra."
+        )
+    else:
+        filtered = work.copy()
 
     if search:
         query = search.strip().lower()
@@ -3977,6 +3986,22 @@ def _render_opportunities(
 
         filtered = display.copy()
 
+        if st.session_state.get("crm_requested_filter") == "overdue":
+            today = pd.Timestamp.today().normalize()
+            next_dates = pd.to_datetime(
+                filtered["Próximo seguimiento"],
+                errors="coerce",
+            )
+            filtered = filtered[
+                filtered["Estado"].eq("Pendiente")
+                & next_dates.notna()
+                & next_dates.dt.normalize().lt(today)
+            ].copy()
+            st.info(
+                "Filtro aplicado desde Centro de alertas: "
+                "solo seguimientos vencidos."
+            )
+
         if search:
             query = search.strip().lower()
             mask = pd.Series(
@@ -4541,6 +4566,10 @@ def _render_followups(
         followups
     )
 
+    requested_filter = st.session_state.pop("crm_requested_filter", None)
+    if requested_filter == "overdue":
+        st.session_state["crm_followup_state_filter"] = "Pendiente"
+
     with st.container(border=True):
         st.markdown(
             """
@@ -4814,6 +4843,10 @@ def _render_pipeline() -> None:
         )
         return
 
+    requested_filter = st.session_state.pop("crm_requested_filter", None)
+    if requested_filter == "open":
+        st.session_state["crm_pipe_status"] = "Abierta"
+
     # --------------------------------------------------------
     # BARRA SUPERIOR
     # --------------------------------------------------------
@@ -4879,6 +4912,12 @@ def _render_pipeline() -> None:
             use_container_width=True,
             on_click=_go_to_crm_section,
             args=("Oportunidades",),
+        )
+
+    if requested_filter == "open":
+        st.info(
+            "Filtro aplicado desde Centro de alertas: "
+            "solo oportunidades abiertas."
         )
 
     # --------------------------------------------------------

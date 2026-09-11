@@ -4952,4 +4952,149 @@ div[data-testid="stVerticalBlockBorderWrapper"] > div{
         min-height:125px !important;
     }
 
+}/* ============================================================
+   HEADER GLOBAL MARITEX
+   ============================================================ */
+
+.mx-page-header{
+    min-height:160px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:28px;
+
+    box-sizing:border-box;
+
+    padding:30px 28px 24px 32px;
+    margin:0 0 16px;
+
+    background:
+        linear-gradient(
+            135deg,
+            #091217 0%,
+            #07100D 100%
+        );
+
+    border:1px solid #30414A;
+    border-left:6px solid #FFC400;
+    border-radius:12px;
+}
+
+.mx-page-header-copy{
+    min-width:0;
+}
+
+.mx-page-eyebrow{
+    margin-bottom:10px;
+
+    color:#FFC400;
+    font-size:9px;
+    font-weight:850;
+
+    letter-spacing:.10em;
+    text-transform:uppercase;
+}
+
+.mx-page-title{
+    color:#FFFFFF;
+
+    font-size:36px;
+    line-height:1;
+
+    font-weight:900;
+
+    letter-spacing:-.8px;
+}
+
+.mx-page-subtitle{
+    margin-top:26px;
+
+    color:#A6B5BE;
+
+    font-size:12px;
+    line-height:1.5;
+}
+
+.mx-page-status-wrap{
+    display:flex;
+    flex-direction:column;
+
+    align-items:flex-end;
+    justify-content:center;
+
+    flex:0 0 auto;
+}
+
+.mx-page-status{
+    display:flex;
+
+    align-items:center;
+    gap:9px;
+
+    padding:10px 15px;
+
+    border:1px solid #304550;
+    border-radius:24px;
+
+    background:#071118;
+
+    color:#F1F5F7;
+
+    font-size:10px;
+    font-weight:750;
+
+    white-space:nowrap;
+}
+
+.mx-page-status-dot{
+    width:10px;
+    height:10px;
+
+    border-radius:50%;
+
+    background:#22D58A;
+
+    box-shadow:
+        0 0 0 4px rgba(34,213,138,.12);
+}
+
+.mx-page-updated{
+    margin-top:8px;
+
+    color:#718792;
+
+    font-size:9px;
+
+    text-align:right;
+}
+
+@media(max-width:800px){
+
+    .mx-page-header{
+        min-height:auto;
+
+        flex-direction:column;
+
+        align-items:flex-start;
+
+        padding:24px 22px;
+    }
+
+    .mx-page-status-wrap{
+        width:100%;
+
+        align-items:flex-start;
+    }
+
+    .mx-page-title{
+        font-size:30px;
+    }
+
+    .mx-page-subtitle{
+        margin-top:16px;
+    }
+
+    .mx-page-updated{
+        text-align:left;
+    }
 }

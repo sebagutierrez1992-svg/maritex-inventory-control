@@ -14,7 +14,7 @@ from analytics.stock_metrics import (
     consolidate_inventory,
 )
 from config.settings import MARKETPLACE_TEMPLATES
-from ui.components import render_html
+from ui.components import page_header, render_html
 
 
 # ============================================================
@@ -1180,28 +1180,23 @@ def _render_marketplace_panel(
     unmatched_pct = max(0.0, 100.0 - match_pct)
 
     # --------------------------------------------------------
-    # ENCABEZADO VISUAL
+    # ENCABEZADO GLOBAL
     # --------------------------------------------------------
-    brand_letter = "P" if name == "Paris Marketplace" else "ML"
     subtitle = (
         "Genera tu archivo de actualización de stock para Paris."
         if name == "Paris Marketplace"
         else "Actualiza QUANTITY usando exclusivamente el Disponible de Casa Matriz."
     )
 
+    page_header(
+        title=name.upper(),
+        subtitle=subtitle,
+        status="Stock automático · Casa Matriz",
+        updated=loaded_at,
+    )
+
     render_html(
         f"""
-        <div class="mkx-page-head">
-            <div class="mkx-title-wrap">
-                <div class="mkx-brand-mark">{brand_letter}</div>
-                <div>
-                    <div class="mkx-title">{name}</div>
-                    <div class="mkx-subtitle">{subtitle}</div>
-                </div>
-            </div>
-            <div class="mkx-live"><i></i> Stock automático</div>
-        </div>
-
         <div class="mkx-source">
             <div class="mkx-source-col">
                 <div class="mkx-source-icon">CM</div>
