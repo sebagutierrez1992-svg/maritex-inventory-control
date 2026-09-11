@@ -1,5 +1,6 @@
 import streamlit as st
 import altair as alt
+from html import escape
 
 from analytics.stock_metrics import (
     stock_view,
@@ -19,12 +20,14 @@ from services.erp_sales import read_sales_source
 from services.erp_stock import read_stock_source
 from services.remote_stock import load_remote_stock
 from services.storage import load_source
+from services.auth_service import get_effective_permissions
 
 from ui.components import render_html
 from ui.styles import apply_styles
 
 from views import (
     crm,
+    login,
     integracion_erp,
     marketplaces,
     metricas_stock,
@@ -34,6 +37,7 @@ from views import (
     stock_general,
     inicio,
     monitor_pedidos,
+    usuarios,
 )
 
 
@@ -51,6 +55,34 @@ st.set_page_config(
 apply_styles(
     BASE_DIR / "styles.css"
 )
+
+
+# ============================================================
+# AUTENTICACIÓN
+# ============================================================
+
+if not st.session_state.get("authenticated", False):
+    login.render()
+    st.stop()
+
+AUTH_USER = st.session_state.get("auth_user") or {}
+AUTH_NAME = escape(str(AUTH_USER.get("full_name") or AUTH_USER.get("username") or "Usuario"))
+AUTH_ROLE_RAW = str(AUTH_USER.get("role") or "consulta").strip().lower()
+AUTH_ROLE = escape(AUTH_ROLE_RAW.upper())
+AUTH_USERNAME = escape(str(AUTH_USER.get("username") or ""))
+
+
+def logout() -> None:
+    """Cierra la sesión actual sin tocar cachés de datos globales."""
+    for key in (
+        "authenticated",
+        "auth_user",
+        "page",
+        "crm_requested_section",
+        "crm_requested_filter",
+        "stock_requested_filter",
+    ):
+        st.session_state.pop(key, None)
 
 
 # ============================================================
@@ -284,6 +316,65 @@ st.markdown(
     }
 
     /* =====================================================
+       USUARIO AUTENTICADO
+       ===================================================== */
+    .sidebar-user-card {
+        margin: 4px 7px 12px 7px;
+        padding: 11px 12px;
+        border-radius: 9px;
+        border: 1px solid rgba(255,196,0,.16);
+        background: linear-gradient(145deg, rgba(255,196,0,.07), rgba(255,255,255,.025));
+        box-sizing: border-box;
+    }
+
+    .sidebar-user-top {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .sidebar-user-avatar {
+        width: 31px;
+        height: 31px;
+        flex: 0 0 31px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        background: #ffc400;
+        color: #111111 !important;
+        font-size: 14px;
+        font-weight: 900;
+    }
+
+    .sidebar-user-copy {
+        min-width: 0;
+    }
+
+    .sidebar-user-name {
+        color: #ffffff !important;
+        font-size: 11px;
+        font-weight: 800;
+        line-height: 1.2;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .sidebar-user-meta {
+        margin-top: 4px;
+        color: #9fb0bb !important;
+        font-size: 8px;
+        font-weight: 700;
+        letter-spacing: .6px;
+        text-transform: uppercase;
+    }
+
+    .sidebar-user-role {
+        color: #ffc400 !important;
+    }
+
+    /* =====================================================
        FOOTER
        ===================================================== */
     .sidebar-footer-c {
@@ -391,7 +482,23 @@ PAGE_MAP = {
     "Resumen Ejecutivo": resumen_ejecutivo.render,
     "Plantillas": plantillas.render,
     "Monitor Pedidos": monitor_pedidos.render,
+    "Usuarios": usuarios.render,
 }
+
+# ============================================================
+# PERMISOS POR USUARIO
+# ============================================================
+
+# Los permisos efectivos llegan con la sesión desde app_users.permissions.
+# El servicio de autenticación aplica reglas de seguridad: administrador
+# siempre tiene acceso total, Inicio siempre está habilitado y Usuarios
+# queda reservado exclusivamente para administradores.
+ALLOWED_PAGES = set(get_effective_permissions(AUTH_USER))
+
+
+def can_access(page_name: str) -> bool:
+    return page_name in ALLOWED_PAGES
+
 
 STOCK_PAGES = {
     "Inicio",
@@ -729,7 +836,7 @@ if "page" not in st.session_state:
 def change_page(
     page_name: str,
 ):
-    if page_name in PAGE_MAP:
+    if page_name in PAGE_MAP and can_access(page_name):
         st.session_state.page = page_name
 
 
@@ -786,106 +893,174 @@ with st.sidebar:
         """
     )
 
-    sidebar_button(
-        "Inicio",
-        "Inicio",
-        "nav_inicio",
-        ":material/home:",
-    )
-
-    sidebar_button(
-        "CRM",
-        "CRM",
-        "nav_crm",
-        ":material/contact_page:",
-    )
-
     render_html(
-        """
-        <div class="sidebar-section-modern">
-            <span class="sidebar-section-dot"></span>
-            <span>OPERACIÓN</span>
-            <i></i>
+        f"""
+        <div class="sidebar-user-card">
+            <div class="sidebar-user-top">
+                <div class="sidebar-user-avatar">{AUTH_NAME[:1].upper()}</div>
+                <div class="sidebar-user-copy">
+                    <div class="sidebar-user-name">{AUTH_NAME}</div>
+                    <div class="sidebar-user-meta">
+                        <span class="sidebar-user-role">{AUTH_ROLE}</span>
+                        {f" · {AUTH_USERNAME}" if AUTH_USERNAME else ""}
+                    </div>
+                </div>
+            </div>
         </div>
         """
     )
 
-    sidebar_button(
+    if can_access("Inicio"):
+        sidebar_button(
+            "Inicio",
+            "Inicio",
+            "nav_inicio",
+            ":material/home:",
+        )
+
+    if can_access("CRM"):
+        sidebar_button(
+            "CRM",
+            "CRM",
+            "nav_crm",
+            ":material/contact_page:",
+        )
+
+    operation_pages = {
         "Stock General",
-        "Stock General",
-        "nav_stock_general",
-        ":material/inventory_2:",
-    )
-
-    sidebar_button(
         "Marketplace",
-        "Marketplace",
-        "nav_marketplace",
-        ":material/storefront:",
-    )
-
-    sidebar_button(
         "Monitor Pedidos",
-        "Monitor Pedidos",
-        "nav_monitor_pedidos",
-        ":material/package_2:",
-    )
-
-    sidebar_button(
         "Integración ERP",
-        "Integración ERP",
-        "nav_integracion_erp",
-        ":material/sync_alt:",
-    )
-
-    sidebar_button(
         "Resumen Ejecutivo",
-        "Resumen Ejecutivo",
-        "nav_resumen_ejecutivo",
-        ":material/dashboard:",
-    )
+    }
 
-    render_html(
-        """
-        <div class="sidebar-section-modern">
-            <span class="sidebar-section-dot"></span>
-            <span>ANÁLISIS</span>
-            <i></i>
-        </div>
-        """
-    )
+    if ALLOWED_PAGES.intersection(operation_pages):
+        render_html(
+            """
+            <div class="sidebar-section-modern">
+                <span class="sidebar-section-dot"></span>
+                <span>OPERACIÓN</span>
+                <i></i>
+            </div>
+            """
+        )
 
-    sidebar_button(
+    if can_access("Stock General"):
+        sidebar_button(
+            "Stock General",
+            "Stock General",
+            "nav_stock_general",
+            ":material/inventory_2:",
+        )
+
+    if can_access("Marketplace"):
+        sidebar_button(
+            "Marketplace",
+            "Marketplace",
+            "nav_marketplace",
+            ":material/storefront:",
+        )
+
+    if can_access("Monitor Pedidos"):
+        sidebar_button(
+            "Monitor Pedidos",
+            "Monitor Pedidos",
+            "nav_monitor_pedidos",
+            ":material/package_2:",
+        )
+
+    if can_access("Integración ERP"):
+        sidebar_button(
+            "Integración ERP",
+            "Integración ERP",
+            "nav_integracion_erp",
+            ":material/sync_alt:",
+        )
+
+    if can_access("Resumen Ejecutivo"):
+        sidebar_button(
+            "Resumen Ejecutivo",
+            "Resumen Ejecutivo",
+            "nav_resumen_ejecutivo",
+            ":material/dashboard:",
+        )
+
+    analysis_pages = {
         "Métricas Stock",
-        "Métricas Stock",
-        "nav_metricas_stock",
-        ":material/monitoring:",
-    )
-
-    sidebar_button(
         "Métricas Vendedores",
-        "Métricas Vendedores",
-        "nav_metricas_vendedores",
-        ":material/groups:",
-    )
+    }
 
-    render_html(
-        """
-        <div class="sidebar-section-modern">
-            <span class="sidebar-section-dot"></span>
-            <span>HERRAMIENTAS</span>
-            <i></i>
-        </div>
-        """
-    )
+    if ALLOWED_PAGES.intersection(analysis_pages):
+        render_html(
+            """
+            <div class="sidebar-section-modern">
+                <span class="sidebar-section-dot"></span>
+                <span>ANÁLISIS</span>
+                <i></i>
+            </div>
+            """
+        )
 
-    sidebar_button(
-        "Plantillas",
-        "Plantillas",
-        "nav_plantillas",
-        ":material/description:",
-    )
+    if can_access("Métricas Stock"):
+        sidebar_button(
+            "Métricas Stock",
+            "Métricas Stock",
+            "nav_metricas_stock",
+            ":material/monitoring:",
+        )
 
+    if can_access("Métricas Vendedores"):
+        sidebar_button(
+            "Métricas Vendedores",
+            "Métricas Vendedores",
+            "nav_metricas_vendedores",
+            ":material/groups:",
+        )
+
+    if can_access("Plantillas"):
+        render_html(
+            """
+            <div class="sidebar-section-modern">
+                <span class="sidebar-section-dot"></span>
+                <span>HERRAMIENTAS</span>
+                <i></i>
+            </div>
+            """
+        )
+
+        sidebar_button(
+            "Plantillas",
+            "Plantillas",
+            "nav_plantillas",
+            ":material/description:",
+        )
+
+    if can_access("Usuarios"):
+        render_html(
+            """
+            <div class="sidebar-section-modern">
+                <span class="sidebar-section-dot"></span>
+                <span>ADMINISTRACIÓN</span>
+                <i></i>
+            </div>
+            """
+        )
+
+        sidebar_button(
+            "Usuarios",
+            "Usuarios",
+            "nav_usuarios",
+            ":material/manage_accounts:",
+        )
+
+    if st.button(
+        "Cerrar sesión",
+        key="auth_logout",
+        icon=":material/logout:",
+        use_container_width=True,
+        on_click=logout,
+    ):
+        st.rerun()
 
     render_html(
         """
@@ -906,6 +1081,16 @@ page = st.session_state.page
 if page not in PAGE_MAP:
     page = "Inicio"
     st.session_state.page = page
+
+# Seguridad real por usuario: no basta con ocultar el botón del sidebar.
+# Si alguien fuerza session_state hacia una vista no autorizada,
+# se redirige a Inicio antes de ejecutar la página.
+if not can_access(page):
+    st.session_state.page = "Inicio"
+    st.warning(
+        "Tu perfil no tiene permisos para acceder a esa sección."
+    )
+    st.rerun()
 
 
 # ============================================================

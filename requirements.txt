@@ -7,3 +7,5 @@ lxml
 pytest
 psycopg[binary]>=3.2
 openai>=1.0.0
+python-dotenv
+bcrypt
