@@ -11,6 +11,12 @@ import streamlit as st
 
 from services.wms_monitor import get_order_lines, load_wms_monitor
 try:
+    from services.wms_web_service import search_order, search_report_commands, search_inventory_available
+except Exception:
+    search_order = None
+    search_report_commands = None
+    search_inventory_available = None
+try:
     from services.wms_inventory import get_alternative_stock
 except Exception:
     get_alternative_stock = None
@@ -2598,6 +2604,98 @@ div[class*="st-key-w35_stock_action"] .stButton > button:hover{
 .w35-sku-detail span{display:block;color:#94a6b1;font-size:9px;margin-top:3px;}
 
 
+/* V55 · diagnóstico visual de stock + ayuda contextual */
+.w55-stock-grid{
+    display:grid;
+    grid-template-columns:1.15fr repeat(3,minmax(0,1fr));
+    gap:10px;
+    margin:8px 0 12px;
+}
+.w55-stock-card{
+    min-width:0;
+    min-height:72px;
+    display:flex;
+    align-items:center;
+    gap:11px;
+    padding:11px 13px;
+    border:1px solid #294656;
+    border-radius:10px;
+    background:linear-gradient(145deg,#0b1922,#08131b);
+}
+.w55-stock-card.diag{border-left:4px solid #24d57f;}
+.w55-stock-icon{
+    width:35px;height:35px;flex:0 0 35px;
+    display:flex;align-items:center;justify-content:center;
+    border-radius:8px;
+    background:#123247;
+    color:#ccefff;
+    font-size:16px;
+    font-weight:900;
+}
+.w55-stock-card.diag .w55-stock-icon{background:#073b27;color:#56e895;}
+.w55-stock-card.pick .w55-stock-icon{background:#073b27;color:#56e895;}
+.w55-stock-card.ra .w55-stock-icon{background:#403400;color:#ffd000;}
+.w55-stock-card.cd .w55-stock-icon{background:#173247;color:#91c9e8;}
+.w55-stock-body{min-width:0;}
+.w55-stock-label{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    color:#a9bfcc;
+    font-size:8.5px;
+    font-weight:850;
+    text-transform:uppercase;
+    letter-spacing:.35px;
+}
+.w55-stock-value{
+    margin-top:4px;
+    color:#fff;
+    font-size:14px;
+    font-weight:900;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+}
+.w55-help{
+    width:16px;height:16px;flex:0 0 16px;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    border:1px solid #607b8b;
+    border-radius:50%;
+    background:#0b1c27;
+    color:#d6e5ed;
+    font-size:9px;
+    font-weight:950;
+    line-height:1;
+    cursor:help;
+    transition:all .15s ease;
+}
+.w55-help:hover{
+    background:#ffd000;
+    border-color:#ffd000;
+    color:#071018;
+    transform:translateY(-1px);
+}
+.w55-stock-action{
+    margin:-3px 0 12px;
+    padding:8px 11px;
+    border:1px solid #665315;
+    border-radius:8px;
+    background:#211c06;
+    color:#e8d36d;
+    font-size:9px;
+    font-weight:800;
+}
+.w55-stock-action b{color:#ffd000;}
+@media(max-width:1050px){
+    .w55-stock-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
+}
+@media(max-width:650px){
+    .w55-stock-grid{grid-template-columns:1fr;}
+}
+
+
 /* V36 · estado SKU no concluyente */
 .w35-state.progress{
     color:#ffe985;
@@ -2756,7 +2854,7 @@ div[class*="st-key-w40_inline_detail_"] .w34-detail{
 }
 .w44-meta-grid{
     display:grid;
-    grid-template-columns:repeat(5,minmax(120px,1fr));
+    grid-template-columns:repeat(6,minmax(120px,1fr));
     gap:9px;
     margin-top:16px;
 }
@@ -2779,6 +2877,11 @@ div[class*="st-key-w40_inline_detail_"] .w34-detail{
     font-weight:750;
     margin-top:3px;
 }
+.w56-context-row{display:flex;align-items:flex-start;gap:10px;margin-top:12px;padding:10px 12px;border:1px solid #1c3441;border-radius:10px;background:#08141c;}
+.w56-context-icon{width:20px;height:20px;flex:0 0 20px;display:flex;align-items:center;justify-content:center;border:1px solid #526c7a;border-radius:50%;color:#b9cfda;font-size:11px;font-weight:900;}
+.w56-context-text{color:#9fb8c5;font-size:11px;line-height:1.45;}
+.w56-context-text b{color:#e9f2f6;}
+.w56-incidence-value{color:#ff6b78!important;}
 .w44-progress-wrap{
     margin-top:15px;
     border-top:1px solid #1c3441;
@@ -2829,6 +2932,14 @@ div[class*="st-key-w40_inline_detail_"] .w34-detail{
     }
 }
 
+
+<style>
+.w35-state.picking{background:#103653!important;border-color:#1f628b!important;color:#5fc0ff!important;}
+.w35-state.packing{background:#3a3100!important;border-color:#7a6500!important;color:#ffe34d!important;}
+.w35-state.repo{background:#2e1b4f!important;border-color:#6940a5!important;color:#c997ff!important;}
+.w35-state.invoice{background:#103b28!important;border-color:#1b6844!important;color:#70e5a9!important;}
+.w35-state.check{background:#24313a!important;border-color:#455967!important;color:#d0dae0!important;}
+</style>
 </style>
         """,
         unsafe_allow_html=True,
@@ -2962,9 +3073,10 @@ def _ready_to_invoice(row: pd.Series) -> bool:
     if _has_invoice(row):
         return False
 
-    if _safe(row.get("quiebre"), ""):
-        return False
-
+    # Un valor histórico en `quiebre` no debe bloquear indefinidamente
+    # la etapa final cuando el WMS ya cerró operacionalmente el pedido.
+    # Si Pick + Pack + Check están completos y las unidades están 100%,
+    # el pedido queda listo para facturar aunque `quiebre` conserve texto.
     return True
 
 
@@ -3055,9 +3167,18 @@ def _prepare(payload: dict) -> pd.DataFrame:
         df["_date"] = pd.to_datetime(df["fecha_creacion"], errors="coerce", dayfirst=True)
 
     df["_channel"] = df.apply(_channel, axis=1)
-    df["_stage"] = df.apply(_stage, axis=1)
-    df["_quiebre"] = df["quiebre"].fillna("").astype(str).str.strip().ne("")
     df["_ready_invoice"] = df.apply(_ready_to_invoice, axis=1)
+    df["_stage"] = df.apply(_stage, axis=1)
+
+    # `quiebre` puede quedar informado como antecedente histórico aun cuando
+    # el pedido ya terminó Pick + Pack + Check y está 100% procesado.
+    # Para filtros/KPI/incidencia visual contamos solo quiebres activos.
+    _historical_break = df["quiebre"].fillna("").astype(str).str.strip().ne("")
+    # V58: conservar por separado la incidencia original informada por WMS.
+    # `_quiebre` se reemplaza más adelante por el quiebre REAL confirmado
+    # contra avance por SKU + PICK CM + RA CM + CD_LO_BOZA.
+    df["_quiebre_wms"] = _historical_break & ~df["_ready_invoice"]
+    df["_quiebre"] = df["_quiebre_wms"]
     df["_search"] = (
         df["ob_oid"].astype(str) + " " +
         df["bill_name"].astype(str) + " " +
@@ -3120,6 +3241,308 @@ def _order_lines(ob_oid: str, ob_type: str, sitio: str, cliente: str, dest: str)
     )
 
 
+@st.cache_data(ttl=30, show_spinner=False)
+def _order_product_progress(order: str) -> dict:
+    """Carga Reporte Comandos Picking y agrupa la cantidad por SKU."""
+    if search_report_commands is None:
+        return {
+            "ok": False,
+            "order": str(order).strip(),
+            "rows": [],
+            "grouped": [],
+            "total_quantity": 0,
+            "error": "search_report_commands no está disponible.",
+        }
+
+    return search_report_commands(
+        order=str(order).strip(),
+        save_html=False,
+        debug=False,
+    )
+
+
+@st.cache_data(ttl=60, show_spinner=False)
+def _sku_operational_stock(sku: str, pending_qty: int) -> dict:
+    """Diagnóstico operacional por SKU: PICK -> RA -> CD -> Quiebre.
+
+    Bodega 25 queda excluida por search_inventory_available. CD_LO_BOZA
+    solo se consulta cuando CASA_MATRIZ no alcanza.
+    """
+    sku = str(sku or "").strip()
+    pending = max(0, int(pending_qty or 0))
+
+    base = {
+        "ok": False, "sku": sku, "pending": pending,
+        "pick": 0, "ra": 0, "cm_total": 0, "cd": 0,
+        "estado": "Sin diagnóstico", "accion_qty": 0, "deficit": 0,
+        "error": None,
+    }
+
+    if pending <= 0:
+        return {**base, "ok": True, "estado": "Procesado"}
+
+    if search_inventory_available is None:
+        return {**base, "error": "search_inventory_available no está disponible."}
+
+    try:
+        cm = search_inventory_available(sku, site="CASA_MATRIZ", debug=False)
+        if not cm.get("ok"):
+            return {**base, "error": cm.get("error") or "Error consultando CASA_MATRIZ."}
+
+        by_cm = cm.get("by_warehouse") or {}
+        pick = int(float(by_cm.get("PICK UN") or 0))
+        ra = int(float(by_cm.get("RA") or 0))
+        cm_total = pick + ra
+
+        if pick >= pending:
+            return {**base, "ok": True, "pick": pick, "ra": ra,
+                    "cm_total": cm_total, "estado": "Picking"}
+
+        if cm_total >= pending:
+            return {**base, "ok": True, "pick": pick, "ra": ra,
+                    "cm_total": cm_total, "estado": "Reposición",
+                    "accion_qty": max(0, pending - pick)}
+
+        cd_result = search_inventory_available(sku, site="CD_LO_BOZA", debug=False)
+        if not cd_result.get("ok"):
+            return {**base, "pick": pick, "ra": ra, "cm_total": cm_total,
+                    "error": cd_result.get("error") or "Error consultando CD_LO_BOZA."}
+
+        cd = int(float(cd_result.get("total_operational") or 0))
+        total_operativo = cm_total + cd
+
+        if total_operativo >= pending:
+            return {**base, "ok": True, "pick": pick, "ra": ra,
+                    "cm_total": cm_total, "cd": cd,
+                    "estado": "Abastecimiento CD",
+                    "accion_qty": max(0, pending - cm_total)}
+
+        return {**base, "ok": True, "pick": pick, "ra": ra,
+                "cm_total": cm_total, "cd": cd, "estado": "Quiebre",
+                "deficit": max(0, pending - total_operativo)}
+    except Exception as exc:
+        return {**base, "error": str(exc)}
+
+
+@st.cache_data(ttl=120, show_spinner=False)
+def _order_real_break_status(
+    order: str,
+    ob_type: str,
+    sitio: str,
+    cliente: str,
+    dest: str,
+    official_completed: int,
+    official_requested: int,
+) -> dict:
+    """Confirma si un pedido tiene al menos un SKU en quiebre operacional real.
+
+    Solo considera un SKU como Quiebre cuando:
+      pendiente SKU > PICK CM + RA CM + CD_LO_BOZA.
+
+    El pendiente por SKU se usa únicamente si Reporte Comandos Picking
+    reconcilia exactamente con cmp_qty_total y el detalle solicitado reconcilia
+    con ord_qty_total. Bodega 25 ya queda excluida por
+    search_inventory_available().
+    """
+    base = {
+        "ok": False,
+        "real_break": False,
+        "status": "Sin validar",
+        "break_skus": [],
+        "checked_skus": 0,
+        "error": None,
+    }
+
+    try:
+        official_completed = max(0, int(official_completed or 0))
+        official_requested = max(0, int(official_requested or 0))
+
+        if official_requested <= 0:
+            return {**base, "status": "Sin cantidad solicitada"}
+
+        if official_completed >= official_requested:
+            return {**base, "ok": True, "status": "Sin quiebre real"}
+
+        detail = _order_lines(
+            str(order).strip(),
+            str(ob_type).strip(),
+            str(sitio).strip(),
+            str(cliente).strip(),
+            str(dest).strip() or "ALL",
+        )
+        if not detail.get("ok"):
+            return {**base, "error": detail.get("error") or "No fue posible cargar detalle WMS."}
+
+        rows = detail.get("rows") or []
+        if not rows:
+            return {**base, "error": "El pedido no devolvió líneas de producto."}
+
+        data = pd.DataFrame(rows)
+
+        def _col(*names):
+            for name in names:
+                if name in data.columns:
+                    return data[name]
+            return pd.Series([""] * len(data), index=data.index)
+
+        raw = pd.DataFrame({
+            "ObOid": _col("ObOid", "ob_oid", "obOid").astype(str).str.strip(),
+            "ObType": _col("ObType", "ob_type", "obType").astype(str).str.strip(),
+            "SKU": _col("Codigo", "codigo", "SKU", "sku").astype(str).str.strip(),
+            "CantidadPedido": pd.to_numeric(
+                _col("CantidadPedido", "cantidadPedido"), errors="coerce"
+            ).fillna(0).astype(int),
+        })
+
+        def _norm_order(value):
+            digits = re.sub(r"[^0-9]", "", str(value or "").strip())
+            return digits.lstrip("0") or "0"
+
+        same_order = raw["ObOid"].map(_norm_order) == _norm_order(order)
+        if same_order.any():
+            raw = raw.loc[same_order].copy()
+
+        norm_type = re.sub(r"\s+", " ", str(ob_type or "").strip()).upper()
+        same_type = raw["ObType"].map(
+            lambda x: re.sub(r"\s+", " ", str(x or "").strip()).upper()
+        ) == norm_type
+        if same_type.any():
+            raw = raw.loc[same_type].copy()
+
+        raw = raw.loc[raw["CantidadPedido"] > 0].copy()
+        raw = raw.loc[raw["SKU"].astype(str).str.strip() != ""].copy()
+        if raw.empty:
+            return {**base, "error": "No hay SKU solicitados utilizables para validar."}
+
+        requested = (
+            raw.groupby("SKU", dropna=False)["CantidadPedido"]
+            .max()
+            .astype(int)
+            .to_dict()
+        )
+        requested_total = int(sum(requested.values()))
+        if requested_total != official_requested:
+            return {
+                **base,
+                "status": "No conciliado",
+                "error": f"Detalle solicitado {requested_total} != monitor {official_requested}.",
+            }
+
+        report = _order_product_progress(str(order).strip())
+        if not report.get("ok"):
+            return {**base, "status": "No conciliado", "error": report.get("error") or "Reporte Comandos Picking no disponible."}
+
+        try:
+            report_total = int(float(report.get("total_quantity") or 0))
+        except Exception:
+            report_total = 0
+
+        if report_total != official_completed:
+            return {
+                **base,
+                "status": "No conciliado",
+                "error": f"Reporte comandos {report_total} != monitor {official_completed}.",
+            }
+
+        processed = {}
+        for item in report.get("grouped") or []:
+            sku = str(item.get("Producto") or "").strip()
+            if not sku:
+                continue
+            try:
+                qty = max(0, int(float(item.get("Cantidad") or 0)))
+            except Exception:
+                qty = 0
+            processed[sku] = qty
+
+        checked = 0
+        break_skus = []
+        for sku, qty_requested in requested.items():
+            qty_processed = min(max(0, int(processed.get(sku, 0))), max(0, int(qty_requested)))
+            pending = max(0, int(qty_requested) - qty_processed)
+            if pending <= 0:
+                continue
+
+            diag = _sku_operational_stock(str(sku), pending)
+            if not diag.get("ok"):
+                return {
+                    **base,
+                    "status": "Sin validar",
+                    "checked_skus": checked,
+                    "error": diag.get("error") or f"No fue posible validar stock de {sku}.",
+                }
+
+            checked += 1
+            if str(diag.get("estado") or "").strip() == "Quiebre":
+                break_skus.append({
+                    "sku": str(sku),
+                    "pending": pending,
+                    "pick": int(diag.get("pick") or 0),
+                    "ra": int(diag.get("ra") or 0),
+                    "cd": int(diag.get("cd") or 0),
+                    "deficit": int(diag.get("deficit") or 0),
+                })
+                # Para incidencia a nivel pedido basta confirmar un SKU real.
+                return {
+                    **base,
+                    "ok": True,
+                    "real_break": True,
+                    "status": "Quiebre real",
+                    "break_skus": break_skus,
+                    "checked_skus": checked,
+                }
+
+        return {
+            **base,
+            "ok": True,
+            "real_break": False,
+            "status": "Sin quiebre real",
+            "break_skus": [],
+            "checked_skus": checked,
+        }
+
+    except Exception as exc:
+        return {**base, "error": str(exc)}
+
+
+def _attach_real_breaks(df: pd.DataFrame) -> pd.DataFrame:
+    """V58 · Reemplaza la incidencia operativa por quiebres realmente confirmados.
+
+    Para no castigar al WMS con consultas innecesarias, solo valida pedidos que
+    vienen con señal de quiebre desde WMS. Una señal WMS no confirmada NO se
+    cuenta como quiebre real; queda disponible en `_quiebre_wms`.
+    """
+    if df.empty:
+        return df
+
+    out = df.copy()
+    out["_quiebre_real"] = False
+    out["_quiebre_checked"] = False
+    out["_quiebre_diag_status"] = "No aplica"
+
+    candidate_mask = out.get("_quiebre_wms", pd.Series(False, index=out.index)).fillna(False).astype(bool)
+
+    for idx in out.index[candidate_mask]:
+        row = out.loc[idx]
+        completed, requested = _progress(row)
+        diag = _order_real_break_status(
+            _safe(row.get("ob_oid")),
+            _safe(row.get("ob_type")),
+            _safe(row.get("sitio")),
+            _safe(row.get("cod_cliente")),
+            _safe(row.get("dest"), "ALL"),
+            completed,
+            requested,
+        )
+        out.at[idx, "_quiebre_checked"] = bool(diag.get("ok"))
+        out.at[idx, "_quiebre_real"] = bool(diag.get("ok") and diag.get("real_break"))
+        out.at[idx, "_quiebre_diag_status"] = str(diag.get("status") or "Sin validar")
+
+    # Desde V58, `_quiebre` significa exclusivamente QUIEBRE REAL CONFIRMADO.
+    out["_quiebre"] = out["_quiebre_real"].astype(bool)
+    return out
+
+
 @st.cache_data(ttl=60, show_spinner=False)
 def _alternative_stock(sku: str, missing_qty: int) -> dict:
     if get_alternative_stock is None:
@@ -3171,7 +3594,7 @@ def _render_kpis(df: pd.DataFrame) -> None:
     html += '</div>'
     render_html(html)
     if incidents:
-        render_html(f'<div style="margin:-12px 0 18px;color:#ff707b;font-size:10px;font-weight:850">⚠ {incidents:,} pedido(s) con incidencia/quiebre reportado por WMS</div>')
+        render_html(f'<div style="margin:-12px 0 18px;color:#ff707b;font-size:10px;font-weight:850">⚠ {incidents:,} pedido(s) con quiebre real confirmado por stock operacional</div>')
 
 
 # ============================================================
@@ -3184,7 +3607,7 @@ def _orders_table(df: pd.DataFrame, selected_order: str) -> None:
     header_wrap = st.container(key="w18_table_header")
     with header_wrap:
         header_cols = st.columns(widths, gap="small")
-        headers = ["N° PEDIDO", "CLIENTE", "RUT / CÓDIGO", "FECHA PEDIDO", "ETAPA", "TIPO", "INCIDENCIA", "% AVANCE", "ACCIONES"]
+        headers = ["N° PEDIDO", "CLIENTE", "RUT / CÓDIGO", "FECHA PEDIDO", "ETAPA WMS", "TIPO", "QUIEBRE REAL", "% AVANCE", "ACCIONES"]
         for col, label in zip(header_cols, headers):
             with col:
                 st.markdown(f'<div class="w17-col-head">{escape(label)}</div>', unsafe_allow_html=True)
@@ -3208,7 +3631,7 @@ def _orders_table(df: pd.DataFrame, selected_order: str) -> None:
             with cols[3]: st.markdown(f'<div class="w17-cell">{escape(date_text)}</div>', unsafe_allow_html=True)
             with cols[4]: st.markdown(_pill(stage, _stage_kind(stage)), unsafe_allow_html=True)
             with cols[5]: st.markdown(f'<div class="w17-cell" title="{escape(typ)}">{escape(typ)}</div>', unsafe_allow_html=True)
-            with cols[6]: st.markdown(_pill("Quiebre", "red") if has_break else _pill("Normal", "dark"), unsafe_allow_html=True)
+            with cols[6]: st.markdown(_pill("Quiebre real", "red") if has_break else _pill("Sin quiebre", "dark"), unsafe_allow_html=True)
             with cols[7]:
                 fill_color = "#24d88a" if percent >= 100 else "#ffd000"
                 progress_html = (f'<div class="w17-progress"><div class="w17-track">'
@@ -3371,6 +3794,7 @@ def _render_detail(row: pd.Series) -> None:
     dest_label = dest if dest and dest != "—" else "—"
     site_label = site if site and site != "—" else "Casa Matriz"
     created_label = created_text if created_text and created_text != "—" else "—"
+    incidence_wms_label = "Quiebre" if has_break else "Sin incidencia"
 
     # V47 · HTML compacto. Evita que Markdown interprete los <div>
     # internos como un bloque de código por indentación.
@@ -3382,10 +3806,10 @@ def _render_detail(row: pd.Series) -> None:
         f'<div class="w44-order-title">Pedido {escape(order)}</div>'
         f'<div class="w44-client">Cliente: <b>{escape(client_label)}</b></div>'
         f'</div>'
-        f'<div class="w44-stage-badge">● {escape(stage_label)}</div>'
+        f'<div class="w44-stage-badge">● Etapa WMS: {escape(stage_label)}</div>'
         f'</div>'
         f'<div class="w44-meta-grid">'
-        f'<div class="w44-meta"><div class="w44-meta-label">Estado</div>'
+        f'<div class="w44-meta"><div class="w44-meta-label">Estado WMS</div>'
         f'<div class="w44-meta-value">{escape(status_label)}</div></div>'
         f'<div class="w44-meta"><div class="w44-meta-label">Tipo</div>'
         f'<div class="w44-meta-value">{escape(type_label)}</div></div>'
@@ -3395,6 +3819,13 @@ def _render_detail(row: pd.Series) -> None:
         f'<div class="w44-meta-value">{escape(site_label)}</div></div>'
         f'<div class="w44-meta"><div class="w44-meta-label">Fecha</div>'
         f'<div class="w44-meta-value">{escape(created_label)}</div></div>'
+        f'<div class="w44-meta"><div class="w44-meta-label">Incidencia WMS</div>'
+        f'<div class="w44-meta-value">{escape(incidence_wms_label)}</div></div>'
+        f'</div>'
+        f'<div class="w56-context-row">'
+        f'<div class="w56-context-icon">?</div>'
+        f'<div class="w56-context-text"><b>Estado WMS:</b> refleja la etapa e incidencia informadas por el flujo WMS. '
+        f'<b>Diagnóstico actual:</b> se calcula por SKU con su avance reconciliado y el stock operacional disponible en PICK CM, RA CM y CD Lo Boza.</div>'
         f'</div>'
         f'<div class="w44-progress-wrap">'
         f'<div class="w44-progress-line">'
@@ -3458,6 +3889,23 @@ def _render_detail(row: pd.Series) -> None:
             "Ubicación": col("Ubicacion", "ubicacion").astype(str).str.strip(),
             "Contenedor": col("Contenedor", "contenedor").astype(str).str.strip(),
             "Línea WMS": col("ObLno", "ob_lno", "Linea", "linea").astype(str).str.strip(),
+
+            # Estado operacional REAL de la línea/producto en WMS.
+            # Se aceptan varios nombres porque la respuesta puede variar
+            # según el endpoint / versión del WMS.
+            "Estado WMS": col(
+                "Estado",
+                "estado",
+                "EstadoProducto",
+                "estadoProducto",
+                "EstadoLinea",
+                "estadoLinea",
+                "EstadoProceso",
+                "estadoProceso",
+                "Status",
+                "status",
+            ).astype(str).str.strip(),
+
             "CantidadPedido": pd.to_numeric(
                 col("CantidadPedido", "cantidadPedido"), errors="coerce"
             ).fillna(0).astype(int),
@@ -3508,13 +3956,15 @@ def _render_detail(row: pd.Series) -> None:
             Registro_Detalle_WMS=("Cantidad", "sum"),
             Ubicaciones=("Ubicación", join_unique),
             Contenedores=("Contenedor", join_unique),
+            Estado_WMS=("Estado WMS", join_unique),
             Registros_WMS=("SKU", "size"),
         )
         .reset_index()
         .rename(
             columns={
                 "Cantidad_NV": "Cantidad NV",
-                "Registro_Detalle_WMS": "Registro detalle WMS",
+                "Registro_Detalle_WMS": "Cantidad detalle WMS",
+                "Estado_WMS": "Estado WMS",
                 "Registros_WMS": "Registros WMS",
             }
         )
@@ -3525,7 +3975,7 @@ def _render_detail(row: pd.Series) -> None:
         (product_view["Producto"].astype(str).str.strip() != "")
     ].reset_index(drop=True)
 
-    for c in ("Cantidad NV", "Registro detalle WMS"):
+    for c in ("Cantidad NV", "Cantidad detalle WMS"):
         product_view[c] = pd.to_numeric(
             product_view[c], errors="coerce"
         ).fillna(0).astype(int)
@@ -3541,129 +3991,221 @@ def _render_detail(row: pd.Series) -> None:
     sku_count = int(product_view["SKU"].replace("", pd.NA).dropna().nunique())
     nv_units = int(product_view["Cantidad NV"].sum())
     raw_count = len(raw)
+    # El diagnóstico de stock por SKU exige además que el detalle solicitado
+    # reconcilie con ord_qty_total; evita clasificar tipos/órdenes con unidades
+    # incompatibles entre cabecera y detalle.
+    detail_reconciles = (nv_units == official_requested)
 
     # ------------------------------------------------------------
-    # 2) CONCILIACIÓN DEL AVANCE POR SKU · V41
+    # 2) AVANCE REAL POR SKU · REPORTE COMANDOS PICKING
     # ------------------------------------------------------------
-    # El total oficial del pedido es la fuente principal:
-    #     faltante oficial = ord_qty_total - cmp_qty_total
+    # Fuente:
+    # ReporteComandosShipunit2020.aspx
     #
-    # "Registro detalle WMS" no tiene una semántica única observada. Para cada SKU
-    # pueden existir dos interpretaciones plausibles:
-    #   A) registro = procesado   -> faltante = Cantidad NV - registro
-    #   B) registro = faltante    -> faltante = registro
-    #
-    # V41 busca una combinación por SKU que concilie EXACTAMENTE con el faltante
-    # global oficial. Esto evita casos como 173/178 (faltan 5) pero una fila
-    # mostrando Faltante oficial 0 y avance 29%.
+    # La cantidad del reporte se agrupa por SKU y se usa como avance SOLO
+    # cuando la suma total del reporte concilia exactamente con
+    # cmp_qty_total del monitor oficial. Si no concilia, no inventamos
+    # porcentajes por producto y mostramos "—".
+    report_result = _order_product_progress(order)
+    report_grouped = report_result.get("grouped") or []
 
-    product_view["Registro acotado"] = product_view.apply(
-        lambda r: min(
-            max(0, int(r["Registro detalle WMS"])),
-            max(0, int(r["Cantidad NV"]))
-        ),
-        axis=1,
+    report_qty_by_sku = {}
+    for item in report_grouped:
+        sku_key = str(item.get("Producto") or "").strip()
+        if not sku_key:
+            continue
+        try:
+            qty_value = int(float(item.get("Cantidad") or 0))
+        except Exception:
+            qty_value = 0
+        report_qty_by_sku[sku_key] = max(0, qty_value)
+
+    try:
+        report_total = int(float(report_result.get("total_quantity") or 0))
+    except Exception:
+        report_total = 0
+
+    report_ok = bool(report_result.get("ok"))
+    sku_reconciles = (
+        report_ok
+        and report_total == official_completed
     )
 
-    product_view["Faltante A"] = (
-        product_view["Cantidad NV"] - product_view["Registro acotado"]
-    ).clip(lower=0).astype(int)
-    product_view["Faltante B"] = product_view["Registro acotado"].astype(int)
+    product_view["Procesado SKU"] = product_view["SKU"].map(
+        lambda sku: report_qty_by_sku.get(str(sku).strip(), 0)
+    ).astype(int)
 
-    def _solve_exact_missing(df: pd.DataFrame, target: int):
-        """
-        DP: elige por fila Faltante A o Faltante B para que la suma sea target.
-        Retorna lista de faltantes por fila o None si no existe conciliación exacta.
-        """
-        target = max(0, int(target))
-        # sum -> choices
-        dp = {0: []}
-
-        for _, rr in df.iterrows():
-            a = max(0, int(rr["Faltante A"]))
-            b = max(0, int(rr["Faltante B"]))
-            new_dp = {}
-
-            for current_sum, choices in dp.items():
-                for value, mode in ((a, "A"), (b, "B")):
-                    new_sum = current_sum + value
-                    if new_sum > target:
-                        continue
-
-                    # Preferimos conservar la primera solución encontrada.
-                    if new_sum not in new_dp:
-                        new_dp[new_sum] = choices + [(value, mode)]
-
-            dp = new_dp
-            if not dp:
-                break
-
-        return dp.get(target)
-
-    exact_solution = _solve_exact_missing(product_view, official_pending)
-
-    if exact_solution is not None and len(exact_solution) == len(product_view):
-        product_view["Faltante oficial"] = [
-            int(value) for value, _ in exact_solution
-        ]
-        product_view["Modo detalle"] = [
-            "procesado" if mode == "A" else "faltante"
-            for _, mode in exact_solution
-        ]
-        detail_mode = "mixto_conciliado"
-        sku_reconciles = True
-        calculated_pending = int(product_view["Faltante oficial"].sum())
-    else:
-        # Fallback conservador: no inventamos un faltante por SKU.
-        # El faltante global oficial sigue visible arriba.
-        product_view["Faltante oficial"] = 0
-        product_view["Modo detalle"] = "no_determinado"
-        detail_mode = "no_determinado"
-        sku_reconciles = False
-        calculated_pending = 0
-
-    product_view["Procesado SKU"] = (
-        product_view["Cantidad NV"] - product_view["Faltante oficial"]
-    ).clip(lower=0).astype(int)
-
-    product_view["Avance %"] = product_view.apply(
-        lambda r: (
-            max(
-                0,
-                min(
-                    100,
-                    round(
-                        (int(r["Procesado SKU"]) / max(1, int(r["Cantidad NV"]))) * 100
-                    ),
-                ),
-            )
-            if int(r["Cantidad NV"]) > 0 else 0
+    # Nunca permitir que un valor de reporte supere lo solicitado visualmente.
+    product_view["Procesado SKU"] = product_view.apply(
+        lambda r: min(
+            max(0, int(r["Procesado SKU"])),
+            max(0, int(r["Cantidad NV"])),
         ),
         axis=1,
     )
 
     if sku_reconciles:
-        product_view["Estado"] = product_view["Faltante oficial"].apply(
-            lambda x: "Completado" if int(x) <= 0 else "Con faltante"
+        product_view["Faltante oficial"] = (
+            product_view["Cantidad NV"] - product_view["Procesado SKU"]
+        ).clip(lower=0).astype(int)
+
+        product_view["Avance %"] = product_view.apply(
+            lambda r: (
+                max(
+                    0,
+                    min(
+                        100,
+                        round(
+                            (int(r["Procesado SKU"]) / int(r["Cantidad NV"])) * 100
+                        ),
+                    ),
+                )
+                if int(r["Cantidad NV"]) > 0
+                else 0
+            ),
+            axis=1,
+        ).astype(int)
+    else:
+        product_view["Faltante oficial"] = pd.NA
+        product_view["Avance %"] = pd.NA
+
+    # ------------------------------------------------------------
+    # ESTADO OPERACIONAL REAL POR PRODUCTO
+    # ------------------------------------------------------------
+    def _normalize_product_wms_status(value: str) -> str:
+        raw_status = re.sub(r"\s+", " ", str(value or "").strip())
+
+        if not raw_status or raw_status.lower() in {"nan", "none", "—", "-"}:
+            return ""
+
+        upper = raw_status.upper()
+
+        if "QUIEBRE" in upper:
+            return "Quiebre"
+        if "REPOS" in upper:
+            return "Reposición"
+        if "PACKING" in upper or "PACK" in upper:
+            return "Packing"
+        if "PICKING" in upper or "PICK" in upper or "RECOG" in upper:
+            return "Picking"
+        if "FACTUR" in upper:
+            return "Facturar"
+        if "CHECK" in upper or "CONTROL" in upper:
+            return "Check"
+        if "PEND" in upper:
+            return "Pendiente"
+        if "PROCES" in upper or "PROC." in upper or "PROC " in upper:
+            return "En proceso"
+
+        return raw_status
+
+    def _normalize_order_stage_for_product(value: str) -> str:
+        stage_value = re.sub(r"\s+", " ", str(value or "").strip())
+        upper = stage_value.upper()
+
+        if "QUIEBRE" in upper:
+            return "Quiebre"
+        if "REPOS" in upper:
+            return "Reposición"
+        if "PACK" in upper:
+            return "Packing"
+        if "PICK" in upper or "RECOG" in upper:
+            return "Picking"
+        if "FACTUR" in upper or "LISTO" in upper:
+            return "Facturar"
+        if "CHECK" in upper or "CONTROL" in upper:
+            return "Check"
+
+        return stage_value or "Pendiente"
+
+    fallback_stage = _normalize_order_stage_for_product(stage)
+
+    def _trusted_line_stage(value: str) -> str:
+        normalized = _normalize_product_wms_status(value)
+        if normalized in {
+            "Picking",
+            "Packing",
+            "Check",
+            "Facturar",
+            "Quiebre",
+            "Reposición",
+        }:
+            return normalized
+        return ""
+
+    def _sku_status(r: pd.Series) -> str:
+        """
+        Determina el proceso visible por SKU sin propagar un Quiebre/Reposición
+        global a productos que ya están completamente procesados.
+
+        Reglas:
+        1. Si existe un estado operacional confiable a nivel línea, se respeta.
+        2. Si el avance por SKU está conciliado:
+           - SKU incompleto: conserva Quiebre/Reposición cuando corresponda.
+           - SKU completo y el pedido completo (0 pendientes): Facturar.
+           - SKU completo con pedido aún parcial: conserva la etapa general,
+             salvo Quiebre/Reposición, que no se hereda al SKU completo.
+        3. Si no existe conciliación por SKU, se mantiene la etapa general.
+        """
+        line_stage = _trusted_line_stage(r.get("Estado WMS", ""))
+        if line_stage:
+            return line_stage
+
+        if not sku_reconciles:
+            return fallback_stage
+
+        requested_sku = max(0, int(r.get("Cantidad NV", 0) or 0))
+        processed_sku = max(0, int(r.get("Procesado SKU", 0) or 0))
+
+        sku_complete = (
+            requested_sku > 0
+            and processed_sku >= requested_sku
+        )
+
+        order_complete = (
+            official_requested > 0
+            and official_completed >= official_requested
+            and official_pending == 0
+        )
+
+        # Un producto ya completo no debe verse como "Quiebre" solo porque
+        # el pedido arrastre una bandera general de revisión.
+        if sku_complete:
+            if order_complete:
+                return "Facturar"
+
+            if fallback_stage in {"Quiebre", "Reposición"}:
+                return "Picking"
+
+            return fallback_stage
+
+        # Solo los SKU realmente incompletos heredan Quiebre/Reposición.
+        if fallback_stage in {"Quiebre", "Reposición"}:
+            return fallback_stage
+
+        return fallback_stage
+
+    product_view["Estado"] = product_view.apply(_sku_status, axis=1)
+    product_view["Estado fuente"] = product_view["Estado WMS"].apply(
+        lambda x: "WMS línea" if _trusted_line_stage(x) else "Etapa pedido"
+    )
+
+    # Ya no intentamos reconciliar el faltante global asignándolo artificialmente
+    # a SKU individuales. Cada línea se calcula solamente con sus propias cantidades.
+    detail_mode = "reporte_comandos" if sku_reconciles else "estado_operacional"
+    calculated_pending = int(official_pending)
+
+    # V53 · resumen por SKU calculado directamente desde las cantidades.
+    if sku_reconciles:
+        missing_sku_count = int(
+            (pd.to_numeric(product_view["Faltante oficial"], errors="coerce").fillna(0) > 0).sum()
+        )
+        missing_units = int(
+            pd.to_numeric(product_view["Faltante oficial"], errors="coerce").fillna(0).sum()
         )
     else:
-        product_view["Estado"] = "En proceso"
-
-    # V43 · siempre definido antes de cualquier bloque visual.
-    # Solo contamos SKU con faltante cuando la conciliación por SKU es confiable.
-    missing_sku_count = (
-        int((product_view["Faltante oficial"] > 0).sum())
-        if sku_reconciles
-        else 0
-    )
-    missing_units = (
-        int(product_view.loc[
-            product_view["Faltante oficial"] > 0,
-            "Faltante oficial"
-        ].sum())
-        if sku_reconciles
-        else int(official_pending)
-    )
+        missing_sku_count = 0
+        missing_units = int(official_pending)
 
     # Paginación propia del detalle.
     detail_page_key = f"w42_product_page_{order}"
@@ -3682,14 +4224,13 @@ def _render_detail(row: pd.Series) -> None:
     detail_end = min(detail_start + detail_page_size, len(product_view))
     detail_page_df = product_view.iloc[detail_start:detail_end].copy()
 
-    widths = [0.85, 2.35, 1.05, .85, 1.15, .92, 1.35, 1.05, .42]
+    widths = [0.9, 3.0, 1.2, .9, 1.35, 1.55, .45]
 
     head_wrap = st.container(key=f"w35_products_header_{order}")
     with head_wrap:
         hcols = st.columns(widths, gap="small")
         headers = [
-            "SKU","Producto","Talla / Color","Cantidad NV","Registro detalle WMS",
-            "Faltante oficial","Avance SKU","Estado","Acc."
+            "SKU","Producto","Talla / Color","Cantidad","Proceso","Avance","Acc."
         ]
         for c, label in zip(hcols, headers):
             with c:
@@ -3702,12 +4243,33 @@ def _render_detail(row: pd.Series) -> None:
     if selected_sku_key not in st.session_state:
         st.session_state[selected_sku_key] = ""
 
+    # V54 · diagnóstico de stock actual solo para los SKU visibles.
+    # Esto evita consultar decenas de SKU innecesariamente al abrir el pedido.
+    stock_diagnostics = {}
+    stock_diagnosis_valid = sku_reconciles and detail_reconciles
+
+    for _, visible_row in detail_page_df.iterrows():
+        sku_visible = str(visible_row.get("SKU", "")).strip()
+        if not sku_visible:
+            continue
+        missing_visible_raw = visible_row.get("Faltante oficial")
+        if stock_diagnosis_valid and not pd.isna(missing_visible_raw):
+            stock_diagnostics[sku_visible] = _sku_operational_stock(
+                sku_visible, int(missing_visible_raw)
+            )
+
     for ridx, p in detail_page_df.reset_index(drop=True).iterrows():
         absolute_idx = detail_start + ridx
-        missing = int(p["Faltante oficial"])
-        progress = int(p["Avance %"])
-        state_text = str(p["Estado"])
-        is_pending = missing > 0
+        missing_raw = p["Faltante oficial"]
+        missing = None if pd.isna(missing_raw) else int(missing_raw)
+        progress_raw = p["Avance %"]
+        progress = None if pd.isna(progress_raw) else int(progress_raw)
+        sku_diag = stock_diagnostics.get(str(p["SKU"]).strip())
+        if sku_diag and sku_diag.get("ok"):
+            state_text = str(sku_diag.get("estado") or p["Estado"])
+        else:
+            state_text = str(p["Estado"])
+        is_pending = missing is not None and missing > 0
         is_progress = state_text == "En proceso"
 
         row_key = (
@@ -3725,48 +4287,69 @@ def _render_detail(row: pd.Series) -> None:
                 ("product", str(p["Producto"])),
                 ("", str(p["Talla / Color"])),
                 ("num", str(int(p["Cantidad NV"]))),
-                ("num", str(int(p["Registro detalle WMS"]))),
-                ("num missing" if is_pending else "num", str(missing)),
             ]
 
-            for ci, (klass, text) in enumerate(cells):
+            for ci, (klass, cell_text) in enumerate(cells):
                 with cols[ci]:
                     st.markdown(
-                        f'<div class="w35-cell {klass}" title="{escape(text)}">{escape(text)}</div>',
+                        f'<div class="w35-cell {klass}" title="{escape(cell_text)}">{escape(cell_text)}</div>',
                         unsafe_allow_html=True,
                     )
 
-            with cols[6]:
-                fill_class = "warn" if is_pending else "progress" if is_progress else ""
-                st.markdown(
-                    f"""
-<div class="w35-prog">
-    <div class="w35-track">
-        <div class="w35-fill {fill_class}" style="width:{progress}%"></div>
-    </div>
-    <b>{progress}%</b>
-</div>
-""",
-                    unsafe_allow_html=True,
-                )
+            # Proceso operacional.
+            with cols[4]:
+                normalized_state = str(state_text or "").strip()
+                state_lower = normalized_state.lower()
 
-            with cols[7]:
-                if is_pending:
-                    label = f"Faltan {missing}"
-                    state_class = "warn"
-                elif is_progress:
-                    label = "En proceso"
-                    state_class = "progress"
+                if "quiebre" in state_lower:
+                    label, state_class = "Quiebre", "warn"
+                elif "abaste" in state_lower or "traslado" in state_lower:
+                    label, state_class = "Abastecimiento CD", "picking"
+                elif "procesado" in state_lower or "completo" in state_lower:
+                    label, state_class = "Procesado", "invoice"
+                elif "repos" in state_lower:
+                    label, state_class = "Reposición", "repo"
+                elif "packing" in state_lower:
+                    label, state_class = "Packing", "packing"
+                elif "picking" in state_lower:
+                    label, state_class = "Picking", "picking"
+                elif "factur" in state_lower:
+                    label, state_class = "Facturar", "invoice"
+                elif "check" in state_lower or "control" in state_lower:
+                    label, state_class = "Check", "check"
+                elif normalized_state:
+                    label, state_class = normalized_state, "progress"
                 else:
-                    label = "Completado"
-                    state_class = "ok"
+                    label, state_class = "Pendiente", "progress"
 
                 st.markdown(
                     f'<span class="w35-state {state_class}"><i></i>{escape(label)}</span>',
                     unsafe_allow_html=True,
                 )
 
-            with cols[8]:
+            # Avance por SKU validado contra el total oficial del pedido.
+            with cols[5]:
+                if sku_reconciles and progress is not None:
+                    processed_sku = int(p["Procesado SKU"])
+                    requested_sku = int(p["Cantidad NV"])
+                    st.markdown(
+                        f"""
+<div class="w35-prog">
+    <div class="w35-track">
+        <div class="w35-fill progress" style="width:{int(progress)}%"></div>
+    </div>
+    <b>{processed_sku}/{requested_sku} · {int(progress)}%</b>
+</div>
+""",
+                        unsafe_allow_html=True,
+                    )
+                else:
+                    st.markdown(
+                        '<div class="w35-prog"><div class="w35-track"></div><b>—</b></div>',
+                        unsafe_allow_html=True,
+                    )
+
+            with cols[6]:
                 if st.button(
                     "⋮",
                     key=f"w35_sku_action_{order}_{absolute_idx}_{p['SKU']}",
@@ -3788,15 +4371,23 @@ def _render_detail(row: pd.Series) -> None:
         if sku_reconciles:
             if missing_sku_count:
                 st.caption(
-                    f"{missing_sku_count} producto(s) con faltante · "
-                    f"{missing_units} unidad(es) pendientes"
+                    f"Avance por SKU validado · {missing_sku_count} producto(s) pendientes · "
+                    f"{missing_units} unidad(es)"
                 )
             else:
-                st.caption("Todos los productos conciliados.")
+                st.caption(
+                    f"Avance por SKU validado con Reporte Comandos Picking · "
+                    f"{report_total}/{official_requested}"
+                )
         else:
+            report_note = (
+                f"reporte {report_total} vs. monitor {official_completed}"
+                if report_ok else
+                "reporte no disponible"
+            )
             st.caption(
-                f"El detalle por SKU no concilia exactamente con el avance global "
-                f"({official_completed}/{official_requested})."
+                f"Avance por SKU no mostrado: {report_note}. "
+                f"Se mantiene el avance oficial {official_completed}/{official_requested}."
             )
 
     with nav3:
@@ -3832,18 +4423,88 @@ def _render_detail(row: pd.Series) -> None:
     <strong>{escape(str(sp["SKU"]))} · {escape(str(sp["Producto"]))}</strong>
     <span>
         Cantidad NV: {int(sp["Cantidad NV"])} ·
-        Registro detalle WMS: {int(sp["Registro detalle WMS"])} ·
-        Faltante oficial: {int(sp["Faltante oficial"])} ·
-        Avance SKU: {int(sp["Avance %"])}%
+        Procesadas SKU: {int(sp["Procesado SKU"]) if sku_reconciles else "—"} ·
+        Faltante oficial: {("—" if pd.isna(sp["Faltante oficial"]) else str(int(sp["Faltante oficial"])))} ·
+        Avance SKU: {("—" if pd.isna(sp["Avance %"]) else str(int(sp["Avance %"])) + "%")}
     </span>
 </div>
 """
             )
 
+            selected_diag = stock_diagnostics.get(str(sp["SKU"]).strip())
+            if selected_diag and selected_diag.get("ok"):
+                estado_diag = str(selected_diag.get("estado") or "—")
+                accion = int(selected_diag.get("accion_qty") or 0)
+                deficit = int(selected_diag.get("deficit") or 0)
+                extra = ""
+                if estado_diag == "Reposición":
+                    extra = f" · Reponer: <b>{accion}</b> UN"
+                elif estado_diag == "Abastecimiento CD":
+                    extra = f" · Trasladar desde CD: <b>{accion}</b> UN"
+                elif estado_diag == "Quiebre":
+                    extra = f" · Déficit: <b>{deficit}</b> UN"
+
+                pick_diag = int(selected_diag.get("pick") or 0)
+                ra_diag = int(selected_diag.get("ra") or 0)
+                cd_diag = int(selected_diag.get("cd") or 0)
+
+                render_html(
+                    f"""
+<div class="w55-stock-grid">
+    <div class="w55-stock-card diag">
+        <div class="w55-stock-icon">✓</div>
+        <div class="w55-stock-body">
+            <div class="w55-stock-label">Diagnóstico de stock actual</div>
+            <div class="w55-stock-value">{escape(estado_diag)}</div>
+        </div>
+    </div>
+
+    <div class="w55-stock-card pick">
+        <div class="w55-stock-icon">▣</div>
+        <div class="w55-stock-body">
+            <div class="w55-stock-label">
+                PICK CM
+                <span class="w55-help" title="Stock disponible directamente en las ubicaciones de Picking de CASA MATRIZ. Si alcanza para cubrir el faltante del SKU, el producto puede continuar directamente a Picking.">?</span>
+            </div>
+            <div class="w55-stock-value">{pick_diag} unidades</div>
+        </div>
+    </div>
+
+    <div class="w55-stock-card ra">
+        <div class="w55-stock-icon">▤</div>
+        <div class="w55-stock-body">
+            <div class="w55-stock-label">
+                RA CM
+                <span class="w55-help" title="Stock de reserva disponible en CASA MATRIZ. Se usa para Reposición cuando PICK CM no alcanza; las unidades necesarias se trasladan desde reserva hacia Picking.">?</span>
+            </div>
+            <div class="w55-stock-value">{ra_diag} unidades</div>
+        </div>
+    </div>
+
+    <div class="w55-stock-card cd">
+        <div class="w55-stock-icon">▦</div>
+        <div class="w55-stock-body">
+            <div class="w55-stock-label">
+                CD Lo Boza
+                <span class="w55-help" title="Stock operacional disponible en CD LO BOZA. Se usa como alternativa de abastecimiento cuando PICK CM y RA CM no alcanzan para completar el faltante del SKU.">?</span>
+            </div>
+            <div class="w55-stock-value">{cd_diag} unidades</div>
+        </div>
+    </div>
+</div>
+"""
+                )
+
+                if extra:
+                    render_html(
+                        f'<div class="w55-stock-action">Acción sugerida:{extra}</div>'
+                    )
+
     # ------------------------------------------------------------
     # 7) STOCK ALTERNATIVO · BLOQUE ÚNICO
     # ------------------------------------------------------------
-    missing_products = product_view[product_view["Faltante oficial"] > 0].copy()
+    _missing_num = pd.to_numeric(product_view["Faltante oficial"], errors="coerce").fillna(0)
+    missing_products = product_view[_missing_num > 0].copy()
 
     render_html(
         f"""
@@ -3864,13 +4525,17 @@ def _render_detail(row: pd.Series) -> None:
     )
 
     stock_candidates = product_view[
-        ["SKU", "Producto", "Cantidad NV", "Registro detalle WMS", "Faltante oficial"]
+        ["SKU", "Producto", "Cantidad NV", "Cantidad detalle WMS", "Faltante oficial"]
     ].copy()
+
+    # No atribuimos el faltante global a un SKU específico si WMS no lo informa.
+    # El stock alternativo por SKU solo debe activarse cuando exista un faltante
+    # explícito de línea.
 
     # Si el detalle concilia, consultamos primero solo SKU con faltante.
     if sku_reconciles and missing_sku_count > 0:
         selectable = stock_candidates[
-            stock_candidates["Faltante oficial"] > 0
+            stock_candidates["Faltante oficial"].fillna(0) > 0
         ].copy()
     else:
         selectable = stock_candidates.copy()
@@ -3887,9 +4552,10 @@ def _render_detail(row: pd.Series) -> None:
         for _, r in selectable.iterrows():
             sku_val = str(r["SKU"]).strip()
             prod_val = str(r["Producto"]).strip()
-            falt = int(r["Faltante oficial"])
+            falt_raw = r["Faltante oficial"]
+            falt = None if pd.isna(falt_raw) else int(falt_raw)
             label = f"{sku_val} · {prod_val}"
-            if falt > 0:
+            if falt is not None and falt > 0:
                 label += f" · faltan {falt}"
             option_map[label] = r.to_dict()
             options.append(label)
@@ -3901,7 +4567,12 @@ def _render_detail(row: pd.Series) -> None:
         )
         selected = option_map[chosen]
         selected_sku = str(selected["SKU"]).strip()
-        selected_missing = int(selected["Faltante oficial"])
+        selected_missing_raw = selected["Faltante oficial"]
+        selected_missing = (
+            int(selected_missing_raw)
+            if not pd.isna(selected_missing_raw)
+            else int(official_pending)
+        )
 
         stock_btn_wrap = st.container(key=f"w38_stock_button_{order}_{selected_sku}")
         with stock_btn_wrap:
@@ -4019,7 +4690,7 @@ def _render_detail(row: pd.Series) -> None:
 
     export_view = product_view[
         ["SKU", "Producto", "Talla / Color", "Cantidad NV",
-         "Registro detalle WMS", "Faltante oficial", "Avance %", "Estado"]
+         "Cantidad detalle WMS", "Faltante oficial", "Avance %", "Estado"]
     ].copy()
 
     csv = export_view.to_csv(index=False).encode("utf-8-sig")
@@ -4072,13 +4743,13 @@ def _render_detail(row: pd.Series) -> None:
         )
 
         st.caption(
-            "El avance oficial del pedido se obtiene desde cmp_qty_total / ord_qty_total. "
+            "El avance general del pedido se obtiene exclusivamente desde cmp_qty_total / ord_qty_total. "
             "El detalle por SKU se usa solo como apoyo operativo y se concilia contra el total global."
         )
 
         technical_view = raw[
             ["ObOid", "ObType", "SKU", "Producto", "Talla", "Color",
-             "Ubicación", "Contenedor", "Línea WMS", "CantidadPedido", "Cantidad"]
+             "Ubicación", "Contenedor", "Línea WMS", "Estado WMS", "CantidadPedido", "Cantidad"]
         ].copy()
 
         st.dataframe(
@@ -4115,8 +4786,370 @@ def _render_detail(row: pd.Series) -> None:
 # RENDER
 # ============================================================
 
+
+# ============================================================
+# REDISEÑO FINAL · MONITOR PEDIDOS MARITEX
+# ============================================================
+
+def _apply_redesign_overrides() -> None:
+    st.markdown(
+        """
+<style>
+:root{
+    --mx-bg:#09131b;
+    --mx-bg2:#0b1620;
+    --mx-panel:#0f1a23;
+    --mx-panel2:#13212c;
+    --mx-line:#28404f;
+    --mx-line2:#314b5c;
+    --mx-text:#f6f8fa;
+    --mx-muted:#8da2b0;
+    --mx-yellow:#ffd000;
+    --mx-green:#24d88a;
+    --mx-red:#ef4452;
+    --mx-blue:#159fe8;
+    --mx-purple:#8a4fff;
+    --mx-soft:#d7e2ea;
+}
+
+/* APP */
+[data-testid="stAppViewContainer"],
+[data-testid="stAppViewContainer"]>.main,
+.main{
+    background:
+        radial-gradient(circle at 90% 0%,rgba(23,78,108,.16),transparent 28%),
+        linear-gradient(180deg,#0a141c 0%,#081119 100%) !important;
+    color:var(--mx-text) !important;
+}
+[data-testid="stHeader"]{
+    background:#081119 !important;
+    border-bottom:1px solid #203441 !important;
+}
+.block-container{
+    max-width:1720px !important;
+    padding:1.15rem 1.6rem 2.2rem !important;
+}
+
+/* HEADER */
+.w9-title,.v32-title,.w33-title,.w34-title,.w35-title{
+    color:#fff !important;
+    font-size:34px !important;
+    font-weight:900 !important;
+    letter-spacing:-.6px !important;
+}
+.w9-sub,.v32-sub,.w33-sub,.w34-sub,.w35-sub{
+    color:#9db0bd !important;
+}
+.w9-source,.v32-source{
+    background:#071018 !important;
+    border:1px solid #274151 !important;
+    border-radius:12px !important;
+    color:#7f95a4 !important;
+}
+
+/* KPI */
+.w9-kpis{
+    grid-template-columns:repeat(6,minmax(0,1fr)) !important;
+    gap:16px !important;
+    margin:18px 0 20px !important;
+}
+.w9-kpi{
+    min-height:116px !important;
+    padding:18px 20px !important;
+    border:1px solid #29404f !important;
+    border-radius:14px !important;
+    background:linear-gradient(145deg,#101c26,#0b151d) !important;
+    box-shadow:0 8px 24px rgba(0,0,0,.18) !important;
+}
+.w9-kpi:after{display:none !important;}
+.w9-kpi .kpi-top{
+    align-items:center !important;
+    gap:14px !important;
+}
+.w9-kpi .kpi-icon{
+    display:flex !important;
+    width:42px !important;
+    height:42px !important;
+    flex:0 0 42px !important;
+    border-radius:12px !important;
+    background:#162633 !important;
+    border:1px solid #2c4657 !important;
+    color:#dce7ed !important;
+}
+.w9-kpi.yellow .kpi-icon{background:#3a3100 !important;color:#ffd000 !important;border-color:#6a5900 !important;}
+.w9-kpi.blue .kpi-icon{background:#103553 !important;color:#3fb3ff !important;border-color:#1d577c !important;}
+.w9-kpi.green .kpi-icon{background:#103b28 !important;color:#42e497 !important;border-color:#1c6844 !important;}
+.w9-kpi.red .kpi-icon{background:#411a20 !important;color:#ff7280 !important;border-color:#6d2e37 !important;}
+.w9-kpi .kpi-number{
+    color:#fff !important;
+    font-size:31px !important;
+    font-weight:900 !important;
+}
+.w9-kpi .kpi-label{
+    color:#eef4f7 !important;
+    font-size:12px !important;
+    font-weight:850 !important;
+}
+.w9-kpi .kpi-label:before{display:none !important;}
+.w9-kpi small{
+    display:block !important;
+    color:#708795 !important;
+    font-size:8.5px !important;
+}
+.v32-bars{
+    display:flex !important;
+}
+.v32-bars i{
+    background:#263c4b !important;
+}
+.w9-kpi.yellow .v32-bars i:last-child{background:#ffd000 !important;}
+.w9-kpi.blue .v32-bars i:last-child{background:#159fe8 !important;}
+.w9-kpi.green .v32-bars i:last-child{background:#24d88a !important;}
+.w9-kpi.red .v32-bars i:last-child{background:#ef4452 !important;}
+
+/* ALERT */
+.w17-bottom-alerts,
+.w19-break-panel{
+    background:#181217 !important;
+    border-color:#76313a !important;
+}
+.w19-break-summary,
+.w17-incident b{
+    color:#ff6a76 !important;
+}
+
+/* FILTER AREA */
+[data-testid="stTextInput"] label,
+[data-testid="stSelectbox"] label{
+    color:#dfe8ed !important;
+    font-size:12px !important;
+    font-weight:850 !important;
+}
+[data-testid="stTextInput"] input,
+div[data-baseweb="select"]>div{
+    min-height:50px !important;
+    background:#101b24 !important;
+    border:1px solid #2b4556 !important;
+    border-radius:10px !important;
+    color:#fff !important;
+}
+[data-testid="stTextInput"] input::placeholder{
+    color:#78909f !important;
+}
+
+/* FILTER CHIPS */
+div[role="radiogroup"] label{
+    background:#0e1821 !important;
+    border:1px solid #2d4656 !important;
+    border-radius:10px !important;
+    padding:9px 14px !important;
+}
+div[role="radiogroup"] label:has(input:checked){
+    background:#ffd000 !important;
+    border-color:#ffd000 !important;
+    box-shadow:0 0 0 1px rgba(255,208,0,.15),0 8px 20px rgba(255,208,0,.10) !important;
+}
+div[role="radiogroup"] label:has(input:checked) p{
+    color:#111 !important;
+}
+div[role="radiogroup"] p{
+    color:#f0f4f6 !important;
+    font-size:10px !important;
+    font-weight:850 !important;
+}
+
+/* TABLE HEADER */
+div[class*="st-key-w18_table_header"],
+div[data-testid="stHorizontalBlock"]:has(.w17-col-head){
+    background:#12212c !important;
+    border:1px solid #294351 !important;
+    border-radius:12px 12px 0 0 !important;
+    padding:4px 12px !important;
+}
+.w17-col-head{
+    color:#dce7ed !important;
+    font-size:9px !important;
+    font-weight:900 !important;
+}
+
+/* TABLE ROWS */
+div[class*="st-key-w18_row_"]{
+    background:#0e1820 !important;
+    border-left:1px solid #243b49 !important;
+    border-right:1px solid #243b49 !important;
+    border-bottom:1px solid #223642 !important;
+    padding:0 12px !important;
+}
+div[class*="st-key-w18_row_"]:hover{
+    background:#13222d !important;
+}
+div[class*="st-key-w18_row_"] [data-testid="stHorizontalBlock"]{
+    min-height:58px !important;
+}
+.w17-cell{
+    color:#eef3f6 !important;
+    font-size:11px !important;
+}
+.w17-order{
+    color:#fff !important;
+    font-size:11px !important;
+    font-weight:900 !important;
+}
+.w17-progress b{
+    color:#e9f0f4 !important;
+}
+.w17-track{
+    background:#c9d7e0 !important;
+    height:8px !important;
+}
+.w17-fill{
+    background:#ffd000 !important;
+}
+
+/* STATUS PILLS */
+.w9-pill{
+    padding:7px 12px !important;
+    font-size:9px !important;
+    font-weight:900 !important;
+    color:#fff !important;
+    border-radius:9px !important;
+}
+.w9-pill.yellow{background:#ffd000 !important;border-color:#ffd000 !important;color:#111 !important;}
+.w9-pill.blue{background:#189cea !important;border-color:#189cea !important;}
+.w9-pill.green{background:#17a863 !important;border-color:#17a863 !important;}
+.w9-pill.red{background:#ef4452 !important;border-color:#ef4452 !important;}
+.w9-pill.gray{background:#223746 !important;border-color:#355064 !important;}
+.w9-pill.purple{background:#8748ee !important;border-color:#8748ee !important;}
+
+/* DETAIL BUTTONS */
+div[class*="st-key-w18_row_"] .stButton>button{
+    background:#0d1820 !important;
+    border:1px solid #3a5a6e !important;
+    color:#fff !important;
+    border-radius:10px !important;
+    min-height:42px !important;
+    height:42px !important;
+}
+div[class*="st-key-w18_row_"] .stButton>button:hover{
+    background:#ffd000 !important;
+    border-color:#ffd000 !important;
+    color:#111 !important;
+}
+
+/* DETAIL SHELL - DARK */
+.w24-shell,.w22-detail-shell,.w9-detail{
+    background:#0b151d !important;
+    border:1px solid #29404f !important;
+    border-radius:14px !important;
+    box-shadow:none !important;
+}
+.w24-head,.w22-titlebar,.w17-detail-titlebar{
+    background:#0b151d !important;
+    border-bottom:1px solid #243947 !important;
+    padding:18px 20px 14px !important;
+}
+.w24-order,.w22-order,.w17-detail-title{
+    color:#fff !important;
+    font-size:26px !important;
+    font-weight:900 !important;
+}
+.w24-client,.w22-client,.w17-client{
+    color:#9dafba !important;
+}
+.w24-summary-card,.w22-main-card,.w17-summary-card{
+    background:#101d26 !important;
+    border:1px solid #29404f !important;
+    border-radius:10px !important;
+}
+.w24-summary-card span,.w22-main-card span,.w17-summary-card span{
+    color:#7991a0 !important;
+}
+.w24-summary-card strong,.w22-main-card strong,.w17-summary-card strong{
+    color:#fff !important;
+}
+.w24-summary-card.danger,.w22-main-card.danger,.w17-summary-card.alert{
+    background:#2b1419 !important;
+    border-color:#74303a !important;
+}
+.w24-summary-card.danger strong,.w22-main-card.danger strong,.w17-summary-card.alert strong{
+    color:#ff7581 !important;
+}
+
+/* FLOW */
+.w24-flow-wrap,.w24-wms-block,.w22-flow,.w22-wms-grid,.w9-flow{
+    background:#0c171f !important;
+    border-color:#29404f !important;
+}
+.w24-flow-title,.w24-block-head strong,.w22-section-title strong,.w9-product-head strong{
+    color:#fff !important;
+}
+.w24-step,.w22-step,.w9-step{
+    background:#101b24 !important;
+}
+.w24-step b,.w22-step b,.w9-step b{
+    color:#eef4f7 !important;
+}
+.w24-step span,.w22-step span,.w9-step span{
+    color:#748a98 !important;
+}
+.w24-step.current,.w22-step.current,.w9-step.current{
+    background:#302800 !important;
+    border-color:#8d7300 !important;
+}
+.w24-step.done,.w22-step.done,.w9-step.done{
+    background:#0e3a28 !important;
+}
+
+/* PRODUCT TABLE */
+[data-testid="stDataFrame"]{
+    background:#0d171f !important;
+    border:1px solid #29404f !important;
+    border-radius:10px !important;
+}
+
+/* GENERIC BUTTONS */
+.main .stButton>button,
+.main .stDownloadButton>button,
+.main a[data-testid="stLinkButton"]{
+    background:#0d1820 !important;
+    color:#fff !important;
+    border:1px solid #345064 !important;
+    border-radius:10px !important;
+}
+.main .stButton>button[kind="primary"]{
+    background:#ffd000 !important;
+    border-color:#ffd000 !important;
+    color:#111 !important;
+}
+
+/* RESPONSIVE */
+@media(max-width:1200px){
+    .w9-kpis{grid-template-columns:repeat(3,minmax(0,1fr)) !important;}
+}
+@media(max-width:760px){
+    .w9-kpis{grid-template-columns:repeat(2,minmax(0,1fr)) !important;}
+}
+</style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+@st.cache_data(ttl=45, show_spinner=False)
+def _wms_web_order_cached(order_id: str) -> dict:
+    if search_order is None:
+        return {}
+    try:
+        result = search_order(str(order_id), debug=False)
+        return result or {}
+    except Exception:
+        return {}
+
+
+@st.fragment(run_every="30s")
 def render(ctx: dict | None = None) -> None:
     _apply_styles()
+    _apply_redesign_overrides()
 
     page_header(
         title="MONITOR DE PEDIDOS WMS",
@@ -4134,6 +5167,10 @@ def render(ctx: dict | None = None) -> None:
             if st.button("Actualizar", icon=":material/refresh:", use_container_width=True):
                 _load_live.clear()
                 _order_lines.clear()
+                _order_product_progress.clear()
+                _sku_operational_stock.clear()
+                _order_real_break_status.clear()
+                _alternative_stock.clear()
                 st.rerun()
 
     with st.spinner("Consultando WMS..."):
@@ -4148,6 +5185,12 @@ def render(ctx: dict | None = None) -> None:
     detail_payload = result.get("detail") or {}
     df = _prepare(detail_payload)
 
+    if not df.empty:
+        # V58 · La señal [Q] del WMS es antecedente; el filtro/contador de
+        # quiebre se basa en stock real reconciliado por SKU.
+        with st.spinner("Validando quiebres reales contra stock operacional..."):
+            df = _attach_real_breaks(df)
+
     if df.empty:
         st.warning("El WMS respondió, pero no entregó pedidos.")
         return
@@ -4157,8 +5200,8 @@ def render(ctx: dict | None = None) -> None:
             f"""
 <div class="v32-source">
     Fuente: <b>{escape(str(result.get("source") or "ScoresHub"))}</b>
-    · actualización local {datetime.now().strftime("%d-%m-%Y %H:%M:%S")}
-    · caché 5 s
+    · última actualización {datetime.now().strftime("%d-%m-%Y %H:%M:%S")}
+    · autoactualización cada 30 s
 </div>
 """
         )
@@ -4184,8 +5227,8 @@ def render(ctx: dict | None = None) -> None:
 
     with f3:
         incidence = st.selectbox(
-            "Incidencia",
-            ["Todas", "Con quiebre", "Sin incidencia"],
+            "Quiebre real",
+            ["Todos", "Con quiebre real", "Sin quiebre real"],
             key="w9_incidence",
         )
 
@@ -4217,7 +5260,7 @@ def render(ctx: dict | None = None) -> None:
             f"Picking ({picking})",
             f"Packing ({packing})",
             f"Listos para facturar ({ready})",
-            f"Con quiebre ({breaks})",
+            f"Quiebre real ({breaks})",
         ],
         horizontal=True,
         label_visibility="collapsed",
@@ -4233,9 +5276,9 @@ def render(ctx: dict | None = None) -> None:
     if stage_filter != "Todas":
         filtered = filtered[filtered["_stage"] == stage_filter]
 
-    if incidence == "Con quiebre":
+    if incidence == "Con quiebre real":
         filtered = filtered[filtered["_quiebre"]]
-    elif incidence == "Sin incidencia":
+    elif incidence == "Sin quiebre real":
         filtered = filtered[~filtered["_quiebre"]]
 
     if channel != "Todos":
@@ -4252,7 +5295,7 @@ def render(ctx: dict | None = None) -> None:
         filtered = filtered[filtered["_stage"] == "Packing"]
     elif segment.startswith("Listos"):
         filtered = filtered[filtered["_ready_invoice"]]
-    elif segment.startswith("Con quiebre"):
+    elif segment.startswith("Quiebre real"):
         filtered = filtered[filtered["_quiebre"]]
 
     filtered = filtered.reset_index(drop=True)

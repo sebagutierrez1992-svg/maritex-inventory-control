@@ -25,20 +25,8 @@ from services.auth_service import get_effective_permissions
 from ui.components import render_html
 from ui.styles import apply_styles
 
-from views import (
-    crm,
-    login,
-    integracion_erp,
-    marketplaces,
-    metricas_stock,
-    metricas_vendedores,
-    plantillas,
-    resumen_ejecutivo,
-    stock_general,
-    inicio,
-    monitor_pedidos,
-    usuarios,
-)
+# La vista de login es la única vista cargada antes de autenticar.
+from views import login
 
 
 # ============================================================
@@ -64,6 +52,25 @@ apply_styles(
 if not st.session_state.get("authenticated", False):
     login.render()
     st.stop()
+
+# ============================================================
+# VISTAS PRIVADAS
+# ============================================================
+# Ninguna vista operacional/CRM/WMS se importa antes de superar
+# correctamente el corte de autenticación anterior.
+from views import (
+    crm,
+    integracion_erp,
+    marketplaces,
+    metricas_stock,
+    metricas_vendedores,
+    plantillas,
+    resumen_ejecutivo,
+    stock_general,
+    inicio,
+    monitor_pedidos,
+    usuarios,
+)
 
 AUTH_USER = st.session_state.get("auth_user") or {}
 AUTH_NAME = escape(str(AUTH_USER.get("full_name") or AUTH_USER.get("username") or "Usuario"))

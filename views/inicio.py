@@ -259,6 +259,7 @@ def _stock_metrics(ctx) -> dict:
 # VENTAS
 # ============================================================
 
+@st.cache_data(ttl=300, max_entries=2, show_spinner=False)
 def _prepare_sales(sales_df: pd.DataFrame) -> pd.DataFrame:
     """Usa la base comercial oficial compartida."""
     work = prepare_commercial_base(
@@ -724,6 +725,7 @@ def _sales_by_branch(work: pd.DataFrame) -> pd.DataFrame:
 
 
 
+@st.cache_data(ttl=300, max_entries=4, show_spinner=False)
 def _inactive_client_count(
     work: pd.DataFrame,
     days: int = 90,
@@ -769,7 +771,14 @@ def _inactive_client_count(
 # CRM ALERTAS
 # ============================================================
 
+@st.cache_data(ttl=120, max_entries=1, show_spinner=False)
 def _crm_alerts() -> dict:
+    """
+    Resume alertas CRM evitando consultar Supabase en cada rerun.
+
+    El caché dura 2 minutos: suficiente para mantener el Inicio ágil sin
+    perder una actualización razonablemente fresca del pipeline comercial.
+    """
     result = {
         "open_opportunities": 0,
         "pending_followups": 0,
@@ -782,49 +791,31 @@ def _crm_alerts() -> dict:
                 status="Abierta",
                 limit=500,
             )
-            result[
-                "open_opportunities"
-            ] = len(rows or [])
+            result["open_opportunities"] = len(rows or [])
 
         if list_followups:
             rows = list_followups(
                 pending_only=True,
                 limit=500,
-            )
+            ) or []
 
-            rows = rows or []
+            result["pending_followups"] = len(rows)
 
-            result[
-                "pending_followups"
-            ] = len(rows)
-
-            today = (
-                pd.Timestamp.today()
-                .normalize()
-            )
-
-            overdue = 0
-
-            for row in rows:
-                dt = pd.to_datetime(
-                    row.get(
-                        "next_followup_date"
+            if rows:
+                followup_dates = pd.to_datetime(
+                    pd.Series(
+                        [row.get("next_followup_date") for row in rows]
                     ),
                     errors="coerce",
+                ).dt.normalize()
+
+                today = pd.Timestamp.today().normalize()
+                result["overdue_followups"] = int(
+                    followup_dates.lt(today).fillna(False).sum()
                 )
 
-                if (
-                    not pd.isna(dt)
-                    and dt.normalize()
-                    < today
-                ):
-                    overdue += 1
-
-            result[
-                "overdue_followups"
-            ] = overdue
-
     except Exception:
+        # Mantiene Inicio disponible aunque CRM tenga una caída transitoria.
         pass
 
     return result
