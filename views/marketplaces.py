@@ -1,6 +1,7 @@
 
 
 from io import BytesIO
+import json
 import re
 import zipfile
 import xml.etree.ElementTree as ET
@@ -750,20 +751,18 @@ def _build_meli_workbook(
     stock_items: tuple,
 ):
     """
-    Mercado Libre - conserva el formato oficial:
-        - Lee SKU y QUANTITY desde la hoja Publicaciones.
-        - Cruza SKU contra Disponible de Casa Matriz.
-        - Modifica SOLO las celdas QUANTITY dentro del XLSX original.
-        - Conserva todas las hojas, columnas, estilos, validaciones y metadatos.
+    Mercado Libre - conserva el XLSX oficial y modifica SOLO QUANTITY.
 
-    Importante: NO se guarda el libro con openpyxl. El XLSX se copia como ZIP
-    y se parchean únicamente las celdas de QUANTITY en el XML de Publicaciones.
+    Reglas:
+      1. Una fila con VARIATION_ID es una variación:
+         QUANTITY = Disponible Casa Matriz del SKU de esa variación.
+      2. Una fila padre sin VARIATION_ID conserva la jerarquía de Mercado Libre:
+         QUANTITY = suma de los QUANTITY actualizados de sus variaciones.
+      3. El archivo se copia como ZIP y únicamente se parchean celdas QUANTITY
+         dentro del XML de la hoja Publicaciones.
     """
     stock_lookup = dict(stock_items)
 
-    # --------------------------------------------------------
-    # 1) Leer estructura/filas de forma secuencial
-    # --------------------------------------------------------
     source_wb = load_workbook(
         BytesIO(template_bytes),
         data_only=False,
@@ -777,21 +776,17 @@ def _build_meli_workbook(
         )
 
     ws = source_wb["Publicaciones"]
-    rows = ws.iter_rows(values_only=True)
+    all_rows = list(ws.iter_rows(values_only=True))
 
     header_row = None
     header_values = None
 
-    for row_number, values in enumerate(rows, start=1):
-        if row_number > 12:
-            break
-
+    for row_number, values in enumerate(all_rows[:12], start=1):
         normalized = [
             re.sub(r"[^A-Z0-9]", "", str(v).strip().upper())
             if v is not None else ""
             for v in values
         ]
-
         if "SKU" in normalized and "QUANTITY" in normalized:
             header_row = row_number
             header_values = normalized
@@ -806,6 +801,23 @@ def _build_meli_workbook(
 
     sku_idx = header_values.index("SKU")
     quantity_idx = header_values.index("QUANTITY")
+    variation_idx = (
+        header_values.index("VARIATIONID")
+        if "VARIATIONID" in header_values
+        else None
+    )
+    item_idx = (
+        header_values.index("ITEMID")
+        if "ITEMID" in header_values
+        else None
+    )
+
+    if variation_idx is None:
+        source_wb.close()
+        raise ValueError(
+            "La plantilla Mercado Libre no contiene VARIATION_ID; "
+            "no es posible distinguir publicación padre y variaciones."
+        )
 
     def _excel_col_letter(index_zero_based: int) -> str:
         n = index_zero_based + 1
@@ -817,29 +829,48 @@ def _build_meli_workbook(
 
     quantity_col_letter = _excel_col_letter(quantity_idx)
 
-    preview_rows = []
-    replacements = {}
-    matched_rows = 0
-    unmatched_rows = 0
-    publishable_units = 0
-    matched_skus = set()
-    unmatched_skus = set()
-
-    for row_number, values in enumerate(rows, start=header_row + 1):
-        if not values or sku_idx >= len(values):
-            continue
-
-        raw_sku = values[sku_idx]
-        if raw_sku is None:
+    # Registros reales desde la fila posterior al encabezado.
+    records = []
+    for row_number in range(header_row + 1, len(all_rows) + 1):
+        values = all_rows[row_number - 1]
+        raw_sku = values[sku_idx] if sku_idx < len(values) else None
+        if raw_sku is None or not str(raw_sku).strip():
             continue
 
         sku_text = str(raw_sku).strip()
-        if not sku_text:
-            continue
-
         sku_key = _normalize_sku(raw_sku)
         if not sku_key:
             continue
+
+        # Algunas plantillas oficiales repiten una fila de encabezados/ayuda
+        # dentro del rango de datos. No debe tratarse como un SKU real.
+        structural_skus = {
+            "SKU",
+            "PRODUCTNUMBER",
+            "VARIATIONID",
+            "ITEMID",
+            "FAMILYID",
+            "QUANTITY",
+        }
+        if sku_key in structural_skus:
+            continue
+
+        variation_value = (
+            values[variation_idx]
+            if variation_idx < len(values)
+            else None
+        )
+        has_variation = (
+            variation_value is not None
+            and str(variation_value).strip() not in ("", "-", "NAN", "NONE")
+        )
+
+        item_value = (
+            values[item_idx]
+            if item_idx is not None and item_idx < len(values)
+            else None
+        )
+        item_key = str(item_value).strip() if item_value is not None else ""
 
         current_stock = (
             values[quantity_idx]
@@ -847,11 +878,55 @@ def _build_meli_workbook(
             else 0
         )
 
+        records.append({
+            "row": row_number,
+            "values": values,
+            "sku_text": sku_text,
+            "sku_key": sku_key,
+            "item_key": item_key,
+            "has_variation": has_variation,
+            "current_stock": current_stock,
+        })
+
+    replacements = {}
+    preview_rows = []
+    matched_rows = 0
+    unmatched_rows = 0
+    publishable_units = 0
+    matched_skus = set()
+    unmatched_skus = set()
+
+    # --------------------------------------------------------
+    # 1) Variaciones: stock por SKU desde Casa Matriz
+    # --------------------------------------------------------
+    variation_totals_by_item = {}
+
+    for rec in records:
+        if not rec["has_variation"]:
+            continue
+
+        sku_key = rec["sku_key"]
         found = sku_key in stock_lookup
-        new_stock = max(int(stock_lookup.get(sku_key, 0)), 0)
+
+        # Seguridad: si el SKU no existe en Casa Matriz, NO lo llevamos a cero.
+        # Conservamos exactamente el QUANTITY que traía la plantilla oficial.
+        if found:
+            new_stock = max(int(stock_lookup[sku_key]), 0)
+        else:
+            new_stock = max(_safe_int(rec["current_stock"]), 0)
+
+        replacements[
+            f"{quantity_col_letter}{rec['row']}"
+        ] = new_stock
+
+        if rec["item_key"]:
+            variation_totals_by_item[rec["item_key"]] = (
+                variation_totals_by_item.get(rec["item_key"], 0)
+                + new_stock
+            )
 
         change, delta = _change_status(
-            current_stock,
+            rec["current_stock"],
             new_stock,
             found,
         )
@@ -864,23 +939,67 @@ def _build_meli_workbook(
             unmatched_skus.add(sku_key)
 
         publishable_units += new_stock
-        replacements[f"{quantity_col_letter}{row_number}"] = new_stock
 
         preview_rows.append({
-            "SKU": sku_text,
-            "Stock actual": _safe_int(current_stock),
+            "Tipo": "Variación",
+            "SKU": rec["sku_text"],
+            "Stock actual": _safe_int(rec["current_stock"]),
             "Nuevo stock": new_stock,
             "Diferencia": delta,
             "Cambio": change,
             "Coincidencia Stock CM": (
                 "Encontrado" if found else "Sin coincidencia"
             ),
+            "Validación maestro CM": (
+                "Existe en maestro"
+                if found
+                else "No existe en maestro Casa Matriz"
+            ),
+        })
+
+    # --------------------------------------------------------
+    # 2) Padres: suma de las variaciones del mismo ITEM_ID
+    # --------------------------------------------------------
+    for rec in records:
+        if rec["has_variation"]:
+            continue
+
+        # Solo tratamos como padre una fila que realmente tenga ITEM_ID
+        # y al menos una variación asociada a ese mismo ITEM_ID.
+        if (
+            not rec["item_key"]
+            or rec["item_key"] not in variation_totals_by_item
+        ):
+            continue
+
+        new_stock = int(
+            variation_totals_by_item[rec["item_key"]]
+        )
+
+        replacements[
+            f"{quantity_col_letter}{rec['row']}"
+        ] = new_stock
+
+        change, delta = _change_status(
+            rec["current_stock"],
+            new_stock,
+            True,
+        )
+
+        preview_rows.append({
+            "Tipo": "Publicación padre",
+            "SKU": rec["sku_text"],
+            "Stock actual": _safe_int(rec["current_stock"]),
+            "Nuevo stock": new_stock,
+            "Diferencia": delta,
+            "Cambio": change,
+            "Coincidencia Stock CM": "Suma de variaciones",
         })
 
     source_wb.close()
 
     # --------------------------------------------------------
-    # 2) Localizar el XML exacto de la hoja Publicaciones
+    # 3) Localizar XML exacto de Publicaciones
     # --------------------------------------------------------
     with zipfile.ZipFile(BytesIO(template_bytes), "r") as zin:
         workbook_xml = ET.fromstring(zin.read("xl/workbook.xml"))
@@ -926,18 +1045,16 @@ def _build_meli_workbook(
             sheet_path = "xl/" + target.lstrip("./")
 
         sheet_bytes = zin.read(sheet_path)
-
-        # ----------------------------------------------------
-        # 3) Parche raw-byte: SOLO las celdas QUANTITY
-        # ----------------------------------------------------
         patched = sheet_bytes
         changed_cells = 0
 
+        # ----------------------------------------------------
+        # 4) Parchear SOLO QUANTITY
+        # ----------------------------------------------------
         for ref, new_stock in replacements.items():
             ref_b = ref.encode("ascii")
             value_b = str(int(new_stock)).encode("ascii")
 
-            # Celda normal: <c ... r="H6" ...>...</c>
             pattern = re.compile(
                 rb'<c(?P<attrs>[^>]*\br="' + re.escape(ref_b) + rb'"[^>]*)>'
                 rb'(?P<body>.*?)</c>',
@@ -947,8 +1064,6 @@ def _build_meli_workbook(
             match = pattern.search(patched)
             if match:
                 attrs = match.group("attrs")
-                # QUANTITY puede venir como shared string (t="s").
-                # Al escribir un número removemos SOLO ese atributo.
                 attrs_clean = re.sub(
                     rb'\s+t="[^"]*"',
                     b'',
@@ -966,7 +1081,6 @@ def _build_meli_workbook(
                 changed_cells += 1
                 continue
 
-            # Caso excepcional de celda autocerrada: <c ... r="H6" .../>
             pattern_empty = re.compile(
                 rb'<c(?P<attrs>[^>]*\br="' + re.escape(ref_b) + rb'"[^>]*)/>',
                 re.DOTALL,
@@ -992,16 +1106,18 @@ def _build_meli_workbook(
 
         if changed_cells == 0 and replacements:
             raise ValueError(
-                "No fue posible actualizar las celdas QUANTITY del archivo Mercado Libre."
+                "No fue posible actualizar las celdas QUANTITY "
+                "del archivo Mercado Libre."
             )
 
-        # ----------------------------------------------------
-        # 4) Copiar el XLSX completo; sustituir SOLO sheet XML
-        # ----------------------------------------------------
         output = BytesIO()
         with zipfile.ZipFile(output, "w") as zout:
             for info in zin.infolist():
-                data = patched if info.filename == sheet_path else zin.read(info.filename)
+                data = (
+                    patched
+                    if info.filename == sheet_path
+                    else zin.read(info.filename)
+                )
                 zout.writestr(info, data)
 
     output.seek(0)
@@ -1149,6 +1265,20 @@ def _render_marketplace_panel(
         )
         return
 
+    # Plantillas guarda un sidecar .meta.json con el nombre original cargado.
+    # Si no existe, se usa el nombre técnico del archivo como respaldo.
+    original_filename = path.name
+    meta_path = path.with_suffix(path.suffix + ".meta.json")
+    if meta_path.exists():
+        try:
+            template_meta = json.loads(meta_path.read_text(encoding="utf-8"))
+            original_filename = (
+                str(template_meta.get("original_name") or "").strip()
+                or path.name
+            )
+        except Exception:
+            original_filename = path.name
+
     # --------------------------------------------------------
     # PROCESAR PLANTILLA
     # --------------------------------------------------------
@@ -1170,7 +1300,7 @@ def _render_marketplace_panel(
                 template_bytes,
                 stock_items,
             )
-            download_name = path.name
+            download_name = original_filename
             button_label = "Descargar Mercado Libre actualizado"
     except Exception as exc:
         st.error(f"No fue posible procesar la plantilla: {exc}")
@@ -1235,7 +1365,7 @@ def _render_marketplace_panel(
                 <div class="mkx-kpi-badge warn">{unmatched_pct:.1f}%</div>
                 <div class="mkx-kpi-label">Sin coincidencia</div>
                 <div class="mkx-kpi-value">{_fmt_int(stats['unmatched_rows'])}</div>
-                <div class="mkx-kpi-help">se exportarán con stock 0</div>
+                <div class="mkx-kpi-help">conservan el stock original</div>
             </div>
             <div class="mkx-kpi blue">
                 <div class="mkx-kpi-label">Stock a publicar</div>
@@ -1321,6 +1451,48 @@ def _render_marketplace_panel(
         column_config=column_config,
     )
 
+    # Auditoría automática Mercado Libre vs maestro Casa Matriz.
+    if name == "Mercado Libre" and stats["unmatched_rows"] > 0:
+        audit = preview[
+            preview["Coincidencia Stock CM"].eq("Sin coincidencia")
+        ].copy()
+
+        audit = audit[
+            audit["Tipo"].eq("Variación")
+        ].copy()
+
+        if not audit.empty:
+            st.markdown("#### Validación automática de SKU sin coincidencia")
+            st.caption(
+                "Estos SKU fueron buscados contra el mismo maestro de Casa Matriz "
+                "utilizado para calcular el stock publicable."
+            )
+            st.dataframe(
+                audit[
+                    [
+                        "SKU",
+                        "Stock actual",
+                        "Nuevo stock",
+                        "Validación maestro CM",
+                    ]
+                ],
+                hide_index=True,
+                use_container_width=True,
+                height=min(430, 38 * (len(audit) + 1)),
+                column_config={
+                    "SKU": st.column_config.TextColumn("SKU"),
+                    "Stock actual": st.column_config.NumberColumn(
+                        "QUANTITY ORIGINAL", format="%d"
+                    ),
+                    "Nuevo stock": st.column_config.NumberColumn(
+                        "QUANTITY EXPORTADO", format="%d"
+                    ),
+                    "Validación maestro CM": st.column_config.TextColumn(
+                        "RESULTADO", width="large"
+                    ),
+                },
+            )
+
     # --------------------------------------------------------
     # ALERTA + DESCARGA
     # --------------------------------------------------------
@@ -1329,7 +1501,7 @@ def _render_marketplace_panel(
         st.warning(
             f"{_fmt_int(stats['unmatched_rows'])} fila(s) no tienen coincidencia "
             "con Casa Matriz. "
-            f"Se exportarán con {target_field} = 0."
+            f"Se conservará el {target_field} original de esas filas."
         )
 
     render_html(
@@ -1339,7 +1511,7 @@ def _render_marketplace_panel(
                 <strong>Archivo listo para descargar</strong>
                 <span>Se generará un Excel manteniendo la plantilla oficial y actualizando solo el stock.</span>
             </div>
-            <div class="mkx-pill">{path.name}</div>
+            <div class="mkx-pill">{original_filename}</div>
         </div>
         """
     )
@@ -1421,4 +1593,3 @@ def render(ctx):
             house=house,
             loaded_at=loaded_at,
         )
-

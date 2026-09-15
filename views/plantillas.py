@@ -109,10 +109,24 @@ def _validate_template(
                 row,
             )
 
+            # La plantilla oficial actual de Mercado Libre (2026)
+            # ya no incluye necesariamente columnas históricas como
+            # SHIPPING_METHOD, LISTING_TYPE o FEE_PER_SALE.
+            #
+            # Validamos únicamente los campos estructurales necesarios
+            # para reconocer Publicaciones y, especialmente, SKU/QUANTITY.
+            # Mercado Libre modifica periódicamente las columnas
+            # complementarias de su archivo Publicaciones. Por ejemplo,
+            # CONDITION y STATUS pueden existir en una exportación y no
+            # aparecer en otra.
+            #
+            # Para reconocer de forma segura la plantilla oficial,
+            # exigimos solamente la estructura estable necesaria para
+            # nuestro proceso de stock. Marketplace modifica únicamente
+            # QUANTITY y utiliza SKU / VARIATION_ID / ITEM_ID para
+            # mantener la jerarquía padre-variaciones.
             required = {
-                "familyid",
                 "itemid",
-                "productnumber",
                 "variationid",
                 "sku",
                 "title",
@@ -120,11 +134,6 @@ def _validate_template(
                 "quantity",
                 "price",
                 "currencyid",
-                "condition",
-                "shippingmethod",
-                "listingtype",
-                "feepersale",
-                "status",
             }
 
             if required.issubset(headers):
